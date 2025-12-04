@@ -1,6 +1,15 @@
 import sys
 import os
 
+# --- パス解決用のおまじない（これを追加！） ---
+# 現在のファイル (app_hybrid.py) の場所から、2つ上の階層 (jigyokei-app/) をシステムパスに追加する
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+# ---------------------------------------------
+
+# 以下、既存のコード...
+import sys
+import os
+
 # プロジェクトのルートディレクトリ（srcの親ディレクトリ）をモジュール検索パスに追加
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
