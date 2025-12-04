@@ -1,3 +1,13 @@
+import sys
+import os
+
+# プロジェクトのルートディレクトリ（srcの親ディレクトリ）をモジュール検索パスに追加
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+# --- ここから下が既存のコード ---
+import json
+import time
+# ... (以下略)
 import streamlit as st
 import os
 import json
