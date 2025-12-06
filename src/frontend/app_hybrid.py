@@ -23,6 +23,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- Version Control for Session State ---
+APP_VERSION = "2.5.0"  # Update this to force session reset
+
+if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
+    st.session_state.clear()
+    st.session_state.app_version = APP_VERSION
+    st.rerun()
+
 # --- Initialize Managers (Singleton-like) ---
 if "chat_manager" not in st.session_state:
     st.session_state.chat_manager = ChatManager()
