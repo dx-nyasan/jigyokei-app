@@ -1,16 +1,4 @@
 import sys
-import os
-import streamlit as st
-import json
-import time
-
-# --- パス解決 ---
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-from src.core.jigyokei_core import AIInterviewer
-from src.data.context_loader import ContextLoader
-
-# --- Page Config ---
 st.set_page_config(
     page_title="Jigyokei Hybrid System",
     page_icon="👑",
@@ -20,7 +8,7 @@ st.set_page_config(
 
 # --- Version Control ---
 # --- Version Control ---
-APP_VERSION = "3.0.3-fix-loop"
+APP_VERSION = "3.0.4-force-reload-module"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()

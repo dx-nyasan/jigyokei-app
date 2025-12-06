@@ -7,6 +7,7 @@ class AIInterviewer:
     """
     Gemini 2.5 Flash を使用したチャット管理クラス。
     履歴の保持とシステムプロンプトの適用を行う。
+    (Updated for Phase 3: Analysis Features)
     """
     def __init__(self):
         self.history = []
