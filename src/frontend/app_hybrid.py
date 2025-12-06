@@ -85,6 +85,22 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Failed to load: {e}")
 
+    # --- Debug Info ---
+    import google.generativeai as genai
+    import importlib.metadata
+    
+    st.divider()
+    st.caption(f"GenAI SDK Version: {importlib.metadata.version('google-generativeai')}")
+    
+    try:
+        # Check available models
+        st.write("Available Models:")
+        for m in genai.list_models():
+            if "gemini" in m.name:
+                st.code(m.name)
+    except Exception as e:
+        st.error(f"List Models Error: {e}")
+
 # --- Main Area ---
 
 if mode == "Chat Mode (Pre-Interview)":
