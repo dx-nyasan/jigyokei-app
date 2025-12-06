@@ -61,9 +61,7 @@ class ChatManager:
             self.history.append({"role": "model", "content": text_response})
             return text_response
             
-            text_response = response.text
-            self.history.append({"role": "model", "content": text_response})
-            return text_response
+
             
         except Exception as e:
             error_msg = f"申し訳ありません、エラーが発生しました: {str(e)}"
