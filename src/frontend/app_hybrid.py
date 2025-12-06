@@ -20,7 +20,7 @@ st.set_page_config(
 
 # --- Version Control ---
 # --- Version Control ---
-APP_VERSION = "3.0.2-debug-display"
+APP_VERSION = "3.0.3-fix-loop"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -100,22 +100,30 @@ with st.sidebar:
         )
 
     if uploaded_file:
-        try:
-            uploaded_file.seek(0)
-            data = json.load(uploaded_file)
-            history = data.get("history", [])
-            st.session_state.ai_interviewer.load_history(history)
-            st.success(f"Session Loaded! ({len(history)} messages)")
-            time.sleep(1)
-            st.rerun()
-        except Exception as e:
-            st.error(f"Failed to load: {e}")
+        # Prevent infinite rerun loop by checking file ID
+        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+        
+        if st.session_state.get("last_loaded_file_id") != file_id:
+            try:
+                uploaded_file.seek(0)
+                data = json.load(uploaded_file)
+                history = data.get("history", [])
+                st.session_state.ai_interviewer.load_history(history)
+                
+                # Save state to prevent reload
+                st.session_state.last_loaded_file_id = file_id
+                
+                st.success(f"Session Loaded! ({len(history)} messages)")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to load: {e}")
 
 # --- Main Area ---
 
 if mode == "Chat Mode (Interview)":
-    st.title("🚧 DEBUG MODE 🚧: AI Interviewer") # タイトル変更
-    st.error("もしこの赤いバーが見えていたら、コードは最新です！キャッシュクリア成功です！") # 目立つマーカー
+    st.title("🤖 AI Interviewer (Chat Mode)")
+    # st.error("もしこの赤いバーが見えていたら...") # Removed debug marker
     st.markdown("事業計画書の作成に必要な情報をヒアリングします。")
 
     # 1. チャット履歴表示
