@@ -114,7 +114,8 @@ with st.sidebar:
 # --- Main Area ---
 
 if mode == "Chat Mode (Interview)":
-    st.title("🤖 AI Interviewer (Chat Mode)")
+    st.title("🚧 DEBUG MODE 🚧: AI Interviewer") # タイトル変更
+    st.error("もしこの赤いバーが見えていたら、コードは最新です！キャッシュクリア成功です！") # 目立つマーカー
     st.markdown("事業計画書の作成に必要な情報をヒアリングします。")
 
     # 1. チャット履歴表示
