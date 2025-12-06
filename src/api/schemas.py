@@ -1,6 +1,5 @@
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from src.suggestion_engine.schema import SuggestionItem
 from src.report_engine.schema import OmamoriReport
 from src.transcription_engine.schema import MinutesData
 
@@ -183,4 +182,5 @@ class ApplicationRoot(BaseModel):
     pdca: PDCA
     financial_plan: FinancialPlan
     attachments: AttachmentsChecklist
+
 
