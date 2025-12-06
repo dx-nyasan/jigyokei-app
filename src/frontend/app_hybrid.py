@@ -24,7 +24,7 @@ from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 
 # --- Version Control ---
-APP_VERSION = "3.1.1-gap-filling-fix"
+APP_VERSION = "3.1.2-fix-schema-validation"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 class BasicInfo(BaseModel):
@@ -8,21 +8,41 @@ class BasicInfo(BaseModel):
     phone_number: Optional[str] = Field(None, description="電話番号")
     business_type: Optional[str] = Field(None, description="業種（例：建設業、製造業）")
 
+    @field_validator('company_name', 'representative_name', 'address', 'phone_number', 'business_type', mode='before')
+    @classmethod
+    def set_default_if_none(cls, v):
+        return v if v else "未設定"
+
 class BusinessContent(BaseModel):
     target_customers: Optional[str] = Field(None, description="顧客（誰に）")
     products_services: Optional[str] = Field(None, description="商品・サービス（何を）")
     delivery_methods: Optional[str] = Field(None, description="提供方法（どのように）")
     core_competence: Optional[str] = Field(None, description="自社の強み・重要な経営資源")
 
+    @field_validator('*', mode='before')
+    @classmethod
+    def set_default_if_none(cls, v):
+        return v if v else "未設定"
+
 class DisasterRisk(BaseModel):
     risk_type: str = Field(..., description="想定する災害（例：大地震、水害）")
     impact_description: Optional[str] = Field(None, description="被害想定（事業への影響）")
 
+    @field_validator('impact_description', mode='before')
+    @classmethod
+    def set_default_if_none(cls, v):
+        return v if v else "未設定"
+
 class MitigationMeasure(BaseModel):
     item: str = Field(..., description="点検・実施項目")
-    content: str = Field(..., description="具体的な対策内容")
+    content: Optional[str] = Field(None, description="具体的な対策内容")
     in_charge: Optional[str] = Field(None, description="担当者")
     deadline: Optional[str] = Field(None, description="実施時期")
+
+    @field_validator('content', 'in_charge', 'deadline', mode='before')
+    @classmethod
+    def set_default_if_none(cls, v):
+        return v if v else "未設定"
 
 class JigyokeiPlan(BaseModel):
     basic_info: BasicInfo = Field(default_factory=lambda: BasicInfo(company_name="未設定"))
