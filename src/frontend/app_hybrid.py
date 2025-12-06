@@ -1,66 +1,121 @@
 import sys
 import os
 
-# --- パス解決 ---
+# --- パス解決用のおまじない（最優先で実行） ---
+# 現在のファイル (src/frontend/app_hybrid.py) の場所から、
+# プロジェクトルート (jigyokei-copilot/) を sys.path に追加する
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-# ----------------
+# ----------------------------------------------
 
 import streamlit as st
 import json
 import time
 from src.core.chat_manager import ChatManager
-# 他のimportは一旦無効化（エラー要因排除のため）
-# from src.core.data_converter import DataConverter
-# from src.data.context_loader import ContextLoader
-# from src.core.document_reminder import DocumentReminder
+from src.core.data_converter import DataConverter
+from src.data.context_loader import ContextLoader
+# from src.core.document_reminder import DocumentReminder # まだない場合はコメントアウト
 
-# --- 簡易設定 ---
+# --- Page Config (Must be first) ---
+st.set_page_config(
+    page_title="Jigyokei Hybrid System",
+    page_icon="👑",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- Initialize Managers (Singleton-like) ---
 if "chat_manager" not in st.session_state:
     st.session_state.chat_manager = ChatManager()
+if "context_loader" not in st.session_state:
+    # データなどを読み込むローダークラス
+    st.session_state.context_loader = ContextLoader()
 
-# --- 認証機能 ---
+# --- 認証機能 (Simple Password) ---
 def check_password():
+    """Returns `True` if the user had the correct password."""
     if st.session_state.get("password_correct", False):
         return True
-        
+
+    # Show input for password.
     def password_entered():
         if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]
+            del st.session_state["password"]  # Don't store password
         else:
             st.session_state["password_correct"] = False
 
     st.text_input("Password", type="password", on_change=password_entered, key="password")
+    
+    # 認証未完了時はここで止める
     return False
 
 if not check_password():
-    st.stop()
+    st.stop()  # 認証されていない場合はここで処理終了（画面描画も止まる）
 
-# --- メイン画面 ---
-st.title("🛠️ UI Debug Mode (Connection Check)")
-st.write("現在、チャット入力欄の表示テスト中です。")
+# ==========================================
+# Main App Logic
+# ==========================================
 
-# デバッグ表示
-st.write("State Check:", "OK")
-
-# チャット履歴の表示
-for msg in st.session_state.chat_manager.history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# ★★★ ここが表示されるか確認してください ★★★
-st.divider()
-st.write("👇 この下にチャット入力欄があるはずです")
-
-prompt = st.chat_input("テスト入力：ここに文字が打てますか？")
-
-if prompt:
-    with st.chat_message("user"):
-        st.markdown(prompt)
+# --- Sidebar ---
+with st.sidebar:
+    st.header("Jigyokei Hybrid System")
+    st.caption("Cloud Edition ☁️")
     
-    # 応答生成
-    with st.spinner("AI Thinking..."):
-        response = st.session_state.chat_manager.send_message(prompt)
+    st.divider()
+    
+    # Mode Selection
+    mode = st.radio(
+        "Select Mode",
+        ["Chat Mode (Pre-Interview)", "Editor Mode (Support Day)"],
+        index=0
+    )
+    
+    st.divider()
+
+    st.subheader("Data Management")
+    uploaded_file = st.file_uploader("Load Previous Session (JSON)", type=["json"])
+    
+    if uploaded_file:
+        try:
+            data = json.load(uploaded_file)
+            st.session_state.chat_manager.load_history(data.get("history", []))
+            st.success("Session Loaded!")
+        except Exception as e:
+            st.error(f"Failed to load: {e}")
+
+# --- Main Area ---
+
+if mode == "Chat Mode (Pre-Interview)":
+    st.title("🤖 AI Interviewer (Chat Mode)")
+    st.markdown("事業計画書の作成に必要な情報をヒアリングします。")
+
+    # 1. チャット履歴の表示
+    #    (st.chat_messageを使ってループ表示)
+    for msg in st.session_state.chat_manager.history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # 2. ユーザー入力 (st.chat_input)
+    #    ★重要★ これを条件分岐や `if` の中に入れないこと。
+    #    常にレンダリングされる場所に配置する。
+    prompt = st.chat_input("回答や指示を入力してください...")
+
+    # 3. 入力があった場合の処理
+    if prompt:
+        # User message
+        with st.chat_message("user"):
+            st.markdown(prompt)
         
-    with st.chat_message("model"):
-        st.markdown(response)
+        # AI Response
+        with st.chat_message("model"):
+            with st.spinner("AI is thinking..."):
+                response = st.session_state.chat_manager.send_message(prompt)
+                st.markdown(response)
+
+elif mode == "Editor Mode (Support Day)":
+    st.title("📝 Editor Mode")
+    st.info("このモードは現在開発中です。JSONデータの確認などができます。")
+    
+    st.subheader("Current Context Data")
+    # 仮のデータ表示
+    st.json(st.session_state.chat_manager.history)
