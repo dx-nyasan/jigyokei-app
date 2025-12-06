@@ -1,62 +1,5 @@
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from src.report_engine.schema import OmamoriReport
-from src.transcription_engine.schema import MinutesData
-
-# --- Existing Models ---
-
-class TranscribeResponse(BaseModel):
-    text: str
-
-class AnalyzeRequest(BaseModel):
-    text: str
-
-class AnalyzeResponse(BaseModel):
-    context: ContextData
-    suggestions: List[SuggestionItem]
-
-class ReportRequest(BaseModel):
-    context: ContextData
-    company_name: str
-    staff_name: str
-
-class ReportResponse(BaseModel):
-    report: OmamoriReport
-    html: str
-
-class RAGSearchRequest(BaseModel):
-    query: str
-    collection_name: str = "knowledge_db"
-    filter: Optional[dict] = None
-
-class RAGSearchResponse(BaseModel):
-    results: List[dict] # page_content, metadata
-
-class MinutesRequest(BaseModel):
-    transcript: str
-
-class MinutesResponse(BaseModel):
-    minutes: MinutesData
-
-class FeedbackRequest(BaseModel):
-    user_query: str
-    ai_response: str
-    retrieved_chunks: Optional[str] = None
-    correction: Optional[str] = None
-    quality_score: Optional[int] = None
-
-class GenerateDocumentsRequest(BaseModel):
-    context: ContextData
-    questionnaire_data: dict
-    company_name: str
-    staff_name: str
-
-class GenerateDocumentsResponse(BaseModel):
-    report: OmamoriReport
-    html: str
-    form_data: dict # ApplicationForm as dict
-    docx_url: str
-    excel_url: str
 
 # --- Jigyokei Application Models (SSOT Implementation) ---
 # These models correspond to the definitions in src/core/definitions.py
@@ -182,5 +125,3 @@ class ApplicationRoot(BaseModel):
     pdca: PDCA
     financial_plan: FinancialPlan
     attachments: AttachmentsChecklist
-
-
