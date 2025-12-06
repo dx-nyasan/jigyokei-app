@@ -19,7 +19,8 @@ st.set_page_config(
 )
 
 # --- Version Control ---
-APP_VERSION = "3.0.0-phase3-dashboard"
+# --- Version Control ---
+APP_VERSION = "3.0.1-force-deploy-fix" # Update to force reload
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
