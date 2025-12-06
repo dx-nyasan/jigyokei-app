@@ -26,7 +26,7 @@ from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 
 # --- Version Control ---
-APP_VERSION = "3.2.0-quality-advisor"
+APP_VERSION = "3.3.0-multimodal-redesign"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -115,7 +115,11 @@ with st.sidebar:
     else:
         persona = "Viewer"
 
-    st.divider()
+    # Recommended Documents based on Persona
+    # (Moved to Main Area Landing Page)
+    
+    # File Uploader
+    # (Moved to Main Area Landing Page)
 
     st.subheader("Data Management")
     uploaded_file = st.file_uploader("Load Previous Session (JSON)", type=["json"])
@@ -152,39 +156,116 @@ with st.sidebar:
 
 # --- Main Area ---
 
+
 if mode == "Chat Mode (Interview)":
     st.title("🤖 AI Interviewer (Chat Mode)")
-    # st.error("もしこの赤いバーが見えていたら...") # Removed debug marker
-    st.markdown("事業計画書の作成に必要な情報をヒアリングします。")
+    
+    # --- Landing Page (Upload First) ---
+    if not st.session_state.ai_interviewer.history:
+        st.markdown("## 👋 ようこそ、事業継続力強化計画策定支援システムへ")
+        st.markdown(
+            "AIが計画策定のヒアリングを行います。\n"
+            "まずは、会社案内や既存の計画書などの資料を読み込ませてください。\n"
+            "資料の内容をAIが理解することで、入力の手間を大幅に省くことができます。"
+        )
+        st.divider()
 
-    # 1. チャット履歴表示
-    for msg in st.session_state.ai_interviewer.history:
-        role = msg["role"]
-        persona_name = msg.get("persona", "Unknown")
-        
-        avatar = "🤖" if role == "model" else "👤"
-        if persona_name == "経営者": avatar = "👨‍💼"
-        elif persona_name == "従業員": avatar = "👷"
-        elif persona_name == "商工会職員": avatar = "🧑‍🏫"
-        elif persona_name == "AI Concierge": avatar = "🤖"
-        
-        with st.chat_message(role, avatar=avatar):
-            if role == "user":
-                st.caption(f"{persona_name}")
-            st.markdown(msg["content"])
+        # Persona-specific Guidance & Uploader
+        if persona == "経営者":
+            st.info("🏢 **経営者の方へ**: 以下の資料があるとスムーズです。")
+            rec_docs = ["会社案内 (Company Brochure)", "既存の事業計画書 (Business Plan)", "ハザードマップ (Hazard Map)"]
+            for d in rec_docs: st.markdown(f"- {d}")
+            st.warning("※会社案内やパンフレットの画像でも構いません。")
+            
+            upload_label = "🏢 経営者用資料をアップロード (PDF/画像)"
 
-    # 2. ユーザー入力
-    prompt = st.chat_input(f"{persona}として回答を入力...")
+        elif persona == "従業員":
+            st.info("👷 **従業員の方へ**: 現場の状況が分かる資料を共有してください。")
+            rec_docs = ["業務マニュアル (Manuals)", "緊急時連絡網 (Emergency Contacts)", "現場の写真 (Site Photos)"]
+            for d in rec_docs: st.markdown(f"- {d}")
+            
+            upload_label = "👷 現場・業務資料をアップロード (PDF/画像)"
 
-    if prompt:
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(prompt)
+        elif persona == "商工会職員":
+            st.info("🧑‍🏫 **商工会職員の方へ**: 制度や地域のリスクに関する資料をお願いします。")
+            rec_docs = ["共済制度パンフレット (Kyosai)", "地域防災計画 (Regional Plan)", "自治体ハザードマップ"]
+            for d in rec_docs: st.markdown(f"- {d}")
+            
+            upload_label = "🧑‍🏫 支援・制度資料をアップロード (PDF/画像)"
+        else:
+            upload_label = "📂 資料をアップロード (PDF/画像)"
+
+        # Upload Zone
+        st.markdown("### 1. 資料のアップロード")
+        uploaded_refs = st.file_uploader(
+            upload_label, 
+            type=["pdf", "png", "jpg", "jpeg"], 
+            accept_multiple_files=True,
+            key=f"uploader_{persona}"
+        )
+
+        st.markdown("### 2. チャットの開始")
+        col1, col2 = st.columns([1, 2])
         
-        with st.chat_message("model", avatar="🤖"):
-            with st.spinner("AI is thinking..."):
-                response = st.session_state.ai_interviewer.send_message(prompt, persona=persona)
-                st.markdown(response)
-                st.rerun()
+        start_button = col1.button("🚀 資料を読み込んでスタート", type="primary", disabled=not uploaded_refs)
+        skip_button = col2.button("資料なしでスタート（非推奨）")
+
+        if start_button and uploaded_refs:
+            with st.spinner("資料を解析中... (数十秒かかる場合があります)"):
+                try:
+                    count = st.session_state.ai_interviewer.process_files(uploaded_refs)
+                    st.success(f"{count}件の資料を読み込みました！")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"読み込みエラー: {e}")
+        
+        elif skip_button:
+            # Add initial greeting for no-file start
+            initial_msg = (
+                "こんにちは。資料なしでのスタートですね、承知いたしました。\n"
+                "それでは、御社の事業内容について簡単にお話しいただけますでしょうか？"
+            )
+            st.session_state.ai_interviewer.history.append({
+                "role": "model",
+                "content": initial_msg,
+                "persona": "AI Concierge"
+            })
+            st.rerun()
+
+
+    # --- Chat Interface (After History Exists) ---
+    else:
+        # Show uploaded files count if feasible, or just chat
+        
+        # 1. チャット履歴表示
+        for msg in st.session_state.ai_interviewer.history:
+            role = msg["role"]
+            persona_name = msg.get("persona", "Unknown")
+            
+            avatar = "🤖" if role == "model" else "👤"
+            if persona_name == "経営者": avatar = "👨‍💼"
+            elif persona_name == "従業員": avatar = "👷"
+            elif persona_name == "商工会職員": avatar = "🧑‍🏫"
+            elif persona_name == "AI Concierge": avatar = "🤖"
+            
+            with st.chat_message(role, avatar=avatar):
+                if role == "user":
+                    st.caption(f"{persona_name}")
+                st.markdown(msg["content"])
+
+        # 2. ユーザー入力
+        prompt = st.chat_input(f"{persona}として回答を入力...")
+
+        if prompt:
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(prompt)
+            
+            with st.chat_message("model", avatar="🤖"):
+                with st.spinner("AI is thinking..."):
+                    response = st.session_state.ai_interviewer.send_message(prompt, persona=persona)
+                    st.markdown(response)
+                    st.rerun()
 
 elif mode == "Dashboard Mode (Progress)":
     st.title("📊 Progress Dashboard")
