@@ -10,8 +10,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 import streamlit as st
 import json
 import time
-from src.core.chat_manager import ChatManager
-from src.core.data_converter import DataConverter
+from src.core.ai_interviewer import ChatManager  # クラス名はChatManagerのまま維持（変更コスト削減）またはファイルに合わせて変更
+# 今回はファイル名変更によるキャッシュクリアが目的なので、import元を変えるだけで十分。
+# ただし混乱を避けるためエイリアスを使うか、中身も変えるか。
+# ここでは from src.core.ai_interviewer import ChatManager とする。
+# 実体ファイルの中身のクラス名も ChatManager のままならこれで動く。
 from src.data.context_loader import ContextLoader
 # from src.core.document_reminder import DocumentReminder # まだない場合はコメントアウト
 
@@ -24,7 +27,7 @@ st.set_page_config(
 )
 
 # --- Version Control for Session State ---
-APP_VERSION = "2.5.0"  # Update this to force session reset
+APP_VERSION = "2.5.1-rename"  # Update this to force session reset
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
