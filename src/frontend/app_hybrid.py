@@ -18,7 +18,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 # --- Module Reloading for Streamlit Cloud ---
 import src.core.jigyokei_core
+import src.core.jigyokei_schema
 importlib.reload(src.core.jigyokei_core)
+importlib.reload(src.core.jigyokei_schema)
 
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
