@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 import streamlit as st
 import json
 import time
-from src.core.ai_interviewer import AIInterviewer
+from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 
 # --- Page Config (Must be first) ---
