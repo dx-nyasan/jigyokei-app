@@ -10,13 +10,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 import streamlit as st
 import json
 import time
-from src.core.ai_interviewer import ChatManager  # クラス名はChatManagerのまま維持（変更コスト削減）またはファイルに合わせて変更
-# 今回はファイル名変更によるキャッシュクリアが目的なので、import元を変えるだけで十分。
-# ただし混乱を避けるためエイリアスを使うか、中身も変えるか。
-# ここでは from src.core.ai_interviewer import ChatManager とする。
-# 実体ファイルの中身のクラス名も ChatManager のままならこれで動く。
+from src.core.ai_interviewer import AIInterviewer
 from src.data.context_loader import ContextLoader
-# from src.core.document_reminder import DocumentReminder # まだない場合はコメントアウト
 
 # --- Page Config (Must be first) ---
 st.set_page_config(
@@ -27,7 +22,7 @@ st.set_page_config(
 )
 
 # --- Version Control for Session State ---
-APP_VERSION = "2.5.1-rename"  # Update this to force session reset
+APP_VERSION = "2.6.0-class-rename"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -35,48 +30,41 @@ if "app_version" not in st.session_state or st.session_state.app_version != APP_
     st.rerun()
 
 # --- Initialize Managers (Singleton-like) ---
-if "chat_manager" not in st.session_state:
-    st.session_state.chat_manager = ChatManager()
+if "ai_interviewer" not in st.session_state:
+    st.session_state.ai_interviewer = AIInterviewer()
 if "context_loader" not in st.session_state:
-    # データなどを読み込むローダークラス
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     context_dir = os.path.join(root_dir, "data", "context")
     st.session_state.context_loader = ContextLoader(context_dir)
 
 # --- 認証機能 (Simple Password) ---
 def check_password():
-    """Returns `True` if the user had the correct password."""
     if st.session_state.get("password_correct", False):
         return True
 
-    # Show input for password.
     def password_entered():
         if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     st.text_input("Password", type="password", on_change=password_entered, key="password")
-    
-    # 認証未完了時はここで止める
     return False
 
 if not check_password():
-    st.stop()  # 認証されていない場合はここで処理終了（画面描画も止まる）
+    st.stop()
 
 # ==========================================
 # Main App Logic
 # ==========================================
 
-# --- Sidebar ---
 with st.sidebar:
     st.header("Jigyokei Hybrid System")
     st.caption("Cloud Edition ☁️")
     
     st.divider()
     
-    # Mode Selection
     mode = st.radio(
         "Select Mode",
         ["Chat Mode (Pre-Interview)", "Editor Mode (Support Day)"],
@@ -88,11 +76,9 @@ with st.sidebar:
     st.subheader("Data Management")
     uploaded_file = st.file_uploader("Load Previous Session (JSON)", type=["json"])
     
-
-
     # Download Button
-    if st.session_state.chat_manager.history:
-        history_json = json.dumps({"history": st.session_state.chat_manager.history}, indent=2, ensure_ascii=False)
+    if st.session_state.ai_interviewer.history:
+        history_json = json.dumps({"history": st.session_state.ai_interviewer.history}, indent=2, ensure_ascii=False)
         st.download_button(
             label="💾 Download Session (JSON)",
             data=history_json,
@@ -100,25 +86,12 @@ with st.sidebar:
             mime="application/json"
         )
 
-    # --- Debug Button (Hidden from normal flow) ---
-    if st.sidebar.button("🛠️ Debug: Load Dummy Data"):
-        dummy_data = [
-            {"role": "user", "content": "Debug User Message"},
-            {"role": "model", "content": "Debug Model Message"}
-        ]
-        st.session_state.chat_manager.load_history(dummy_data)
-        st.success("Dummy Data Loaded")
-        st.session_state.debug_trigger = True # トリガーを設定
-        st.rerun()
-
     if uploaded_file:
         try:
-            # ファイルポインタを先頭に戻す
             uploaded_file.seek(0)
             data = json.load(uploaded_file)
             history = data.get("history", [])
-            st.session_state.chat_manager.load_history(history)
-            
+            st.session_state.ai_interviewer.load_history(history)
             st.success(f"Session Loaded! ({len(history)} messages)")
         except Exception as e:
             st.error(f"Failed to load: {e}")
@@ -129,27 +102,19 @@ if mode == "Chat Mode (Pre-Interview)":
     st.title("🤖 AI Interviewer (Chat Mode)")
     st.markdown("事業計画書の作成に必要な情報をヒアリングします。")
 
-    # 1. チャット履歴の表示
-    #    (st.chat_messageを使ってループ表示)
-    for msg in st.session_state.chat_manager.history:
+    for msg in st.session_state.ai_interviewer.history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 2. ユーザー入力 (st.chat_input)
-    #    ★重要★ これを条件分岐や `if` の中に入れないこと。
-    #    常にレンダリングされる場所に配置する。
     prompt = st.chat_input("回答や指示を入力してください...")
 
-    # 3. 入力があった場合の処理
     if prompt:
-        # User message
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # AI Response
         with st.chat_message("model"):
             with st.spinner("AI is thinking..."):
-                response = st.session_state.chat_manager.send_message(prompt)
+                response = st.session_state.ai_interviewer.send_message(prompt)
                 st.markdown(response)
 
 

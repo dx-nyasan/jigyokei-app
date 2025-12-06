@@ -2,9 +2,9 @@ import os
 import google.generativeai as genai
 import streamlit as st
 
-class ChatManager:
+class AIInterviewer:
     """
-    Gemini 1.5 Flash を使用したチャット管理クラス。
+    Gemini 2.5 Flash を使用したチャット管理クラス。
     履歴の保持とシステムプロンプトの適用を行う。
     """
     def __init__(self):
