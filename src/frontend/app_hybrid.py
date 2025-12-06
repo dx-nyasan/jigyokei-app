@@ -20,7 +20,7 @@ st.set_page_config(
 
 # --- Version Control ---
 # --- Version Control ---
-APP_VERSION = "3.0.1-force-deploy-fix" # Update to force reload
+APP_VERSION = "3.0.2-debug-display"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -60,7 +60,8 @@ if not check_password():
 with st.sidebar:
     st.header("Jigyokei Hybrid System")
     st.caption("Cloud Edition ☁️")
-    
+    st.text(f"Ver: {APP_VERSION}") # バージョンを常に表示
+
     st.divider()
     
     # Mode Selection
@@ -153,26 +154,31 @@ elif mode == "Dashboard Mode (Progress)":
     
     # 解析実行ボタン
     if st.button("🔄 Analyze & Update Dashboard", type="primary"):
-        st.write("Debug: Button clicked. Starting process...")
-        with st.spinner("Analyzing chat history..."):
-            try:
-                st.write("Debug: Importing Schema...")
-                from src.core.jigyokei_schema import JigyokeiPlan
-                st.write("Debug: Schema Imported. Calling analyze_history...")
-                
-                extracted_data = st.session_state.ai_interviewer.analyze_history()
-                st.write(f"Debug: analyze_history returned type: {type(extracted_data)}")
-                
-                if extracted_data:
-                    st.write("Debug: Validating data with Pydantic...")
-                    plan = JigyokeiPlan(**extracted_data)
-                    st.session_state.current_plan = plan
-                    st.success("Analysis Complete!")
-                else:
-                    st.warning("No data extracted (Empty result).")
-            except Exception as e:
-                st.error(f"Critical Error during analysis: {e}")
-                st.write(f"Error Details: {str(e)}")
+        st.info("🚀 Process Started: Checking Modules...")
+        
+        # スピナーを使わずに逐次実行を表示
+        status_placeholder = st.empty()
+        
+        try:
+            status_placeholder.text("⏳ Importing Schema...")
+            from src.core.jigyokei_schema import JigyokeiPlan
+            
+            status_placeholder.text("⏳ Calling Gemini API (This may take 10-20s)...")
+            extracted_data = st.session_state.ai_interviewer.analyze_history()
+            
+            status_placeholder.text(f"✅ API Returned. Data Type: {type(extracted_data)}")
+            st.write("Raw API Data:", extracted_data) # Show raw data for debug
+            
+            if extracted_data:
+                status_placeholder.text("⏳ Validating data with Pydantic...")
+                plan = JigyokeiPlan(**extracted_data)
+                st.session_state.current_plan = plan
+                status_placeholder.success("🎉 Analysis Complete!")
+            else:
+                status_placeholder.warning("⚠️ No data extracted (Empty result received).")
+        except Exception as e:
+            status_placeholder.error(f"❌ Critical Error: {e}")
+            st.exception(e)
     
     # 解析結果の表示
     if "current_plan" in st.session_state:
