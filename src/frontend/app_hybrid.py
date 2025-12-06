@@ -1,24 +1,13 @@
 import sys
 import os
 
-# --- パス解決用のおまじない（これを追加！） ---
-# 現在のファイル (app_hybrid.py) の場所から、2つ上の階層 (jigyokei-app/) をシステムパスに追加する
+# --- パス解決用のおまじない（最優先で実行） ---
+# 現在のファイル (src/frontend/app_hybrid.py) の場所から、
+# 2つ上の階層 (jigyokei-app/) をシステムパスに追加して、srcモジュールを認識させる
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 # ---------------------------------------------
 
-# 以下、既存のコード...
-import sys
-import os
-
-# プロジェクトのルートディレクトリ（srcの親ディレクトリ）をモジュール検索パスに追加
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-# --- ここから下が既存のコード ---
-import json
-import time
-# ... (以下略)
 import streamlit as st
-import os
 import json
 import time
 from src.core.chat_manager import ChatManager
@@ -187,7 +176,7 @@ if st.session_state.mode == "Chat Mode":
     # Prepare Data for Download
     current_data = {
         "history": st.session_state.chat_manager.history,
-        "pending_docs": st.session_state.doc_reminder.get_summary_list(),
+        "pending_docs": list(st.session_state.doc_reminder.get_summary_list()), # Convert set to list for JSON serialization
         "progress": st.session_state.progress
     }
     json_str = json.dumps(current_data, indent=2, ensure_ascii=False)
