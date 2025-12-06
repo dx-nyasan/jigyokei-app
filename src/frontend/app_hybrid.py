@@ -24,7 +24,7 @@ from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 
 # --- Version Control ---
-APP_VERSION = "3.0.6-fix-instance-state"
+APP_VERSION = "3.1.0-gap-filling"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -212,6 +212,40 @@ elif mode == "Dashboard Mode (Progress)":
                 plan = JigyokeiPlan(**extracted_data)
                 st.session_state.current_plan = plan
                 status_placeholder.success("🎉 Analysis Complete!")
+                
+                # --- Gap-Filling Logic ---
+                missing_fields = []
+                
+                # 1. Basic Info Check
+                basic_dump = plan.basic_info.model_dump()
+                for k, v in basic_dump.items():
+                    if not v or v == "未設定":
+                        missing_fields.append(f"基本情報-{k}")
+
+                # 2. Business Content Check
+                biz_dump = plan.business_content.model_dump()
+                for k, v in biz_dump.items():
+                    if not v or v == "未設定":
+                        missing_fields.append(f"事業内容-{k}")
+
+                # 3. Risks Check
+                if not plan.disaster_risks:
+                     missing_fields.append("災害リスクの特定")
+                
+                # 4. Measures Check
+                if not plan.pre_disaster_measures:
+                     missing_fields.append("事前対策")
+                
+                if missing_fields:
+                    st.session_state.ai_interviewer.set_focus_fields(missing_fields)
+                    st.warning(f"🧐 **Next AI Focus:** The AI has detected {len(missing_fields)} missing items. It will proactively ask about these in the chat.")
+                    with st.expander("View Missing Items"):
+                        st.write(missing_fields)
+                else:
+                    st.session_state.ai_interviewer.set_focus_fields([])
+                    st.balloons()
+                    st.success("✨ Incredible! All major items are filled. You are ready to finalize!")
+
             else:
                 status_placeholder.warning("⚠️ No data extracted (Empty result received).")
         except Exception as e:
@@ -225,6 +259,9 @@ elif mode == "Dashboard Mode (Progress)":
         st.metric(label="Total Progress", value=f"{plan.progress_score()}%")
         st.progress(plan.progress_score() / 100)
         
+        with st.expander("🔍 Show Raw API Data (Debug)"):
+             st.json(extracted_data)
+
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("🏢 Basic Info")

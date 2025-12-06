@@ -11,9 +11,10 @@ class AIInterviewer:
     """
     def __init__(self):
         self.history = []
+        self.focus_fields = [] # AIが重点的に聞くべき不足項目のリスト
         
-        # システムプロンプト（コンシェルジュの人格定義）
-        self.system_prompt = """
+        # 基本システムプロンプト
+        self.base_system_prompt = """
         あなたは日本の中小企業を支援する「事業継続力強化計画策定支援コンシェルジュ」です。
         ユーザー（経営者）に対し、以下のガイドラインに従ってインタビューを行ってください。
 
@@ -35,10 +36,18 @@ class AIInterviewer:
         if api_key:
             genai.configure(api_key=api_key)
             try:
-                # system_instruction を正しく使用 (SDK v0.3.5+ supported)
+                # system_instruction はチャット開始時に設定されるため、動的変更が難しい。
+                # そのため、send_messageごとのメッセージにinstructionを埋め込むか、
+                # context cachingを使うのが一般的だが、ここではシンプルに
+                # model初期化時の system_instruction は固定し、
+                # 毎回の入力に System Instruction的なものを付与する方式、
+                # あるいは会話履歴としてSystem Instructionを扱う方式をとる。
+                # Gemini SDKの chat.send_message は system_instruction を上書きできないので、
+                # ここでは初期化時にベースを設定し、不足項目に対する誘導は user prompt に hidden context として付与する。
+                
                 self.model = genai.GenerativeModel(
                     model_name='gemini-2.5-flash',
-                    system_instruction=self.system_prompt
+                    system_instruction=self.base_system_prompt
                 )
                 self.chat_session = self.model.start_chat(history=[])
             except Exception as e:
@@ -47,6 +56,13 @@ class AIInterviewer:
         else:
             self.model = None
             st.error("Google API Key not found. Please set it in Streamlit Secrets.")
+
+    def set_focus_fields(self, fields: list):
+        """
+        AIが重点的に聞くべき項目を設定する。
+        ダッシュボードでの解析結果に基づいて呼び出されることを想定。
+        """
+        self.focus_fields = fields
 
     def send_message(self, user_input: str, persona: str = "経営者") -> str:
         if not self.model:
@@ -59,9 +75,22 @@ class AIInterviewer:
             "persona": persona
         })
         
+        # 実際にAPIに送るプロンプトの構築
+        # Gap-Fillingのための誘導コンテキストを付与（ユーザーには見えない）
+        actual_prompt = user_input
+        if self.focus_fields:
+            fields_str = ", ".join(self.focus_fields)
+            actual_prompt += f"""
+            
+            [System Instruction for AI]
+            現在、以下の項目がまだヒアリングできていません: {fields_str}
+            これらの中から1つを選び、会話の流れを自然に誘導して質問してください。
+            唐突すぎないように注意すること。
+            """
+        
         try:
             # Geminiへの送信
-            response = self.chat_session.send_message(user_input)
+            response = self.chat_session.send_message(actual_prompt)
             text_response = response.text
             
             self.history.append({
