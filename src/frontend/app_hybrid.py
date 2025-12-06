@@ -153,18 +153,26 @@ elif mode == "Dashboard Mode (Progress)":
     
     # 解析実行ボタン
     if st.button("🔄 Analyze & Update Dashboard", type="primary"):
+        st.write("Debug: Button clicked. Starting process...")
         with st.spinner("Analyzing chat history..."):
-            extracted_data = st.session_state.ai_interviewer.analyze_history()
-            if extracted_data:
-                try:
+            try:
+                st.write("Debug: Importing Schema...")
+                from src.core.jigyokei_schema import JigyokeiPlan
+                st.write("Debug: Schema Imported. Calling analyze_history...")
+                
+                extracted_data = st.session_state.ai_interviewer.analyze_history()
+                st.write(f"Debug: analyze_history returned type: {type(extracted_data)}")
+                
+                if extracted_data:
+                    st.write("Debug: Validating data with Pydantic...")
                     plan = JigyokeiPlan(**extracted_data)
                     st.session_state.current_plan = plan
                     st.success("Analysis Complete!")
-                except Exception as e:
-                    st.error(f"Validation Error: {e}")
-                    st.json(extracted_data) # デバッグ用
-            else:
-                st.warning("No data extracted.")
+                else:
+                    st.warning("No data extracted (Empty result).")
+            except Exception as e:
+                st.error(f"Critical Error during analysis: {e}")
+                st.write(f"Error Details: {str(e)}")
     
     # 解析結果の表示
     if "current_plan" in st.session_state:
