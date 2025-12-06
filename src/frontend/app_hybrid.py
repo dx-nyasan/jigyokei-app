@@ -16,7 +16,6 @@ from src.data.context_loader import ContextLoader
 from src.core.document_reminder import DocumentReminder
 
 # --- Configuration ---
-# Note: Streamlit Cloud has ephemeral storage. We use st.session_state and File Upload/Download.
 CONTEXT_DIR = "data/context"
 
 # --- Authentication ---
@@ -85,14 +84,7 @@ with st.sidebar:
             data = json.load(uploaded_file)
             # Restore State
             if "history" in data:
-                # Re-init chat manager with history
                 st.session_state.chat_manager.history = data["history"]
-                # Force re-creation of chat session in manager if needed
-                # (ChatManager.load_history logic adapted here)
-                # For now, just setting history is enough for display, 
-                # but for continuation we might need to re-send context if using API.
-                # Our ChatManager.send_message appends to history, so we are good.
-                pass
             
             if "pending_docs" in data:
                 st.session_state.doc_reminder.pending_documents = set(data["pending_docs"])
@@ -116,59 +108,56 @@ if st.session_state.mode == "Chat Mode":
     with col_msg:
         st.caption("🌟 100%にならなくても大丈夫！残りは当日の支援担当者が一緒に埋めます")
 
+    # Sidebar Action: Skip Button
+    # Chat Input cannot be placed in columns, so we move Skip to sidebar or main area above chat
+    with st.sidebar:
+        st.divider()
+        st.write("### アクション")
+        if st.button("⏭️ わからないのでスキップ", help="今の質問を飛ばして次に進みます"):
+            st.session_state.trigger_skip = True
+
+    # Handle Skip Logic
+    if st.session_state.get("trigger_skip", False):
+        skipped_field = "basic_info" # Mock for demo
+        doc_name = st.session_state.doc_reminder.check_reminder(skipped_field)
+        
+        user_msg = "（スキップしました）"
+        st.session_state.chat_manager.history.append({"role": "user", "content": user_msg})
+        
+        if doc_name:
+            reminder_msg = st.session_state.doc_reminder.get_reminder_message(doc_name)
+            st.session_state.chat_manager.history.append({"role": "model", "content": reminder_msg})
+        else:
+            response = "承知しました。次の質問に進みます。"
+            st.session_state.chat_manager.history.append({"role": "model", "content": response})
+        
+        st.session_state.trigger_skip = False # Reset flag
+        st.rerun()
+
     # Display Chat
     for msg in st.session_state.chat_manager.history:
         role = msg.get("role", "model")
         with st.chat_message(role):
             st.markdown(msg.get("content", ""))
             
-    # Input Area
-    col_input, col_skip = st.columns([4, 1])
-    
-    with col_input:
-        prompt = st.chat_input("回答を入力してください...", key="chat_input")
-        
-    # Skip Button (Simulated)
-    if col_skip.button("スキップ ⏭️"):
-        prompt = "SKIP_QUESTION" 
+    # Input Area (Must be at the root level)
+    prompt = st.chat_input("回答を入力してください...")
 
     if prompt:
-        # Handle Skip
-        if prompt == "SKIP_QUESTION":
-            skipped_field = "basic_info" # Mock
-            doc_name = st.session_state.doc_reminder.check_reminder(skipped_field)
-            
-            user_msg = "（スキップしました）"
-            with st.chat_message("user"):
-                st.markdown(user_msg)
-            st.session_state.chat_manager.history.append({"role": "user", "content": user_msg})
-            
-            if doc_name:
-                reminder_msg = st.session_state.doc_reminder.get_reminder_message(doc_name)
-                with st.chat_message("model"):
-                    st.markdown(reminder_msg)
-                st.session_state.chat_manager.history.append({"role": "model", "content": reminder_msg})
-            else:
-                response = "承知しました。次の質問に進みます。"
-                with st.chat_message("model"):
-                    st.markdown(response)
-                st.session_state.chat_manager.history.append({"role": "model", "content": response})
-
-        else:
-            # Normal Chat Flow
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            
-            # Generate Response
-            with st.spinner("Thinking..."):
-                response = st.session_state.chat_manager.send_message(prompt)
-                st.session_state.progress = min(st.session_state.progress + 10, 100)
-            
-            with st.chat_message("model"):
-                st.markdown(response)
+        # Normal Chat Flow
+        with st.chat_message("user"):
+            st.markdown(prompt)
         
-        # Rerun to update chat history display properly if needed
-        # st.rerun() 
+        # Generate Response
+        with st.spinner("Thinking..."):
+            response = st.session_state.chat_manager.send_message(prompt)
+            st.session_state.progress = min(st.session_state.progress + 10, 100)
+        
+        with st.chat_message("model"):
+            st.markdown(response)
+        
+        # Rerun is usually handled automatically by chat_input, but sometimes needed for history sync
+        # st.rerun()
 
     # Download Button (Handover)
     st.divider()
@@ -176,7 +165,7 @@ if st.session_state.mode == "Chat Mode":
     # Prepare Data for Download
     current_data = {
         "history": st.session_state.chat_manager.history,
-        "pending_docs": list(st.session_state.doc_reminder.get_summary_list()), # Convert set to list for JSON serialization
+        "pending_docs": list(st.session_state.doc_reminder.get_summary_list()), 
         "progress": st.session_state.progress
     }
     json_str = json.dumps(current_data, indent=2, ensure_ascii=False)
@@ -216,7 +205,7 @@ elif st.session_state.mode == "Editor Mode":
         # Basic Info Editor (Simplified)
         st.subheader("1. 基本情報")
         basic_info = st.session_state.form_data.get("basic_info", {})
-        if basic_info is None: basic_info = {} # Handle null
+        if basic_info is None: basic_info = {} 
         
         col1, col2 = st.columns(2)
         with col1:
