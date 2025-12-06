@@ -85,21 +85,13 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Failed to load: {e}")
 
-    # --- Debug Info ---
-    import google.generativeai as genai
-    import importlib.metadata
-    
-    st.divider()
-    st.caption(f"GenAI SDK Version: {importlib.metadata.version('google-generativeai')}")
-    
-    try:
-        # Check available models
-        st.write("Available Models:")
-        for m in genai.list_models():
-            if "gemini" in m.name:
-                st.code(m.name)
-    except Exception as e:
-        st.error(f"List Models Error: {e}")
+    if uploaded_file:
+        try:
+            data = json.load(uploaded_file)
+            st.session_state.chat_manager.load_history(data.get("history", []))
+            st.success("Session Loaded!")
+        except Exception as e:
+            st.error(f"Failed to load: {e}")
 
 # --- Main Area ---
 
@@ -129,6 +121,32 @@ if mode == "Chat Mode (Pre-Interview)":
             with st.spinner("AI is thinking..."):
                 response = st.session_state.chat_manager.send_message(prompt)
                 st.markdown(response)
+
+    # --- Debug Info (Temporary in Main Area for visibility) ---
+    st.divider()
+    import google.generativeai as genai
+    import importlib.metadata
+    
+    with st.expander("Debug Information (Check this!)", expanded=True):
+        st.write(f"**GenAI SDK Version:** `{importlib.metadata.version('google-generativeai')}`")
+        
+        st.write("**Available Models for this API Key:**")
+        try:
+            params = {"api_key": st.session_state.chat_manager.api_key} if hasattr(st.session_state.chat_manager, "api_key") else {}
+            # Re-configure just to be safe for this debug block
+            # (ChatManager does it, but purely for this visibility)
+            # We need the key from secrets though. 
+            # Ideally ChatManager should expose it or we read it again.
+            key = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
+            if key:
+                genai.configure(api_key=key)
+                models = list(genai.list_models())
+                gemini_models = [m.name for m in models if "gemini" in m.name]
+                st.write(gemini_models)
+            else:
+                st.error("No API Key found in secrets!")
+        except Exception as e:
+            st.error(f"Error listing models: {e}")
 
 elif mode == "Editor Mode (Support Day)":
     st.title("📝 Editor Mode")
