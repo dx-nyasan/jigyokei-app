@@ -28,7 +28,9 @@ if "chat_manager" not in st.session_state:
     st.session_state.chat_manager = ChatManager()
 if "context_loader" not in st.session_state:
     # データなどを読み込むローダークラス
-    st.session_state.context_loader = ContextLoader()
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+    context_dir = os.path.join(root_dir, "data", "context")
+    st.session_state.context_loader = ContextLoader(context_dir)
 
 # --- 認証機能 (Simple Password) ---
 def check_password():
