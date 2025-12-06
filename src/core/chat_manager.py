@@ -10,21 +10,6 @@ class ChatManager:
     def __init__(self):
         self.history = []
         
-        # Streamlit Secrets または 環境変数からAPIキーを取得
-        api_key = None
-        try:
-            api_key = st.secrets["GOOGLE_API_KEY"]
-        except Exception:
-            api_key = os.getenv("GOOGLE_API_KEY")
-
-        if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            self.chat_session = self.model.start_chat(history=[])
-        else:
-            self.model = None
-            st.error("Google API Key not found. Please set it in Streamlit Secrets.")
-
         # システムプロンプト（コンシェルジュの人格定義）
         self.system_prompt = """
         あなたは日本の中小企業を支援する「事業継続力強化計画策定支援コンシェルジュ」です。
@@ -37,29 +22,44 @@ class ChatManager:
 
         まずは、ユーザーの事業内容について優しく尋ねてスタートしてください。
         """
-        
-        # 初期メッセージとしてシステムプロンプトを履歴には入れないが、
-        # コンテキストとして意識させる（Geminiの仕様上、System Instructionとして渡すのがベストだが
-        # ここでは簡易的に最初のメッセージ生成時に考慮させる）
+
+        # Streamlit Secrets または 環境変数からAPIキーを取得
+        api_key = None
+        try:
+            api_key = st.secrets["GOOGLE_API_KEY"]
+        except Exception:
+            api_key = os.getenv("GOOGLE_API_KEY")
+
+        if api_key:
+            genai.configure(api_key=api_key)
+            try:
+                # system_instruction を正しく使用 (SDK v0.3.5+ supported)
+                self.model = genai.GenerativeModel(
+                    model_name='gemini-1.5-flash',
+                    system_instruction=self.system_prompt
+                )
+                self.chat_session = self.model.start_chat(history=[])
+            except Exception as e:
+                st.error(f"Failed to initialize Gemini model: {e}")
+                self.model = None
+        else:
+            self.model = None
+            st.error("Google API Key not found. Please set it in Streamlit Secrets.")
 
     def send_message(self, user_input: str) -> str:
         if not self.model:
-            return "Error: API Key is missing."
+            return "Error: API Key is missing or model initialization failed."
 
         # 履歴への追加
         self.history.append({"role": "user", "content": user_input})
         
         try:
-            # システムプロンプトを文脈に含めるための工夫
-            # (実際のAPIコールでは chat_session を使うが、ステートレスに見せるため都度履歴を構成)
-            # ここではシンプルに chat_session を継続利用する
+            # 実際のAPIコール
+            response = self.chat_session.send_message(user_input)
+            text_response = response.text
             
-            # 初回のみシステムプロンプトを注入するロジック（簡易版）
-            if len(self.history) == 1:
-                full_prompt = f"{self.system_prompt}\n\nUser: {user_input}"
-                response = self.chat_session.send_message(full_prompt)
-            else:
-                response = self.chat_session.send_message(user_input)
+            self.history.append({"role": "model", "content": text_response})
+            return text_response
             
             text_response = response.text
             self.history.append({"role": "model", "content": text_response})
