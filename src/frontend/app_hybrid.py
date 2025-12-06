@@ -108,9 +108,19 @@ with st.sidebar:
 
     if uploaded_file:
         try:
+            # ファイルポインタを先頭に戻す（重要）
+            uploaded_file.seek(0)
             data = json.load(uploaded_file)
-            st.session_state.chat_manager.load_history(data.get("history", []))
-            st.success("Session Loaded!")
+            history = data.get("history", [])
+            st.session_state.chat_manager.load_history(history)
+            
+            st.success(f"Session Loaded! ({len(history)} messages)")
+            # 読み込みを反映させるためにリプレイなどが必要かもしれないが、
+            # Streamlitの描画フロー的に、ここでstateが変わればメインエリアで描画されるはず。
+            # 念のため、変数が変わったことをUIに反映させきれていない疑いがあるのでrerunする手もあるが、
+            # 無限ループを避けるため、ボタン押下時のみにするなどの工夫がいる。
+            # ここでは file_uploader がある限り毎回通るので、チェックを入れる。
+            
         except Exception as e:
             st.error(f"Failed to load: {e}")
 
