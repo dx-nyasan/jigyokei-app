@@ -24,7 +24,7 @@ from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 
 # --- Version Control ---
-APP_VERSION = "3.0.5-fix-nameerror"
+APP_VERSION = "3.0.6-fix-instance-state"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -34,6 +34,31 @@ if "app_version" not in st.session_state or st.session_state.app_version != APP_
 # --- Initialize Managers ---
 if "ai_interviewer" not in st.session_state:
     st.session_state.ai_interviewer = AIInterviewer()
+else:
+    # Check for outdated instance (missing 'analyze_history')
+    # クラス定義がリロードされても、セッション内のインスタンスは古いままなので、ここで検知して再生成する
+    if not hasattr(st.session_state.ai_interviewer, "analyze_history"):
+        st.warning("🔄 Upgrading AI Brain to latest version...")
+        
+        # Preserve old history
+        old_history = getattr(st.session_state.ai_interviewer, "history", [])
+        
+        # Re-initialize with new class definition
+        st.session_state.ai_interviewer = AIInterviewer()
+        
+        # Restore history
+        # 新しいクラスのload_historyを使うか、直接代入するか。
+        # ここでは安全に直接代入しつつ、Geminiセッション再構築はload_historyに任せるのがベストだが、
+        # 簡易的にload_historyを呼ぶ。
+        if hasattr(st.session_state.ai_interviewer, "load_history"):
+             st.session_state.ai_interviewer.load_history(old_history)
+        else:
+             st.session_state.ai_interviewer.history = old_history
+             
+        st.success("✅ AI Brain Upgraded! Please reload one last time.")
+        time.sleep(1)
+        st.rerun()
+
 if "context_loader" not in st.session_state:
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     context_dir = os.path.join(root_dir, "data", "context")
