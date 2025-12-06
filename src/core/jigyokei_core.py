@@ -72,6 +72,73 @@ class AIInterviewer:
                 "persona": "AI Concierge"
             })
             return text_response
+
+    def analyze_history(self) -> dict:
+        """
+        現在の会話履歴を分析し、JigyokeiPlanスキーマに適合するJSONを生成する。
+        """
+        if not self.history:
+            return {}
+
+        # 履歴をテキスト化
+        history_text = ""
+        for msg in self.history:
+            role = msg["role"]
+            content = msg["content"]
+            persona = msg.get("persona", "")
+            history_text += f"[{role} ({persona})]: {content}\n"
+
+        prompt = f"""
+        あなたは事業継続力強化計画の策定支援AIです。
+        以下の会話履歴から、事業計画書の作成に必要な情報を抽出し、JSON形式で出力してください。
+        
+        【抽出ルール】
+        1. 以下のJSONスキーマに従うこと。
+        2. 情報がない項目は null または "未設定" とする。
+        3. 推測はせず、会話に出てきた事実のみを抽出すること。
+
+        【会話履歴】
+        {{history_text}}
+
+        【出力スキーマ】
+        {{{{
+            "basic_info": {{{{
+                "company_name": "企業名",
+                "representative_name": "代表者名",
+                "address": "住所",
+                "phone_number": "電話番号",
+                "business_type": "業種"
+            }}}},
+            "business_content": {{{{
+                "target_customers": "誰に",
+                "products_services": "何を",
+                "delivery_methods": "どのように",
+                "core_competence": "強み"
+            }}}},
+            "disaster_risks": [
+                {{{{ "risk_type": "災害の種類", "impact_description": "影響" }}}}
+            ],
+            "pre_disaster_measures": [
+                {{{{ "item": "対策項目", "content": "内容", "in_charge": "担当", "deadline": "時期" }}}}
+            ],
+            "post_disaster_measures": [
+                {{{{ "item": "対応項目", "content": "内容", "in_charge": "担当", "deadline": "時期" }}}}
+            ]
+        }}}}
+        """
+
+        try:
+            response = self.model.generate_content(prompt)
+            text = response.text
+            import re
+            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group(1))
+            else:
+                return json.loads(text)
+        except Exception as e:
+            print(f"Analysis failed: {e}")
+            return {}
             
 
             

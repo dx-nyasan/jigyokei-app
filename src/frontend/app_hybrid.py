@@ -32,28 +32,6 @@ if "app_version" not in st.session_state or st.session_state.app_version != APP_
 # --- Initialize Managers (Singleton-like) ---
 if "ai_interviewer" not in st.session_state:
     st.session_state.ai_interviewer = AIInterviewer()
-if "context_loader" not in st.session_state:
-    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-    context_dir = os.path.join(root_dir, "data", "context")
-    st.session_state.context_loader = ContextLoader(context_dir)
-
-# --- 認証機能 (Simple Password) ---
-def check_password():
-    if st.session_state.get("password_correct", False):
-        return True
-
-    def password_entered():
-        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    st.text_input("Password", type="password", on_change=password_entered, key="password")
-    return False
-
-if not check_password():
-    st.stop()
 
 # ==========================================
 # Main App Logic
