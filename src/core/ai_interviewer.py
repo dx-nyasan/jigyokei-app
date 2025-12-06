@@ -67,3 +67,31 @@ class ChatManager:
             error_msg = f"申し訳ありません、エラーが発生しました: {str(e)}"
             self.history.append({"role": "model", "content": error_msg})
             return error_msg
+
+    def load_history(self, history_data: list):
+        """
+        外部から履歴データを読み込み、内部状態とGeminiのセッションを復元する。
+        """
+        self.history = history_data
+        
+        # Geminiのchat_sessionも同期させる必要がある
+        # ただし start_chat(history=...) の形式に変換が必要
+        # self.history は [{"role": "user", "content": ...}, ...]
+        # Gemini history は [{"role": "user", "parts": [...]}, ...]
+        
+        if self.model:
+            gemini_history = []
+            for msg in history_data:
+                role = "user" if msg["role"] == "user" else "model"
+                gemini_history.append({
+                    "role": role,
+                    "parts": [msg["content"]]
+                })
+            
+            try:
+                self.chat_session = self.model.start_chat(history=gemini_history)
+            except Exception as e:
+                # 履歴の形式が悪いなどの場合のエラーハンドリング
+                print(f"Failed to restore gemini session: {e}")
+                # 最悪、空でスタートするが、会話の文脈は失われる
+                self.chat_session = self.model.start_chat(history=[])
