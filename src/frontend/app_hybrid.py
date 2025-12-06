@@ -37,7 +37,7 @@ if not check_password():
     st.stop()
 
 # --- メイン画面 ---
-st.title("🛠️ UI Debug Mode")
+st.title("🛠️ UI Debug Mode (Connection Check)")
 st.write("現在、チャット入力欄の表示テスト中です。")
 
 # デバッグ表示
