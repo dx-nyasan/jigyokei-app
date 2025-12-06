@@ -52,7 +52,6 @@ class AIInterviewer:
             return "Error: API Key is missing or model initialization failed."
 
         # 履歴への追加（アプリ表示用）
-        # Geminiには "persona" という概念はないので、ここでリッチな情報を保存する
         self.history.append({
             "role": "user", 
             "content": user_input,
@@ -61,8 +60,6 @@ class AIInterviewer:
         
         try:
             # Geminiへの送信
-            # プロンプトエンジニアリング：ペルソナ情報を文脈に含めることも可能だが、
-            # まずはシンプルに会話履歴として扱う。
             response = self.chat_session.send_message(user_input)
             text_response = response.text
             
@@ -72,6 +69,11 @@ class AIInterviewer:
                 "persona": "AI Concierge"
             })
             return text_response
+            
+        except Exception as e:
+            error_msg = f"申し訳ありません、エラーが発生しました: {str(e)}"
+            self.history.append({"role": "model", "content": error_msg})
+            return error_msg
 
     def analyze_history(self) -> dict:
         """
@@ -98,33 +100,33 @@ class AIInterviewer:
         3. 推測はせず、会話に出てきた事実のみを抽出すること。
 
         【会話履歴】
-        {{history_text}}
+        {history_text}
 
         【出力スキーマ】
-        {{{{
-            "basic_info": {{{{
+        {{
+            "basic_info": {{
                 "company_name": "企業名",
                 "representative_name": "代表者名",
                 "address": "住所",
                 "phone_number": "電話番号",
                 "business_type": "業種"
-            }}}},
-            "business_content": {{{{
+            }},
+            "business_content": {{
                 "target_customers": "誰に",
                 "products_services": "何を",
                 "delivery_methods": "どのように",
                 "core_competence": "強み"
-            }}}},
+            }},
             "disaster_risks": [
-                {{{{ "risk_type": "災害の種類", "impact_description": "影響" }}}}
+                {{ "risk_type": "災害の種類", "impact_description": "影響" }}
             ],
             "pre_disaster_measures": [
-                {{{{ "item": "対策項目", "content": "内容", "in_charge": "担当", "deadline": "時期" }}}}
+                {{ "item": "対策項目", "content": "内容", "in_charge": "担当", "deadline": "時期" }}
             ],
             "post_disaster_measures": [
-                {{{{ "item": "対応項目", "content": "内容", "in_charge": "担当", "deadline": "時期" }}}}
+                {{ "item": "対応項目", "content": "内容", "in_charge": "担当", "deadline": "時期" }}
             ]
-        }}}}
+        }}
         """
 
         try:
@@ -139,24 +141,12 @@ class AIInterviewer:
         except Exception as e:
             print(f"Analysis failed: {e}")
             return {}
-            
-
-            
-        except Exception as e:
-            error_msg = f"申し訳ありません、エラーが発生しました: {str(e)}"
-            self.history.append({"role": "model", "content": error_msg})
-            return error_msg
 
     def load_history(self, history_data: list):
         """
         外部から履歴データを読み込み、内部状態とGeminiのセッションを復元する。
         """
         self.history = history_data
-        
-        # Geminiのchat_sessionも同期させる必要がある
-        # ただし start_chat(history=...) の形式に変換が必要
-        # self.history は [{"role": "user", "content": ...}, ...]
-        # Gemini history は [{"role": "user", "parts": [...]}, ...]
         
         if self.model:
             gemini_history = []
@@ -170,7 +160,5 @@ class AIInterviewer:
             try:
                 self.chat_session = self.model.start_chat(history=gemini_history)
             except Exception as e:
-                # 履歴の形式が悪いなどの場合のエラーハンドリング
                 print(f"Failed to restore gemini session: {e}")
-                # 最悪、空でスタートするが、会話の文脈は失われる
                 self.chat_session = self.model.start_chat(history=[])
