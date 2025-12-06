@@ -44,6 +44,13 @@ class MitigationMeasure(BaseModel):
     def set_default_if_none(cls, v):
         return v if v else "未設定"
 
+class QualityIssue(BaseModel):
+    section: str
+    field_name: str
+    issue_type: str  # "missing", "insufficient_length"
+    message: str
+    severity: str # "critical" (must fix for application), "warning" (better to fix)
+
 class JigyokeiPlan(BaseModel):
     basic_info: BasicInfo = Field(default_factory=lambda: BasicInfo(company_name="未設定"))
     business_content: BusinessContent = Field(default_factory=BusinessContent)
@@ -59,9 +66,40 @@ class JigyokeiPlan(BaseModel):
         total_points = 5  # 評価項目数
 
         if self.basic_info.company_name != "未設定": score += 1
-        if self.business_content.products_services: score += 1
+        if self.business_content.products_services != "未設定": score += 1
         if self.disaster_risks: score += 1
         if self.pre_disaster_measures: score += 1
         if self.post_disaster_measures: score += 1
 
         return int((score / total_points) * 100)
+
+    def check_quality(self) -> List[QualityIssue]:
+        """
+        データの品質をチェックし、改善提案リストを返す。
+        """
+        issues = []
+        
+        # 1. Basic Info
+        if self.basic_info.company_name == "未設定":
+            issues.append(QualityIssue(section="基本情報", field_name="企業名", issue_type="missing", message="企業名が入力されていません。", severity="critical"))
+        
+        # 2. Business Content (Volume Check)
+        # 目安文字数は仮設定。後で調整可能。
+        bc = self.business_content
+        if bc.products_services == "未設定":
+            issues.append(QualityIssue(section="事業内容", field_name="商品・サービス", issue_type="missing", message="商品・サービスが入力されていません。", severity="warning"))
+        elif len(bc.products_services) < 20: # 仮の閾値
+             issues.append(QualityIssue(section="事業内容", field_name="商品・サービス", issue_type="insufficient_length", message=f"内容が具体的ではありません（現在{len(bc.products_services)}文字）。商品名や特徴を含めて詳しく記述してください。", severity="warning"))
+
+        if bc.target_customers == "未設定":
+             issues.append(QualityIssue(section="事業内容", field_name="顧客", issue_type="missing", message="主な顧客層が入力されていません。", severity="warning"))
+
+        # 3. Risks
+        if not self.disaster_risks:
+            issues.append(QualityIssue(section="災害リスク", field_name="全体", issue_type="missing", message="想定する災害リスクが1つも登録されていません。", severity="critical"))
+        
+        # 4. Measures
+        if not self.pre_disaster_measures:
+             issues.append(QualityIssue(section="事前対策", field_name="全体", issue_type="missing", message="事前対策が登録されていません。", severity="warning"))
+
+        return issues

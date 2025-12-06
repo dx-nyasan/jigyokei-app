@@ -24,7 +24,7 @@ from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 
 # --- Version Control ---
-APP_VERSION = "3.1.2-fix-schema-validation"
+APP_VERSION = "3.2.0-quality-advisor"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -213,38 +213,29 @@ elif mode == "Dashboard Mode (Progress)":
                 st.session_state.current_plan = plan
                 status_placeholder.success("🎉 Analysis Complete!")
                 
-                # --- Gap-Filling Logic ---
+                status_placeholder.success("🎉 Analysis Complete!")
+                
+                # --- Quality Check & Gap-Filling Logic ---
+                issues = plan.check_quality()
                 missing_fields = []
                 
-                # 1. Basic Info Check
-                basic_dump = plan.basic_info.model_dump()
-                for k, v in basic_dump.items():
-                    if not v or v == "未設定":
-                        missing_fields.append(f"基本情報-{k}")
-
-                # 2. Business Content Check
-                biz_dump = plan.business_content.model_dump()
-                for k, v in biz_dump.items():
-                    if not v or v == "未設定":
-                        missing_fields.append(f"事業内容-{k}")
-
-                # 3. Risks Check
-                if not plan.disaster_risks:
-                     missing_fields.append("災害リスクの特定")
-                
-                # 4. Measures Check
-                if not plan.pre_disaster_measures:
-                     missing_fields.append("事前対策")
+                if issues:
+                    st.warning(f"🧐 **Quality Advisor:** {len(issues)} suggestions found.")
+                    for issue in issues:
+                        icon = "🚫" if issue.severity == "critical" else "⚠️"
+                        st.markdown(f"{icon} **{issue.section} - {issue.field_name}**: {issue.message}")
+                        
+                        # AIへの誘導リストにも追加
+                        if issue.issue_type in ["missing", "insufficient_length"]:
+                            missing_fields.append(f"{issue.section}の{issue.field_name}について（{issue.message}）")
                 
                 if missing_fields:
                     st.session_state.ai_interviewer.set_focus_fields(missing_fields)
-                    st.warning(f"🧐 **Next AI Focus:** The AI has detected {len(missing_fields)} missing items. It will proactively ask about these in the chat.")
-                    with st.expander("View Missing Items"):
-                        st.write(missing_fields)
+                    st.info(f"🤖 AI is ready to ask about: {', '.join([i.split('の')[1].split('について')[0] for i in missing_fields[:3]])}...")
                 else:
                     st.session_state.ai_interviewer.set_focus_fields([])
                     st.balloons()
-                    st.success("✨ Incredible! All major items are filled. You are ready to finalize!")
+                    st.success("✨ Incredible! The plan looks solid. You are ready for the final review!")
 
             else:
                 status_placeholder.warning("⚠️ No data extracted (Empty result received).")
