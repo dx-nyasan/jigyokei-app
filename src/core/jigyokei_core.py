@@ -46,19 +46,30 @@ class AIInterviewer:
             self.model = None
             st.error("Google API Key not found. Please set it in Streamlit Secrets.")
 
-    def send_message(self, user_input: str) -> str:
+    def send_message(self, user_input: str, persona: str = "経営者") -> str:
         if not self.model:
             return "Error: API Key is missing or model initialization failed."
 
-        # 履歴への追加
-        self.history.append({"role": "user", "content": user_input})
+        # 履歴への追加（アプリ表示用）
+        # Geminiには "persona" という概念はないので、ここでリッチな情報を保存する
+        self.history.append({
+            "role": "user", 
+            "content": user_input,
+            "persona": persona
+        })
         
         try:
-            # 実際のAPIコール
+            # Geminiへの送信
+            # プロンプトエンジニアリング：ペルソナ情報を文脈に含めることも可能だが、
+            # まずはシンプルに会話履歴として扱う。
             response = self.chat_session.send_message(user_input)
             text_response = response.text
             
-            self.history.append({"role": "model", "content": text_response})
+            self.history.append({
+                "role": "model",
+                "content": text_response,
+                "persona": "AI Concierge"
+            })
             return text_response
             
 
