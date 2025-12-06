@@ -96,6 +96,16 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Failed to load: {e}")
 
+    # Download Button
+    if st.session_state.chat_manager.history:
+        history_json = json.dumps({"history": st.session_state.chat_manager.history}, indent=2, ensure_ascii=False)
+        st.download_button(
+            label="💾 Download Session (JSON)",
+            data=history_json,
+            file_name=f"session_{int(time.time())}.json",
+            mime="application/json"
+        )
+
     if uploaded_file:
         try:
             data = json.load(uploaded_file)
