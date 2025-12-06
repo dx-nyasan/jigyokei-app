@@ -51,8 +51,8 @@ def check_password():
     # 認証未完了時はここで止める
     return False
 
-if not check_password():
-    st.stop()  # 認証されていない場合はここで処理終了（画面描画も止まる）
+# if not check_password():
+#     st.stop()  # 認証されていない場合はここで処理終了（画面描画も止まる）
 
 # ==========================================
 # Main App Logic
