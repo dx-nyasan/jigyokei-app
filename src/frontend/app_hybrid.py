@@ -91,13 +91,12 @@ if not check_password():
 # State Transition Helper
 def change_mode(mode_name, persona_name=None):
     # Map legacy args to new nav selection
-    target = "Chat Mode (経営者)" # Default
+    target = "経営者インタビュー" # Default
     
     if mode_name == "Chat Mode (Interview)":
-        if persona_name == "経営者": target = "Chat Mode (経営者)"
-        elif persona_name == "従業員": target = "Chat Mode (従業員)"
-        elif persona_name == "商工会職員": target = "Chat Mode (商工会職員)"
-        else: target = "Chat Mode (経営者)"
+        if persona_name == "経営者": target = "経営者インタビュー"
+        elif persona_name == "従業員": target = "従業員インタビュー"
+        elif persona_name == "商工会職員": target = "商工会職員インタビュー"
     elif mode_name == "Main Consensus Room (Resolution)":
         target = "Main Consensus Room (全体合意)"
     elif mode_name == "Dashboard Mode (Progress)":
@@ -114,52 +113,63 @@ with st.sidebar:
     
     # Navigation Selection
     if "app_nav_selection" not in st.session_state:
-        st.session_state.app_nav_selection = "Chat Mode (経営者)"
+        st.session_state.app_nav_selection = "経営者インタビュー"
 
-    nav_selection = st.radio(
-        "Select Mode",
-        [
-            "Chat Mode (経営者)",
-            "Chat Mode (従業員)",
-            "Chat Mode (商工会職員)",
-            "Main Consensus Room (全体合意)",
-            "Dashboard Mode (Progress)"
-        ],
-        index=0,
-        key="app_nav_selection"
+    # Determine current index for radio
+    interview_options = ["経営者インタビュー", "従業員インタビュー", "商工会職員インタビュー"]
+    current_nav = st.session_state.app_nav_selection
+    
+    radio_index = 0
+    if current_nav in interview_options:
+        radio_index = interview_options.index(current_nav)
+        
+    # Callback to update state from radio
+    def on_radio_change():
+        st.session_state.app_nav_selection = st.session_state.nav_radio_key
+
+    selected_interview = st.radio(
+        "インタビュー選択",
+        interview_options,
+        index=radio_index,
+        key="nav_radio_key",
+        on_change=on_radio_change
     )
     
-    # Derive logic variables
-    if nav_selection == "Chat Mode (経営者)":
+    # Manager Menu (Hidden by default)
+    with st.expander("管理者メニュー", expanded=False):
+        if st.button("全体合意ルーム (Consensus)", use_container_width=True):
+             st.session_state.app_nav_selection = "Main Consensus Room (全体合意)"
+             st.rerun()
+             
+        if st.button("ダッシュボード (Progress)", use_container_width=True):
+             st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
+             st.rerun()
+             
+    # Logic derivation
+    nav = st.session_state.app_nav_selection
+    if nav == "経営者インタビュー":
         mode = "Chat Mode (Interview)"
         persona = "経営者"
-    elif nav_selection == "Chat Mode (従業員)":
+    elif nav == "従業員インタビュー":
         mode = "Chat Mode (Interview)"
         persona = "従業員"
-    elif nav_selection == "Chat Mode (商工会職員)":
+    elif nav == "商工会職員インタビュー":
         mode = "Chat Mode (Interview)"
         persona = "商工会職員"
-    elif nav_selection == "Main Consensus Room (全体合意)":
+    elif nav == "Main Consensus Room (全体合意)":
         mode = "Main Consensus Room (Resolution)"
         persona = "総合調整役"
-    else:
+    elif nav == "Dashboard Mode (Progress)":
         mode = "Dashboard Mode (Progress)"
         persona = "Viewer"
+    else: # Fallback
+        mode = "Chat Mode (Interview)"
+        persona = "経営者"
 
     st.divider()
+    
+    # User Inputs are MOVED to main panel (removed from here)
 
-    # User Metadata Inputs
-    if mode in ["Chat Mode (Interview)", "Main Consensus Room (Resolution)"]:
-        st.subheader("Who are you?")
-        if mode == "Main Consensus Room (Resolution)":
-             st.info("役割: 全体合意形成 (総合調整役)")
-
-        # User Metadata Inputs
-        st.caption("詳細情報 (任意)")
-        st.text_input("お名前 (Name)", key="user_name_input", placeholder="例: 山田 太郎")
-        st.text_input("役職 (Position)", key="user_position_input", placeholder="例: 代表取締役")
-    else:
-        persona = "Viewer"
 
     st.subheader("Data Management")
     
@@ -252,6 +262,15 @@ if mode == "Chat Mode (Interview)":
             on_click=change_mode,
             args=("Dashboard Mode (Progress)",)
         )
+
+    # User Metadata Inputs (Main Panel) - Always visible at top
+    with st.container(border=True):
+        st.caption(f"📝 {persona}情報入力")
+        col_u1, col_u2 = st.columns(2)
+        with col_u1:
+             st.text_input("お名前 (Name)", key="user_name_input", placeholder="例: 山田 太郎")
+        with col_u2:
+             st.text_input("役職 (Position)", key="user_position_input", placeholder="例: 代表取締役")
 
     # 2. Document Upload Area (Always Available)
     with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=not st.session_state.ai_interviewer.history):
@@ -443,9 +462,9 @@ elif mode == "Dashboard Mode (Progress)":
         st.title("📊 Progress Dashboard")
     with col_dash_head2:
         # 3-Way Back Navigation
-        st.button("⬅️ 経営者チャットへ", on_click=change_mode, args=("Chat Mode (Interview)", "経営者"))
-        st.button("⬅️ 従業員チャットへ", on_click=change_mode, args=("Chat Mode (Interview)", "従業員"))
-        st.button("⬅️ 商工会チャットへ", on_click=change_mode, args=("Chat Mode (Interview)", "商工会職員"))
+        st.button("⬅️ 経営者インタビュー", on_click=change_mode, args=("Chat Mode (Interview)", "経営者"), use_container_width=True)
+        st.button("⬅️ 従業員インタビュー", on_click=change_mode, args=("Chat Mode (Interview)", "従業員"), use_container_width=True)
+        st.button("⬅️ 商工会職員インタビュー", on_click=change_mode, args=("Chat Mode (Interview)", "商工会職員"), use_container_width=True)
 
     st.info("チャット履歴から事業計画書の完成度を自動判定します。")
     
