@@ -173,13 +173,19 @@ class AIInterviewer:
             self.history.append({
                 "role": "model",
                 "content": text_response,
-                "persona": "AI Concierge"
+                "persona": "AI Concierge",
+                "target_persona": persona  # Add target persona for filtering
             })
             return text_response
             
         except Exception as e:
             error_msg = f"申し訳ありません、エラーが発生しました: {str(e)}"
-            self.history.append({"role": "model", "content": error_msg})
+            self.history.append({
+                "role": "model", 
+                "content": error_msg,
+                "persona": "AI Concierge",
+                "target_persona": persona
+            })
             return error_msg
 
     def analyze_history(self) -> dict:

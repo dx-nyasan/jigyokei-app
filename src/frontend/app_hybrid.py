@@ -96,10 +96,15 @@ with st.sidebar:
     st.divider()
     
     # Mode Selection
+    # Mode Selection
+    if "app_mode_selection" not in st.session_state:
+        st.session_state.app_mode_selection = "Chat Mode (Interview)"
+
     mode = st.radio(
         "Select Mode",
         ["Chat Mode (Interview)", "Dashboard Mode (Progress)"],
-        index=0
+        index=0,
+        key="app_mode_selection"
     )
     
     st.divider()
@@ -166,14 +171,8 @@ if mode == "Chat Mode (Interview)":
         st.title("🤖 AI Interviewer (Chat Mode)")
     with col_head2:
         if st.button("📊 Go to Dashboard"):
-             # Dirty hack to switch mode via UI, or just guidance
-             # Since st.radio controls mode, we can't easily change it programmatically without SessionState callback hacks
-             # For now, let's just show an info message or use query params if needed.
-             # Actually st.expander instructions or just a Toast is better.
-             # But user requested a link button.
-             # Let's try to set a session state flag that forces radio update on rerun?
-             # For simplicity now:
-             st.info("👈 Select 'Dashboard Mode' in Sidebar")
+             st.session_state.app_mode_selection = "Dashboard Mode (Progress)"
+             st.rerun()
 
     # 2. Document Upload Area (Always Available)
     with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=not st.session_state.ai_interviewer.history):
@@ -197,46 +196,6 @@ if mode == "Chat Mode (Interview)":
         )
         
         if uploaded_refs and st.button("🚀 資料を読み込む (Process Files)"):
-             with st.spinner("資料を解析中..."):
-                try:
-                    count = st.session_state.ai_interviewer.process_files(uploaded_refs)
-                    st.success(f"{count}件の資料を読み込みました！")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"読み込みエラー: {e}")
-
-    # 3. Chat Interface
-    st.divider()
-    
-    # History Display
-    if not st.session_state.ai_interviewer.history:
-        st.markdown(
-            "👋 **こんにちは。事業継続力強化計画の策定を支援します。**\n\n"
-            "まずは上の「資料アップロード」から資料を読み込ませるか、"
-            "下の入力欄から会話を始めてください。"
-        )
-    
-    for msg in st.session_state.ai_interviewer.history:
-        role = msg["role"]
-        persona_name = msg.get("persona", "Unknown")
-        
-        avatar = "🤖" if role == "model" else "👤"
-        if persona_name == "経営者": avatar = "👨‍💼"
-        elif persona_name == "従業員": avatar = "👷"
-        elif persona_name == "商工会職員": avatar = "🧑‍🏫"
-        elif persona_name == "AI Concierge": avatar = "🤖"
-        
-        with st.chat_message(role, avatar=avatar):
-            if role == "user":
-                st.caption(f"{persona_name}")
-            st.markdown(msg["content"])
-
-    # User Input
-    prompt = st.chat_input(f"{persona}として回答を入力...")
-
-    if prompt:
-        with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
         
         with st.chat_message("model", avatar="🤖"):
@@ -246,7 +205,15 @@ if mode == "Chat Mode (Interview)":
                 st.rerun()
 
 elif mode == "Dashboard Mode (Progress)":
-    st.title("📊 Progress Dashboard")
+    # Navigation Header for Dashboard
+    col_dash_head1, col_dash_head2 = st.columns([3, 1])
+    with col_dash_head1:
+        st.title("📊 Progress Dashboard")
+    with col_dash_head2:
+        if st.button("⬅️ Return to Chat"):
+            st.session_state.app_mode_selection = "Chat Mode (Interview)"
+            st.rerun()
+
     st.info("チャット履歴から事業計画書の完成度を自動判定します。")
     
     from src.core.jigyokei_schema import JigyokeiPlan
