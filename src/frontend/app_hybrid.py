@@ -326,7 +326,8 @@ if mode == "Chat Mode (Interview)":
     current_dynamic_suggestions = st.session_state.get("_temp_suggestions", None)
         
     # --- Resume Guidance (System Message) ---
-    if st.session_state.ai_interviewer.history:
+    # Only show if loaded history exists and no new messages have been added yet
+    if loaded_count > 0 and len(history) == loaded_count:
         with st.container(border=True):
             st.markdown(f"**🤖 System Notification**")
             st.write("以前のチャット履歴を読み込みました。続きから始めましょう。")
