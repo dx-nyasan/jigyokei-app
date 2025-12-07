@@ -251,26 +251,55 @@ if mode == "Chat Mode (Interview)":
             with st.chat_message(role, avatar=avatar):
                 if role == "user":
                     st.caption(f"{msg_persona}")
-                st.markdown(msg["content"])
+                
+                # Sanitize content for display (remove suggestions block)
+                import re
+                display_content = re.sub(r'<suggestions>.*?</suggestions>', '', msg["content"], flags=re.DOTALL).strip()
+                st.markdown(display_content)
+
+                # Capture suggestions from the latest model message
+                if role == "model":
+                    match = re.search(r'<suggestions>(.*?)</suggestions>', msg["content"], flags=re.DOTALL)
+                    if match:
+                        try:
+                            # Store in session state or logic variable to be used below
+                            # Since we are in a loop, this will naturally overwrite with the latest valid suggestions
+                            current_dynamic_suggestions = json.loads(match.group(1))
+                        except:
+                            pass
 
     # --- Next Action Suggestions (Above Chat Input) ---
     st.write("💡 **Next Topics:** (クリックで提案トピックについて話します)")
     suggestion_cols = st.columns(3)
     
-    # 簡易的なペルソナ別提案リスト (Phase 1: Static)
-    suggestions_map = {
+    # 簡易的なペルソナ別提案リスト (Fallback)
+    fallback_map = {
         "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
         "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
         "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
     }
     
-    current_suggestions = suggestions_map.get(persona, ["トピックA", "トピックB", "トピックC"])
+    # Use dynamic if available, else fallback
+    # Note: 'current_dynamic_suggestions' needs to be initialized before loop if we want to be safe, 
+    # but practically we can just init it here if not found.
+    # Actually, Python variable scope in script means 'current_dynamic_suggestions' from loop might be unbound if loop didn't run or define it.
+    # Better to initialize it before loop. 
+    # BUT, since I can't edit "before loop" easily in this chunk without big context, 
+    # I will use a safe access pattern or `locals().get`. 
+    
+    # Just to be safe and clean, let's use the fallback lookup.
+    final_suggestions = locals().get("current_dynamic_suggestions", fallback_map.get(persona, []))
+    
     suggested_prompt = None
     
-    for i, topic in enumerate(current_suggestions):
+    for i, topic in enumerate(final_suggestions):
         if i < 3: # Limit to 3 columns
+            # ボタンテキストはそのままトピック名
             if suggestion_cols[i].button(f"🗣️ {topic}", use_container_width=True):
-                suggested_prompt = f"{topic}について教えてください。"
+                # ユーザーの要望「選択肢を選ぶだけで良い」-> トピックテキストをそのまま回答とする
+                # ただし、「〜について」のような抽象的な話題の場合は補完してもよいが、AIが「はい」「いいえ」を出す場合はそのままが良い。
+                # 汎用的にするため、そのまま送る。
+                suggested_prompt = topic
 
     # User Input
     chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
