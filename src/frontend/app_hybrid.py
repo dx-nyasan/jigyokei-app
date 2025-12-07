@@ -515,8 +515,6 @@ elif mode == "Dashboard Mode (Progress)":
                 st.session_state.current_plan = plan
                 status_placeholder.success("🎉 Analysis Complete!")
                 
-                status_placeholder.success("🎉 Analysis Complete!")
-                
                 # --- Quality Check & Gap-Filling Logic ---
                 issues = plan.check_quality()
                 missing_fields = []
@@ -538,6 +536,9 @@ elif mode == "Dashboard Mode (Progress)":
                     st.session_state.ai_interviewer.set_focus_fields([])
                     st.balloons()
                     st.success("✨ Incredible! The plan looks solid. You are ready for the final review!")
+                
+                time.sleep(1)
+                st.rerun()
 
             else:
                 status_placeholder.warning("⚠️ No data extracted (Empty result received).")
