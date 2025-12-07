@@ -550,12 +550,12 @@ elif mode == "Dashboard Mode (Progress)":
         
         col_m1, col_m2 = st.columns([1, 4])
         with col_m1:
-            st.metric(label="Total Score", value=f"{result['total_score']} / 100")
+            st.metric(label="認定可能性スコア (Score)", value=f"{result['total_score']} / 100", help="100点で電子申請の認定要件を満たします")
             
         with col_m2:
-            st.caption("申請必須項目 (Mandatory) vs 推奨項目 (Recommended)")
+            st.caption("認定に向けた必須項目の入力状況 (Mandatory Requirements)")
             st.progress(result['mandatory_progress'])
-            st.caption(f"Mandatory: {int(result['mandatory_progress']*100)}% Complete")
+            st.caption(f"必須項目の達成率: {int(result['mandatory_progress']*100)}% 完了")
             
         # --- 2. Actionable Alerts (Missing Mandatory) ---
         if result['status'] != "success":

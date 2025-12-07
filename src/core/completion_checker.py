@@ -98,8 +98,9 @@ class CompletionChecker:
         
         recommended_progress = rec_score / rec_total
         
-        # Total Score (Weighted: Mandatory 70%, Recommended 30%)
-        total_score = int((mandatory_progress * 70) + (recommended_progress * 30))
+        # Total Score (Certification Readiness: 100% based on Mandatory Compliance)
+        # User Definition: 100 points = Ready for Electronic Application Certification
+        total_score = int(mandatory_progress * 100)
         
         status = "critical"
         if len(missing_mandatory) == 0:
