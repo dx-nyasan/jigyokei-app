@@ -249,23 +249,48 @@ class AIInterviewer:
             print(f"Analysis failed: {e}")
             return {}
 
-    def load_history(self, history_data: list):
+    def merge_history(self, new_history: list):
         """
-        外部から履歴データを読み込み、内部状態とGeminiのセッションを復元する。
+        新しい履歴データを現在の履歴に統合（マージ）する。
+        単純な追記（extend）を行うが、将来的にはタイムスタンプ等によるソートも検討可能。
         """
-        self.history = history_data
+        # 重複排除ロジックを含めるとなお良いが、まずは単純結合
+        # 会話の流れが不自然になるリスクはあるが、Geminiはコンテキストとして処理することを期待
+        self.history.extend(new_history)
         
-        if self.model:
-            gemini_history = []
-            for msg in history_data:
-                role = "user" if msg["role"] == "user" else "model"
-                gemini_history.append({
-                    "role": role,
-                    "parts": [msg["content"]]
-                })
-            
-            try:
-                self.chat_session = self.model.start_chat(history=gemini_history)
-            except Exception as e:
-                print(f"Failed to restore gemini session: {e}")
-                self.chat_session = self.model.start_chat(history=[])
+        # Geminiセッションの再構築（履歴が変わったため必須）
+        self._rebuild_gemini_session()
+
+    def _rebuild_gemini_session(self):
+        """
+        現在の self.history に基づいて Gemini のチャットセッションを再構築する
+        """
+        if not self.model:
+            return
+
+        gemini_history = []
+        for msg in self.history:
+            role = "user" if msg["role"] == "user" else "model"
+            # Gemini history format: role must be 'user' or 'model'
+            gemini_history.append({
+                "role": role,
+                "parts": [msg["content"]]
+            })
+        
+        try:
+            self.chat_session = self.model.start_chat(history=gemini_history)
+        except Exception as e:
+            print(f"Failed to rebuild gemini session: {e}")
+            # エラー時は空で初期化
+            self.chat_session = self.model.start_chat(history=[])
+
+    def load_history(self, history_data: list, merge: bool = False):
+        """
+        外部から履歴データを読み込む。
+        merge=Trueの場合、既存の履歴を保持したまま追加する（マスターチャット化）。
+        """
+        if merge:
+            self.merge_history(history_data)
+        else:
+            self.history = history_data
+            self._rebuild_gemini_session()

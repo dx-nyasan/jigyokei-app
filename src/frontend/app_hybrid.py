@@ -143,12 +143,14 @@ with st.sidebar:
                 uploaded_file.seek(0)
                 data = json.load(uploaded_file)
                 history = data.get("history", [])
-                st.session_state.ai_interviewer.load_history(history)
+                
+                # Merge Mode: Add to existing history instead of overwriting
+                st.session_state.ai_interviewer.load_history(history, merge=True)
                 
                 # Save state to prevent reload
                 st.session_state.last_loaded_file_id = file_id
                 
-                st.success(f"Session Loaded! ({len(history)} messages)")
+                st.success(f"Session Merged! ({len(history)} messages added)")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
@@ -158,60 +160,44 @@ with st.sidebar:
 
 
 if mode == "Chat Mode (Interview)":
-    st.title("🤖 AI Interviewer (Chat Mode)")
-    
-    # --- Landing Page (Upload First) ---
-    if not st.session_state.ai_interviewer.history:
-        st.markdown("## 👋 ようこそ、事業継続力強化計画策定支援システムへ")
-        st.markdown(
-            "AIが計画策定のヒアリングを行います。\n"
-            "まずは、会社案内や既存の計画書などの資料を読み込ませてください。\n"
-            "資料の内容をAIが理解することで、入力の手間を大幅に省くことができます。"
-        )
-        st.divider()
+    # 1. Dashboard Navigation & Header
+    col_head1, col_head2 = st.columns([3, 1])
+    with col_head1:
+        st.title("🤖 AI Interviewer (Chat Mode)")
+    with col_head2:
+        if st.button("📊 Go to Dashboard"):
+             # Dirty hack to switch mode via UI, or just guidance
+             # Since st.radio controls mode, we can't easily change it programmatically without SessionState callback hacks
+             # For now, let's just show an info message or use query params if needed.
+             # Actually st.expander instructions or just a Toast is better.
+             # But user requested a link button.
+             # Let's try to set a session state flag that forces radio update on rerun?
+             # For simplicity now:
+             st.info("👈 Select 'Dashboard Mode' in Sidebar")
 
-        # Persona-specific Guidance & Uploader
+    # 2. Document Upload Area (Always Available)
+    with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=not st.session_state.ai_interviewer.history):
+        # Persona-specific Guidance
+        upload_label = "資料をアップロード (PDF/画像)"
         if persona == "経営者":
-            st.info("🏢 **経営者の方へ**: 以下の資料があるとスムーズです。")
-            rec_docs = ["会社案内 (Company Brochure)", "既存の事業計画書 (Business Plan)", "ハザードマップ (Hazard Map)"]
-            for d in rec_docs: st.markdown(f"- {d}")
-            st.warning("※会社案内やパンフレットの画像でも構いません。")
-            
-            upload_label = "🏢 経営者用資料をアップロード (PDF/画像)"
-
+            st.info("🏢 **経営者の方へ**: 会社案内、事業計画書、ハザードマップなど")
+            upload_label = "🏢 経営者用資料をアップロード"
         elif persona == "従業員":
-            st.info("👷 **従業員の方へ**: 現場の状況が分かる資料を共有してください。")
-            rec_docs = ["業務マニュアル (Manuals)", "緊急時連絡網 (Emergency Contacts)", "現場の写真 (Site Photos)"]
-            for d in rec_docs: st.markdown(f"- {d}")
-            
-            upload_label = "👷 現場・業務資料をアップロード (PDF/画像)"
-
+            st.info("👷 **従業員の方へ**: 業務マニュアル、緊急連絡網、現場写真など")
+            upload_label = "👷 現場・業務資料をアップロード"
         elif persona == "商工会職員":
-            st.info("🧑‍🏫 **商工会職員の方へ**: 制度や地域のリスクに関する資料をお願いします。")
-            rec_docs = ["共済制度パンフレット (Kyosai)", "地域防災計画 (Regional Plan)", "自治体ハザードマップ"]
-            for d in rec_docs: st.markdown(f"- {d}")
-            
-            upload_label = "🧑‍🏫 支援・制度資料をアップロード (PDF/画像)"
-        else:
-            upload_label = "📂 資料をアップロード (PDF/画像)"
-
-        # Upload Zone
-        st.markdown("### 1. 資料のアップロード")
+            st.info("🧑‍🏫 **商工会職員の方へ**: 共済パンフレット、地域防災計画など")
+            upload_label = "🧑‍🏫 支援・制度資料をアップロード"
+        
         uploaded_refs = st.file_uploader(
             upload_label, 
             type=["pdf", "png", "jpg", "jpeg"], 
             accept_multiple_files=True,
-            key=f"uploader_{persona}"
+            key=f"uploader_{persona}_{int(time.time())}" # Add timestamp to reset key slightly if needed
         )
-
-        st.markdown("### 2. チャットの開始")
-        col1, col2 = st.columns([1, 2])
         
-        start_button = col1.button("🚀 資料を読み込んでスタート", type="primary", disabled=not uploaded_refs)
-        skip_button = col2.button("資料なしでスタート（非推奨）")
-
-        if start_button and uploaded_refs:
-            with st.spinner("資料を解析中... (数十秒かかる場合があります)"):
+        if uploaded_refs and st.button("🚀 資料を読み込む (Process Files)"):
+             with st.spinner("資料を解析中..."):
                 try:
                     count = st.session_state.ai_interviewer.process_files(uploaded_refs)
                     st.success(f"{count}件の資料を読み込みました！")
@@ -219,53 +205,45 @@ if mode == "Chat Mode (Interview)":
                     st.rerun()
                 except Exception as e:
                     st.error(f"読み込みエラー: {e}")
+
+    # 3. Chat Interface
+    st.divider()
+    
+    # History Display
+    if not st.session_state.ai_interviewer.history:
+        st.markdown(
+            "👋 **こんにちは。事業継続力強化計画の策定を支援します。**\n\n"
+            "まずは上の「資料アップロード」から資料を読み込ませるか、"
+            "下の入力欄から会話を始めてください。"
+        )
+    
+    for msg in st.session_state.ai_interviewer.history:
+        role = msg["role"]
+        persona_name = msg.get("persona", "Unknown")
         
-        elif skip_button:
-            # Add initial greeting for no-file start
-            initial_msg = (
-                "こんにちは。資料なしでのスタートですね、承知いたしました。\n"
-                "それでは、御社の事業内容について簡単にお話しいただけますでしょうか？"
-            )
-            st.session_state.ai_interviewer.history.append({
-                "role": "model",
-                "content": initial_msg,
-                "persona": "AI Concierge"
-            })
-            st.rerun()
-
-
-    # --- Chat Interface (After History Exists) ---
-    else:
-        # Show uploaded files count if feasible, or just chat
+        avatar = "🤖" if role == "model" else "👤"
+        if persona_name == "経営者": avatar = "👨‍💼"
+        elif persona_name == "従業員": avatar = "👷"
+        elif persona_name == "商工会職員": avatar = "🧑‍🏫"
+        elif persona_name == "AI Concierge": avatar = "🤖"
         
-        # 1. チャット履歴表示
-        for msg in st.session_state.ai_interviewer.history:
-            role = msg["role"]
-            persona_name = msg.get("persona", "Unknown")
-            
-            avatar = "🤖" if role == "model" else "👤"
-            if persona_name == "経営者": avatar = "👨‍💼"
-            elif persona_name == "従業員": avatar = "👷"
-            elif persona_name == "商工会職員": avatar = "🧑‍🏫"
-            elif persona_name == "AI Concierge": avatar = "🤖"
-            
-            with st.chat_message(role, avatar=avatar):
-                if role == "user":
-                    st.caption(f"{persona_name}")
-                st.markdown(msg["content"])
+        with st.chat_message(role, avatar=avatar):
+            if role == "user":
+                st.caption(f"{persona_name}")
+            st.markdown(msg["content"])
 
-        # 2. ユーザー入力
-        prompt = st.chat_input(f"{persona}として回答を入力...")
+    # User Input
+    prompt = st.chat_input(f"{persona}として回答を入力...")
 
-        if prompt:
-            with st.chat_message("user", avatar="👤"):
-                st.markdown(prompt)
-            
-            with st.chat_message("model", avatar="🤖"):
-                with st.spinner("AI is thinking..."):
-                    response = st.session_state.ai_interviewer.send_message(prompt, persona=persona)
-                    st.markdown(response)
-                    st.rerun()
+    if prompt:
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+        
+        with st.chat_message("model", avatar="🤖"):
+            with st.spinner("AI is thinking..."):
+                response = st.session_state.ai_interviewer.send_message(prompt, persona=persona)
+                st.markdown(response)
+                st.rerun()
 
 elif mode == "Dashboard Mode (Progress)":
     st.title("📊 Progress Dashboard")
