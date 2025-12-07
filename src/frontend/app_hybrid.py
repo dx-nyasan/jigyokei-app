@@ -135,7 +135,7 @@ with st.sidebar:
         on_change=on_radio_change
     )
     
-    # Logic derivation (Moved Up)
+    # Logic derivation (Internal)
     nav = st.session_state.app_nav_selection
     if nav == "経営者インタビュー":
         mode = "Chat Mode (Interview)"
@@ -158,6 +158,7 @@ with st.sidebar:
 
     # Manager Menu (Hidden by default)
     with st.expander("管理者メニュー", expanded=False):
+
         if st.button("全体合意ルーム (Consensus)", use_container_width=True):
              st.session_state.app_nav_selection = "Main Consensus Room (全体合意)"
              st.rerun()
@@ -249,16 +250,6 @@ with st.sidebar:
             # Let's verify 'nav' logic.
              
              
-    st.divider()
-    # User Inputs are MOVED to main panel (removed from here)
-
-
-    st.divider()
-    
-    # User Inputs are MOVED to main panel (removed from here)
-
-
-    # User Inputs are MOVED to main panel (removed from here)
 
 # --- Main Area ---
 
