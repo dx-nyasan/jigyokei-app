@@ -61,18 +61,18 @@ class JigyokeiPlan(BaseModel):
     def progress_score(self) -> int:
         """
         厳格な進捗スコア計算 (0-100)
-        - Gatekeeper: 基本情報未入力なら最高10点
-        - Quantity & Quality: 文字数や項目数で加点
+    def progress_score(self) -> int:
+        """
+        厳格な進捗スコア計算 (0-100)
+        - Gatekeeper: 廃止 (GbizID連携のため)
+        - Quantity & Quality: 文字数や項目数, フィールドの網羅性で加点
         """
         score = 0
         
-        # 1. Gatekeeper: Basic Info (Must be filled)
-        basic_ok = (self.basic_info.company_name != "未設定")
-        if not basic_ok:
-            return 10 # Cap score if basic info missing
+        # 1. Basic Info (Base points, no gatekeeper)
+        if self.basic_info.company_name != "未設定":
+            score += 10
             
-        score += 10 # Basic Info OK base point
-        
         # 2. Business Content (Max 30)
         bc = self.business_content
         if bc.products_services != "未設定":
@@ -107,7 +107,7 @@ class JigyokeiPlan(BaseModel):
 
     def check_quality(self) -> List[QualityIssue]:
         """
-        データの品質をチェックし、改善提案リストを返す。
+        データの品質をチェックし, 改善提案リストを返す.
         """
         issues = []
         

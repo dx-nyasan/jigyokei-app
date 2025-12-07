@@ -110,8 +110,6 @@ with st.sidebar:
     st.header("Jigyokei Hybrid System")
     st.caption("Cloud Edition ☁️")
     st.text(f"Ver: {APP_VERSION}") # バージョンを常に表示
-
-    st.divider()
     
     # Navigation Selection
     if "app_nav_selection" not in st.session_state:
