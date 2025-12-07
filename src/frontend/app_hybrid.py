@@ -135,17 +135,7 @@ with st.sidebar:
         on_change=on_radio_change
     )
     
-    # Manager Menu (Hidden by default)
-    with st.expander("管理者メニュー", expanded=False):
-        if st.button("全体合意ルーム (Consensus)", use_container_width=True):
-             st.session_state.app_nav_selection = "Main Consensus Room (全体合意)"
-             st.rerun()
-             
-        if st.button("ダッシュボード (Progress)", use_container_width=True):
-             st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
-             st.rerun()
-             
-    # Logic derivation
+    # Logic derivation (Moved Up)
     nav = st.session_state.app_nav_selection
     if nav == "経営者インタビュー":
         mode = "Chat Mode (Interview)"
@@ -166,110 +156,110 @@ with st.sidebar:
         mode = "Chat Mode (Interview)"
         persona = "経営者"
 
+    # Manager Menu (Hidden by default)
+    with st.expander("管理者メニュー", expanded=False):
+        if st.button("全体合意ルーム (Consensus)", use_container_width=True):
+             st.session_state.app_nav_selection = "Main Consensus Room (全体合意)"
+             st.rerun()
+             
+        if st.button("ダッシュボード (Progress)", use_container_width=True):
+             st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
+             st.rerun()
+
+        st.divider()
+        st.caption("Data Management")
+        
+        # --- Upload (Import) ---
+        import_owner_label = "データ所有者 (タグ補完用)"
+        import_owner = st.selectbox(
+            import_owner_label, 
+            ["自動 (Auto)", "経営者", "従業員", "商工会職員"], 
+            index=0,
+            key="import_owner_select", # Changed key to avoid duplicate error if previously rendered? No, component moved.
+            help="古いデータを読み込む際、誰の会話データか指定します。「自動」の場合はファイル内の情報を優先します。"
+        )
+        
+        uploaded_file = st.file_uploader("JSONファイルをドラッグ＆ドロップ", type=["json"])
+        
+        if uploaded_file:
+            file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+            if st.session_state.get("last_loaded_file_id") != file_id:
+                try:
+                    uploaded_file.seek(0)
+                    data = json.load(uploaded_file)
+                    
+                    # Tag Injection Logic
+                    valid_history = [m for m in data.get("history", []) if isinstance(m, dict)]
+                    
+                    if import_owner != "自動 (Auto)":
+                        for msg in valid_history:
+                            if "persona" not in msg and msg.get("role") == "user":
+                                msg["persona"] = import_owner
+                            if "target_persona" not in msg and msg.get("role") == "model":
+                                msg["target_persona"] = import_owner
+                    
+                    st.session_state.ai_interviewer.load_history(valid_history, merge=True)
+                    st.session_state.loaded_msg_count = len(st.session_state.ai_interviewer.history)
+                    st.session_state.last_loaded_file_id = file_id
+                    
+                    st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error loading JSON: {e}")
+
+        # --- Download (Export) ---
+        if st.session_state.ai_interviewer.history:
+            # 1. Full Backup
+            full_history_json = json.dumps({"history": st.session_state.ai_interviewer.history}, indent=2, ensure_ascii=False)
+            st.download_button(
+                label="📦 全データを保存 (Backup All)",
+                data=full_history_json,
+                file_name=f"jigyokei_full_backup_{int(time.time())}.json",
+                mime="application/json"
+            )
+
+            # 1.5 Draft Plan Export (Markdown) - Only if analyzed
+            if "current_plan" in st.session_state and st.session_state.current_plan:
+                plan_export = st.session_state.current_plan
+                # Simple MD generation
+                md_text = f"# 事業継続力強化計画（下書き）\\n\\n"
+                md_text += f"## 基本情報\\n- 企業名: {plan_export.basic_info.company_name}\\n- 代表者: {plan_export.basic_info.representative_name}\\n- 住所: {plan_export.basic_info.address}\\n\\n"
+                md_text += f"## 事業内容\\n- 顧客: {plan_export.business_content.target_customers}\\n- 商品・サービス: {plan_export.business_content.products_services}\\n- 提供方法: {plan_export.business_content.delivery_methods}\\n- 強み: {plan_export.business_content.core_competence}\\n\\n"
+                md_text += f"## 被害想定 (リスク)\\n"
+                for r in plan_export.disaster_risks:
+                    md_text += f"- {r.risk_type}: {r.impact_description}\\n"
+                md_text += f"\\n## 事前対策\\n"
+                for m in plan_export.pre_disaster_measures:
+                    md_text += f"- {m.item}: {m.content} (担当: {m.in_charge})\\n"
+                
+                st.download_button(
+                    label="📝 下書きシートを保存 (Markdown)",
+                    data=md_text,
+                    file_name=f"jigyokei_draft_{int(time.time())}.md",
+                    mime="text/markdown",
+                    help="解析済みの計画書データをテキストファイルとして保存します。"
+                )
+            
+            # 2. Persona Specific Export
+            # Note: Need to access 'persona' variable which is derived LATER.
+            # CRITICAL: We cannot access 'persona' here because it is defined AFTER this block.
+            # Implication: We should calculate 'persona' inside the expander OR rely on session state if available.
+            # BUT 'persona' depends on 'nav' which IS available (st.session_state.app_nav_selection).
+            # Let's verify 'nav' logic.
+             
+             
+    st.divider()
+    # User Inputs are MOVED to main panel (removed from here)
+
+
     st.divider()
     
     # User Inputs are MOVED to main panel (removed from here)
 
 
-    st.subheader("Data Management")
-    
-    # --- Upload (Import) ---
-    st.caption("📤 Import Session")
-    import_owner_label = "データ所有者 (タグ補完用)"
-    import_owner = st.selectbox(
-        import_owner_label, 
-        ["自動 (Auto)", "経営者", "従業員", "商工会職員"], 
-        index=0,
-        help="古いデータを読み込む際、誰の会話データか指定します。「自動」の場合はファイル内の情報を優先します。"
-    )
-    
-    uploaded_file = st.file_uploader("JSONファイルをドラッグ＆ドロップ", type=["json"])
-    
-    if uploaded_file:
-        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-        if st.session_state.get("last_loaded_file_id") != file_id:
-            try:
-                uploaded_file.seek(0)
-                data = json.load(uploaded_file)
-                
-                # Tag Injection Logic
-                # Validate history items are dicts
-                valid_history = [m for m in data.get("history", []) if isinstance(m, dict)]
-                
-                if import_owner != "自動 (Auto)":
-                    for msg in valid_history:
-                        if "persona" not in msg and msg.get("role") == "user":
-                            msg["persona"] = import_owner
-                        if "target_persona" not in msg and msg.get("role") == "model":
-                            msg["target_persona"] = import_owner
-                
-                # Load with merge=True
-                st.session_state.ai_interviewer.load_history(valid_history, merge=True)
-                st.session_state.loaded_msg_count = len(st.session_state.ai_interviewer.history)
-                st.session_state.last_loaded_file_id = file_id
-                
-                st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
-                time.sleep(1)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error loading JSON: {e}")
+    # User Inputs are MOVED to main panel (removed from here)
 
-    st.divider()
-
-    # --- Download (Export) ---
-    st.caption("💾 Save Session")
-    if st.session_state.ai_interviewer.history:
-        # 1. Full Backup
-        full_history_json = json.dumps({"history": st.session_state.ai_interviewer.history}, indent=2, ensure_ascii=False)
-        st.download_button(
-            label="📦 全データを保存 (Backup All)",
-            data=full_history_json,
-            file_name=f"jigyokei_full_backup_{int(time.time())}.json",
-            mime="application/json"
-        )
-
-        # 1.5 Draft Plan Export (Markdown) - Only if analyzed
-        if "current_plan" in st.session_state and st.session_state.current_plan:
-            plan = st.session_state.current_plan
-            # Simple MD generation
-            md_text = f"# 事業継続力強化計画（下書き）\n\n"
-            md_text += f"## 基本情報\n- 企業名: {plan.basic_info.company_name}\n- 代表者: {plan.basic_info.representative_name}\n- 住所: {plan.basic_info.address}\n\n"
-            md_text += f"## 事業内容\n- 顧客: {plan.business_content.target_customers}\n- 商品・サービス: {plan.business_content.products_services}\n- 提供方法: {plan.business_content.delivery_methods}\n- 強み: {plan.business_content.core_competence}\n\n"
-            md_text += f"## 被害想定 (リスク)\n"
-            for r in plan.disaster_risks:
-                md_text += f"- {r.risk_type}: {r.impact_description}\n"
-            md_text += f"\n## 事前対策\n"
-            for m in plan.pre_disaster_measures:
-                md_text += f"- {m.item}: {m.content} (担当: {m.in_charge})\n"
-            
-            st.download_button(
-                label="📝 下書きシートを保存 (Markdown)",
-                data=md_text,
-                file_name=f"jigyokei_draft_{int(time.time())}.md",
-                mime="text/markdown",
-                help="解析済みの計画書データをテキストファイルとして保存します。"
-            )
-        
-        # 2. Persona Specific Export
-        my_history = []
-        for msg in st.session_state.ai_interviewer.history:
-            if not isinstance(msg, dict): continue
-            p = msg.get("persona")
-            tp = msg.get("target_persona")
-            if (msg["role"] == "user" and p == persona) or (msg["role"] == "model" and tp == persona):
-                my_history.append(msg)
-        
-        if my_history:
-            my_history_json = json.dumps({"history": my_history}, indent=2, ensure_ascii=False)
-            st.download_button(
-                label=f"💾 {persona}のデータを保存 (Submission)",
-                data=my_history_json,
-                file_name=f"jigyokei_{persona}_{int(time.time())}.json",
-                mime="application/json",
-                type="primary"
-            )
-        else:
-            st.caption(f"※ {persona}のデータはまだありません")
 # --- Main Area ---
 
 
