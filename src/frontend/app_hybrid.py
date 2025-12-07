@@ -163,8 +163,8 @@ with st.sidebar:
                         if "target_persona" not in msg and msg.get("role") == "model":
                             msg["target_persona"] = import_owner
                 
-                # Load with merge=True (Pass dict with 'history' key)
-                st.session_state.ai_interviewer.load_history({"history": valid_history}, merge=True)
+                # Load with merge=True
+                st.session_state.ai_interviewer.load_history(valid_history, merge=True)
                 st.session_state.last_loaded_file_id = file_id
                 
                 st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
