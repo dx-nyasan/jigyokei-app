@@ -90,9 +90,20 @@ if not check_password():
 
 # State Transition Helper
 def change_mode(mode_name, persona_name=None):
-    st.session_state.app_mode_selection = mode_name
-    if persona_name:
-        st.session_state.app_persona_selection = persona_name
+    # Map legacy args to new nav selection
+    target = "Chat Mode (経営者)" # Default
+    
+    if mode_name == "Chat Mode (Interview)":
+        if persona_name == "経営者": target = "Chat Mode (経営者)"
+        elif persona_name == "従業員": target = "Chat Mode (従業員)"
+        elif persona_name == "商工会職員": target = "Chat Mode (商工会職員)"
+        else: target = "Chat Mode (経営者)"
+    elif mode_name == "Main Consensus Room (Resolution)":
+        target = "Main Consensus Room (全体合意)"
+    elif mode_name == "Dashboard Mode (Progress)":
+        target = "Dashboard Mode (Progress)"
+         
+    st.session_state.app_nav_selection = target
 
 with st.sidebar:
     st.header("Jigyokei Hybrid System")
@@ -101,37 +112,47 @@ with st.sidebar:
 
     st.divider()
     
-    # Mode Selection
-    # Mode Selection
-    # Mode Selection
-    if "app_mode_selection" not in st.session_state:
-        st.session_state.app_mode_selection = "Chat Mode (Interview)"
+    # Navigation Selection
+    if "app_nav_selection" not in st.session_state:
+        st.session_state.app_nav_selection = "Chat Mode (経営者)"
 
-    mode = st.radio(
+    nav_selection = st.radio(
         "Select Mode",
-        ["Chat Mode (Interview)", "Dashboard Mode (Progress)", "Main Consensus Room (Resolution)"],
+        [
+            "Chat Mode (経営者)",
+            "Chat Mode (従業員)",
+            "Chat Mode (商工会職員)",
+            "Main Consensus Room (全体合意)",
+            "Dashboard Mode (Progress)"
+        ],
         index=0,
-        key="app_mode_selection"
+        key="app_nav_selection"
     )
     
+    # Derive logic variables
+    if nav_selection == "Chat Mode (経営者)":
+        mode = "Chat Mode (Interview)"
+        persona = "経営者"
+    elif nav_selection == "Chat Mode (従業員)":
+        mode = "Chat Mode (Interview)"
+        persona = "従業員"
+    elif nav_selection == "Chat Mode (商工会職員)":
+        mode = "Chat Mode (Interview)"
+        persona = "商工会職員"
+    elif nav_selection == "Main Consensus Room (全体合意)":
+        mode = "Main Consensus Room (Resolution)"
+        persona = "総合調整役"
+    else:
+        mode = "Dashboard Mode (Progress)"
+        persona = "Viewer"
+
     st.divider()
 
-    # Persona Selection
+    # User Metadata Inputs
     if mode in ["Chat Mode (Interview)", "Main Consensus Room (Resolution)"]:
         st.subheader("Who are you?")
-        if "app_persona_selection" not in st.session_state:
-            st.session_state.app_persona_selection = "経営者"
-            
-        if mode == "Chat Mode (Interview)":
-            persona = st.radio(
-                "Select Persona",
-                ["経営者", "従業員", "商工会職員"],
-                index=0,
-                key="app_persona_selection"
-            )
-        else:
-            persona = "総合調整役"
-            st.info("役割: 全体合意形成 (総合調整役)")
+        if mode == "Main Consensus Room (Resolution)":
+             st.info("役割: 全体合意形成 (総合調整役)")
 
         # User Metadata Inputs
         st.caption("詳細情報 (任意)")
