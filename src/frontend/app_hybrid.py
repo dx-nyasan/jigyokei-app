@@ -547,9 +547,21 @@ elif mode == "Dashboard Mode (Progress)":
                     st.markdown(f"- **{item['section']}**: {item['msg']}")
                 
                 # Action Buttons (Simulation)
-                st.button("インタビュアーに不足項目を聞いてもらう", 
-                          on_click=lambda: st.session_state.ai_interviewer.set_focus_fields([m['msg'] for m in result['missing_mandatory']]),
-                          type="primary")
+                # Action Buttons (Fixed Logic)
+                if st.button("インタビュアーに不足項目を聞いてもらう", type="primary", key="btn_ask_missing"):
+                    # 1. Set Focus
+                    missing_msgs = [m['msg'] for m in result['missing_mandatory']]
+                    st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
+                    
+                    # 2. Inject System/User Trigger (Optional but helpful)
+                    # We want the AI to speak first ideally, or context to be set.
+                    # For now, just focus setting is enough as the System Prompt checks focus fields.
+                    
+                    # 3. Switch Navigation to Chat
+                    st.session_state.app_nav_selection = "経営者インタビュー" 
+                    
+                    # 4. Rerun to effect change
+                    st.rerun()
 
         elif result['recommended_progress'] < 1.0:
             st.success("✅ 申請要件はクリアしています！ (さらに計画を強化しましょう)")
