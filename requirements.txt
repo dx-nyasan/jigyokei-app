@@ -4,4 +4,3 @@ pydantic
 pandas
 requests
 
-# Validated for Gemini 2.5 Flash Re-deployment
