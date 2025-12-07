@@ -18,9 +18,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 # --- Module Reloading for Streamlit Cloud ---
 import src.core.jigyokei_core
-import src.core.jigyokei_schema
+import src.api.schemas
+import src.core.completion_checker
 importlib.reload(src.core.jigyokei_core)
-importlib.reload(src.core.jigyokei_schema)
+importlib.reload(src.api.schemas)
+importlib.reload(src.core.completion_checker)
 
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
@@ -221,7 +223,8 @@ with st.sidebar:
             )
 
             # 1.5 Draft Plan Export (Markdown) - Only if analyzed
-            if "current_plan" in st.session_state and st.session_state.current_plan:
+            # TEMPORARY: Disabled Markdown Export due to Schema Migration (JigyokeiPlan -> ApplicationRoot)
+            if False and "current_plan" in st.session_state and st.session_state.current_plan:
                 plan_export = st.session_state.current_plan
                 # Simple MD generation
                 md_text = f"# 事業継続力強化計画（下書き）\\n\\n"
@@ -471,7 +474,7 @@ elif mode == "Dashboard Mode (Progress)":
 
     st.info("チャット履歴から事業計画書の完成度を自動判定します。")
     
-    from src.core.jigyokei_schema import JigyokeiPlan
+    from src.api.schemas import ApplicationRoot
     
     # 解析実行ボタン
     if st.button("解析する", type="primary", use_container_width=True):
@@ -482,92 +485,133 @@ elif mode == "Dashboard Mode (Progress)":
         
         try:
             status_placeholder.text("⏳ Importing Schema...")
-            from src.core.jigyokei_schema import JigyokeiPlan
+            from src.api.schemas import ApplicationRoot
             
             status_placeholder.text("⏳ Calling Gemini API (This may take 10-20s)...")
             extracted_data = st.session_state.ai_interviewer.analyze_history()
             
             status_placeholder.text(f"✅ API Returned. Data Type: {type(extracted_data)}")
-            # st.write("Raw API Data:", extracted_data) # Hidden per user request
             
             if extracted_data:
                 status_placeholder.text("⏳ Validating data with Pydantic...")
-                plan = JigyokeiPlan(**extracted_data)
-                st.session_state.current_plan = plan
-                status_placeholder.success("🎉 Analysis Complete!")
+                try:
+                    plan = ApplicationRoot.model_validate(extracted_data)
+                    st.session_state.current_plan = plan
+                    status_placeholder.success("🎉 Analysis Complete!")
+                except Exception as val_e:
+                    status_placeholder.error(f"Validation Error: {val_e}")
+                    st.json(extracted_data)
+                    st.stop()
                 
-                # --- Quality Check & Gap-Filling Logic ---
-                issues = plan.check_quality()
-                missing_fields = []
+                # --- Quality Check & Logic (Pending Migration) ---
+                # issues = plan.check_quality()
+                # missing_fields = []
+                # if issues: ...
                 
-                if issues:
-                    st.warning(f"🧐 **Quality Advisor:** {len(issues)} suggestions found.")
-                    for issue in issues:
-                        icon = "🚫" if issue.severity == "critical" else "⚠️"
-                        st.markdown(f"{icon} **{issue.section} - {issue.field_name}**: {issue.message}")
-                        
-                        # AIへの誘導リストにも追加
-                        if issue.issue_type in ["missing", "insufficient_length"]:
-                            missing_fields.append(f"{issue.section}の{issue.field_name}について（{issue.message}）")
-                
-                if missing_fields:
-                    st.session_state.ai_interviewer.set_focus_fields(missing_fields)
-                    st.info(f"🤖 AI is ready to ask about: {', '.join([i.split('の')[1].split('について')[0] for i in missing_fields[:3]])}...")
-                else:
-                    st.session_state.ai_interviewer.set_focus_fields([])
-                    st.balloons()
-                    st.success("✨ Incredible! The plan looks solid. You are ready for the final review!")
+                st.session_state.ai_interviewer.set_focus_fields([]) # Clear focus for now
                 
                 time.sleep(1)
                 st.rerun()
 
             else:
                 status_placeholder.warning("⚠️ No data extracted (Empty result received).")
+
         except Exception as e:
             status_placeholder.error(f"❌ Critical Error: {e}")
             st.exception(e)
     
-    # 解析結果の表示
+    # 解析結果の表示 (Updated for ApplicationRoot key mapping)
     if "current_plan" in st.session_state:
-        plan: JigyokeiPlan = st.session_state.current_plan
+        plan: ApplicationRoot = st.session_state.current_plan
+        from src.core.completion_checker import CompletionChecker
         
-        st.metric(label="Total Progress", value=f"{plan.progress_score()}%")
-        st.progress(plan.progress_score() / 100)
+        # Run Analysis
+        result = CompletionChecker.analyze(plan)
         
-        with st.expander("🔍 Show Raw API Data (Debug)"):
-             # st.json(extracted_data) # This causes NameError if not immediately after analysis
-             st.json(plan.model_dump())
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("🏢 Basic Info")
-            st.table([plan.basic_info.model_dump()])
-            
-            st.subheader("🌩️ Disaster Risks")
-            if plan.disaster_risks:
-                st.table([r.model_dump() for r in plan.disaster_risks])
-            else:
-                st.info("No risks identified.")
-            
-        with col2:
-            st.subheader("💼 Business Content")
-            st.json(plan.business_content.model_dump())
-
+        # --- 1. Status Banner & Header ---
         st.divider()
-        col3, col4 = st.columns(2)
-        with col3:
-            st.subheader("🛡️ Pre-Disaster Measures")
-            if plan.pre_disaster_measures:
-                st.table([m.model_dump() for m in plan.pre_disaster_measures])
-            else:
-                st.info("No measures identified.")
+        st.subheader("📊 Plan Progress Dashboard")
+        
+        col_m1, col_m2 = st.columns([1, 4])
+        with col_m1:
+            st.metric(label="Total Score", value=f"{result['total_score']} / 100")
+            
+        with col_m2:
+            st.caption("申請必須項目 (Mandatory) vs 推奨項目 (Recommended)")
+            st.progress(result['mandatory_progress'])
+            st.caption(f"Mandatory: {int(result['mandatory_progress']*100)}% Complete")
+            
+        # --- 2. Actionable Alerts (Missing Mandatory) ---
+        if result['status'] != "success":
+            with st.container(border=True): # Red/Error container simulation
+                st.error("🚨 申請に向けて、以下の必須項目が不足しています")
+                for item in result['missing_mandatory']:
+                    st.markdown(f"- **{item['section']}**: {item['msg']}")
                 
-        with col4:
-            st.subheader("🚨 Post-Disaster Measures")
-            if plan.post_disaster_measures:
-                st.table([m.model_dump() for m in plan.post_disaster_measures])
+                # Action Buttons (Simulation)
+                st.button("インタビュアーに不足項目を聞いてもらう", 
+                          on_click=lambda: st.session_state.ai_interviewer.set_focus_fields([m['msg'] for m in result['missing_mandatory']]),
+                          type="primary")
+
+        elif result['recommended_progress'] < 1.0:
+            st.success("✅ 申請要件はクリアしています！ (さらに計画を強化しましょう)")
+            with st.expander("💡 さらなる品質向上のヒント (Recommended Actions)", expanded=True):
+                for sug in result['suggestions']:
+                    st.info(f"Suggestion: {sug}")
+
+        else:
+             st.balloons()
+             st.success("🏆 Perfect! 計画は完璧です。申請の準備が整いました。")
+
+        # --- 3. Section Breakdown (Tabs) ---
+        st.divider()
+        tab1, tab2, tab3, tab4 = st.tabs(["🛡️ 対策 (Measures)", "🚨 初動・体制", "🏢 基本・事業", "💰 資金・その他"])
+        
+        with tab1:
+            st.caption(f"事前対策: {result['counts']['measures']}件登録済")
+            if plan.measures:
+                st.table([m.model_dump() for m in plan.measures])
             else:
-                st.info("No measures identified.")
+                st.info("対策がまだ登録されていません。")
+                
+        with tab2:
+            st.caption(f"初動対応: {result['counts']['procedures']}件登録済")
+            if plan.response_procedures:
+                st.table([m.model_dump() for m in plan.response_procedures])
+            else:
+                st.info("初動対応が未登録です。")
+
+        with tab3:
+            col3a, col3b = st.columns(2)
+            with col3a:
+                st.caption("基本情報")
+                st.json(plan.basic_info.model_dump(exclude_none=True))
+            with col3b:
+                st.caption("事業概要・災害想定")
+                st.write(f"**Assumption:** {plan.goals.disaster_scenario.disaster_assumption}")
+                st.write(f"**Overview:** {plan.goals.business_overview}")
+        
+        with tab4:
+             st.caption("資金計画")
+             if plan.financial_plan.items:
+                 st.table([i.model_dump() for i in plan.financial_plan.items])
+             else:
+                 st.warning("資金計画が未入力です。")
+                 
+             st.caption("設備リスト (税制優遇)")
+             if plan.equipment.items:
+                 st.table([i.model_dump() for i in plan.equipment.items])
+             else:
+                 st.info("設備リストなし (任意)")
+
+        # --- 4. Sidebar Tools (Injected here dynamically or rely on static layout) ---
+        # Note: Sidebar is already rendered at top of script. We can add to it here or just leave as is.
+        # Adding a dedicated "Tools" expander in main area for visibility
+        with st.expander("🛠️ お役立ちツール (External Tools)"):
+            c1, c2, c3 = st.columns(3)
+            c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
+            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
+            c3.link_button("💴 リスクファイナンス", "https://www.smrj.go.jp/sme/disaster/kyoujinka/")
 
     else:
         st.info("☝️ Click the button to analyze current chat history.")
