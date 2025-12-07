@@ -287,7 +287,10 @@ if mode == "Chat Mode (Interview)":
         st.caption(f"📝 {persona}情報入力")
         col_u1, col_u2 = st.columns(2)
         with col_u1:
-             st.text_input("役職 (Position)", key="user_position_input", placeholder="例: 代表取締役")
+             pos_placeholder = "例: 代表取締役"
+             if persona == "従業員": pos_placeholder = "例: 現場監督"
+             elif persona == "商工会職員": pos_placeholder = "例: 経営指導員"
+             st.text_input("役職 (Position)", key="user_position_input", placeholder=pos_placeholder)
         with col_u2:
              st.text_input("お名前 (Name)", key="user_name_input", placeholder="例: 山田 太郎")
 
