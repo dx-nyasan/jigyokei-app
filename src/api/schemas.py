@@ -36,7 +36,7 @@ class ImpactAssessment(BaseModel):
 class DisasterScenario(BaseModel):
     """Section 2: Disaster Assumptions & Impact"""
     disaster_assumption: Optional[str] = Field(None, description="想定する自然災害等 (全体)")
-    impact_list: List[ImpactAssessment] = Field(default_factory=list, description="影響リスト")
+    impact_list: Optional[List[ImpactAssessment]] = Field(None, description="影響リスト")
 
 class BusinessStabilityGoal(BaseModel):
     """Section 2: Goals"""

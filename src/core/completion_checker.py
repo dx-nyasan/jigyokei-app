@@ -69,7 +69,7 @@ class CompletionChecker:
         # 2. Hazard Map Reference (NotebookLM: Critical)
         dis_text = plan.goals.disaster_scenario.disaster_assumption or ""
         # Also check risk detail text
-        all_risk_text = dis_text + " " + str([r.impact_info for r in plan.goals.disaster_scenario.impact_list])
+        all_risk_text = dis_text + " " + str([r.impact_info for r in (plan.goals.disaster_scenario.impact_list or [])])
         hazard_keywords = ["ハザードマップ", "J-SHIS", "浸水", "震度", "マグニチュード", "階級"]
         if any(k in all_risk_text for k in hazard_keywords):
             score += 5
