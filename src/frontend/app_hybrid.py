@@ -253,17 +253,44 @@ if mode == "Chat Mode (Interview)":
                     st.caption(f"{msg_persona}")
                 st.markdown(msg["content"])
 
-    # User Input
-    prompt = st.chat_input(f"{persona}として回答を入力...")
+    # --- Next Action Suggestions (Above Chat Input) ---
+    st.write("💡 **Next Topics:** (クリックで提案トピックについて話します)")
+    suggestion_cols = st.columns(3)
+    
+    # 簡易的なペルソナ別提案リスト (Phase 1: Static)
+    suggestions_map = {
+        "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
+        "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
+        "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
+    }
+    
+    current_suggestions = suggestions_map.get(persona, ["トピックA", "トピックB", "トピックC"])
+    suggested_prompt = None
+    
+    for i, topic in enumerate(current_suggestions):
+        if i < 3: # Limit to 3 columns
+            if suggestion_cols[i].button(f"🗣️ {topic}", use_container_width=True):
+                suggested_prompt = f"{topic}について教えてください。"
 
-    if prompt:
+    # User Input
+    chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
+    
+    # Determine which prompt to use (Button click takes precedence, but st.chat_input is usually None if button clicked)
+    # Note: Streamlit execution model means if button clicked, rerun happens, chat_input is None.
+    final_prompt = suggested_prompt if suggested_prompt else chat_input_prompt
+
+    if final_prompt:
         with st.chat_message("user", avatar="👤"):
-            st.markdown(prompt)
+            st.markdown(final_prompt)
         
         with st.chat_message("model", avatar="🤖"):
             with st.spinner("AI is thinking..."):
-                response = st.session_state.ai_interviewer.send_message(prompt, persona=persona)
+                response = st.session_state.ai_interviewer.send_message(final_prompt, persona=persona)
                 st.markdown(response)
+                
+                # Feedback Toast
+                st.toast("📝 会話ログを更新しました (Conversation Log Updated)", icon="✅")
+                time.sleep(1) # Wait for toast to be seen briefly
                 st.rerun()
 elif mode == "Dashboard Mode (Progress)":
     # Navigation Header for Dashboard
