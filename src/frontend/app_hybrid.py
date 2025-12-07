@@ -7,7 +7,7 @@ import importlib
 
 # --- Page Config (Must be the first Streamlit command) ---
 st.set_page_config(
-    page_title="Jigyokei Hybrid System",
+    page_title="Jigyokei Hybrid System (Connection Check)",
     page_icon="👑",
     layout="wide",
     initial_sidebar_state="expanded"
