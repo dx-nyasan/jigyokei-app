@@ -258,7 +258,7 @@ if mode == "Chat Mode (Interview)":
         st.title("🤖 AI Interviewer (Chat Mode)")
     with col_head2:
         st.button(
-            "📊 Go to Dashboard",
+            "📊 進捗度を確認する",
             on_click=change_mode,
             args=("Dashboard Mode (Progress)",)
         )
@@ -471,7 +471,7 @@ elif mode == "Dashboard Mode (Progress)":
     from src.core.jigyokei_schema import JigyokeiPlan
     
     # 解析実行ボタン
-    if st.button("🔄 Analyze & Update Dashboard", type="primary"):
+    if st.button("🔄 チャット履歴を反映して解析する", type="primary", use_container_width=True):
         st.info("🚀 Process Started: Checking Modules...")
         
         # スピナーを使わずに逐次実行を表示
@@ -485,7 +485,7 @@ elif mode == "Dashboard Mode (Progress)":
             extracted_data = st.session_state.ai_interviewer.analyze_history()
             
             status_placeholder.text(f"✅ API Returned. Data Type: {type(extracted_data)}")
-            st.write("Raw API Data:", extracted_data) # Show raw data for debug
+            # st.write("Raw API Data:", extracted_data) # Hidden per user request
             
             if extracted_data:
                 status_placeholder.text("⏳ Validating data with Pydantic...")
