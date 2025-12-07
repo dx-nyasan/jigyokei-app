@@ -47,7 +47,7 @@ class MitigationMeasure(BaseModel):
 class QualityIssue(BaseModel):
     section: str
     field_name: str
-    issue_type: str  # "missing", "insufficient_length"
+    issue_type: str  # "missing", "insufficient_length", "insufficient_quantity"
     message: str
     severity: str # "critical" (must fix for application), "warning" (better to fix)
 
@@ -84,7 +84,6 @@ class JigyokeiPlan(BaseModel):
             issues.append(QualityIssue(section="基本情報", field_name="企業名", issue_type="missing", message="企業名が入力されていません。", severity="critical"))
         
         # 2. Business Content (Volume Check)
-        # 目安文字数は仮設定。後で調整可能。
         bc = self.business_content
         if bc.products_services == "未設定":
             issues.append(QualityIssue(section="事業内容", field_name="商品・サービス", issue_type="missing", message="商品・サービスが入力されていません。", severity="warning"))
@@ -93,13 +92,22 @@ class JigyokeiPlan(BaseModel):
 
         if bc.target_customers == "未設定":
              issues.append(QualityIssue(section="事業内容", field_name="顧客", issue_type="missing", message="主な顧客層が入力されていません。", severity="warning"))
+        
+        if bc.delivery_methods == "未設定":
+             issues.append(QualityIssue(section="事業内容", field_name="提供方法", issue_type="missing", message="商品・サービスの提供方法（対面、配送、オンライン等）が入力されていません。", severity="warning"))
 
         # 3. Risks
         if not self.disaster_risks:
             issues.append(QualityIssue(section="災害リスク", field_name="全体", issue_type="missing", message="想定する災害リスクが1つも登録されていません。", severity="critical"))
-        
+        else:
+            for r in self.disaster_risks:
+                if r.impact_description == "未設定" or len(r.impact_description) < 10:
+                    issues.append(QualityIssue(section="災害リスク", field_name=f"影響({r.risk_type})", issue_type="insufficient_length", message=f"「{r.risk_type}」への影響記述が具体的ではありません。停止する設備や期間、金額的損失などを追記してください。", severity="warning"))
+
         # 4. Measures
         if not self.pre_disaster_measures:
              issues.append(QualityIssue(section="事前対策", field_name="全体", issue_type="missing", message="事前対策が登録されていません。", severity="warning"))
+        elif len(self.pre_disaster_measures) < 3:
+             issues.append(QualityIssue(section="事前対策", field_name="全体", issue_type="insufficient_quantity", message=f"事前対策が{len(self.pre_disaster_measures)}件しかありません。ヒト・モノ・カネ・情報の観点から追加を検討してください。", severity="warning"))
 
         return issues
