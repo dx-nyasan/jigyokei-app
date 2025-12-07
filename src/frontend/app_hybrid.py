@@ -103,6 +103,7 @@ with st.sidebar:
     
     # Mode Selection
     # Mode Selection
+    # Mode Selection
     if "app_mode_selection" not in st.session_state:
         st.session_state.app_mode_selection = "Chat Mode (Interview)"
 
@@ -118,7 +119,6 @@ with st.sidebar:
     # Persona Selection
     if mode == "Chat Mode (Interview)":
         st.subheader("Who are you?")
-        # Initialize key if needed
         if "app_persona_selection" not in st.session_state:
             st.session_state.app_persona_selection = "経営者"
             
@@ -131,25 +131,78 @@ with st.sidebar:
     else:
         persona = "Viewer"
 
-    # Recommended Documents based on Persona
+    st.subheader("Data Management")
+    
+    # --- Upload (Import) ---
+    st.caption("📤 Import Session")
+    import_owner_label = "データ所有者 (タグ補完用)"
+    import_owner = st.selectbox(
+        import_owner_label, 
+        ["自動 (Auto)", "経営者", "従業員", "商工会職員"], 
+        index=0,
+        help="古いデータを読み込む際、誰の会話データか指定します。「自動」の場合はファイル内の情報を優先します。"
+    )
+    
+    uploaded_file = st.file_uploader("JSONファイルをドラッグ＆ドロップ", type=["json"])
+    
+    if uploaded_file:
+        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
         if st.session_state.get("last_loaded_file_id") != file_id:
             try:
                 uploaded_file.seek(0)
                 data = json.load(uploaded_file)
-                history = data.get("history", [])
                 
-                # Merge Mode: Add to existing history instead of overwriting
-                st.session_state.ai_interviewer.load_history(history, merge=True)
+                # Tag Injection Logic
+                if import_owner != "自動 (Auto)":
+                    for msg in data.get("history", []):
+                        if "persona" not in msg and msg.get("role") == "user":
+                            msg["persona"] = import_owner
+                        if "target_persona" not in msg and msg.get("role") == "model":
+                            msg["target_persona"] = import_owner
                 
-                # Save state to prevent reload
+                # Load with merge=True
+                st.session_state.ai_interviewer.load_history(data, merge=True)
                 st.session_state.last_loaded_file_id = file_id
                 
-                st.success(f"Session Merged! ({len(history)} messages added)")
+                st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
-                st.error(f"Failed to load: {e}")
+                st.error(f"Error loading JSON: {e}")
 
+    st.divider()
+
+    # --- Download (Export) ---
+    st.caption("💾 Save Session")
+    if st.session_state.ai_interviewer.history:
+        # 1. Full Backup
+        full_history_json = json.dumps({"history": st.session_state.ai_interviewer.history}, indent=2, ensure_ascii=False)
+        st.download_button(
+            label="📦 全データを保存 (Backup All)",
+            data=full_history_json,
+            file_name=f"jigyokei_full_backup_{int(time.time())}.json",
+            mime="application/json"
+        )
+        
+        # 2. Persona Specific Export
+        my_history = []
+        for msg in st.session_state.ai_interviewer.history:
+            p = msg.get("persona")
+            tp = msg.get("target_persona")
+            if (msg["role"] == "user" and p == persona) or (msg["role"] == "model" and tp == persona):
+                my_history.append(msg)
+        
+        if my_history:
+            my_history_json = json.dumps({"history": my_history}, indent=2, ensure_ascii=False)
+            st.download_button(
+                label=f"💾 {persona}のデータを保存 (Submission)",
+                data=my_history_json,
+                file_name=f"jigyokei_{persona}_{int(time.time())}.json",
+                mime="application/json",
+                type="primary"
+            )
+        else:
+            st.caption(f"※ {persona}のデータはまだありません")
 # --- Main Area ---
 
 
