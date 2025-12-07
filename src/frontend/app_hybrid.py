@@ -268,9 +268,9 @@ if mode == "Chat Mode (Interview)":
         st.caption(f"📝 {persona}情報入力")
         col_u1, col_u2 = st.columns(2)
         with col_u1:
-             st.text_input("お名前 (Name)", key="user_name_input", placeholder="例: 山田 太郎")
-        with col_u2:
              st.text_input("役職 (Position)", key="user_position_input", placeholder="例: 代表取締役")
+        with col_u2:
+             st.text_input("お名前 (Name)", key="user_name_input", placeholder="例: 山田 太郎")
 
     # 2. Document Upload Area (Always Available)
     with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=not st.session_state.ai_interviewer.history):
@@ -471,7 +471,7 @@ elif mode == "Dashboard Mode (Progress)":
     from src.core.jigyokei_schema import JigyokeiPlan
     
     # 解析実行ボタン
-    if st.button("🔄 チャット履歴を反映して解析する", type="primary", use_container_width=True):
+    if st.button("解析する", type="primary", use_container_width=True):
         st.info("🚀 Process Started: Checking Modules...")
         
         # スピナーを使わずに逐次実行を表示
