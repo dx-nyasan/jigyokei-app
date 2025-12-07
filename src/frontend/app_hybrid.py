@@ -196,6 +196,55 @@ if mode == "Chat Mode (Interview)":
         )
         
         if uploaded_refs and st.button("🚀 資料を読み込む (Process Files)"):
+             with st.spinner("資料を解析中..."):
+                try:
+                    count = st.session_state.ai_interviewer.process_files(uploaded_refs)
+                    st.success(f"{count}件の資料を読み込みました！")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"読み込みエラー: {e}")
+
+    # 3. Chat Interface
+    st.divider()
+    
+    # History Display
+    if not st.session_state.ai_interviewer.history:
+        st.markdown(
+            "👋 **こんにちは。事業継続力強化計画の策定を支援します。**\n\n"
+            "まずは上の「資料アップロード」から資料を読み込ませるか、"
+            "下の入力欄から会話を始めてください。"
+        )
+    
+    for msg in st.session_state.ai_interviewer.history:
+        role = msg["role"]
+        msg_persona = msg.get("persona", "Unknown")
+        target_persona = msg.get("target_persona")
+        
+        # Filtering Logic: Only show relevant messages for current persona
+        visible = False
+        if role == "user" and msg_persona == persona:
+            visible = True
+        elif role == "model" and target_persona == persona:
+            visible = True
+        
+        if visible:
+            avatar = "🤖" if role == "model" else "👤"
+            if msg_persona == "経営者": avatar = "👨‍💼"
+            elif msg_persona == "従業員": avatar = "👷"
+            elif msg_persona == "商工会職員": avatar = "🧑‍🏫"
+            elif msg_persona == "AI Concierge": avatar = "🤖"
+            
+            with st.chat_message(role, avatar=avatar):
+                if role == "user":
+                    st.caption(f"{msg_persona}")
+                st.markdown(msg["content"])
+
+    # User Input
+    prompt = st.chat_input(f"{persona}として回答を入力...")
+
+    if prompt:
+        with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
         
         with st.chat_message("model", avatar="🤖"):
@@ -203,7 +252,6 @@ if mode == "Chat Mode (Interview)":
                 response = st.session_state.ai_interviewer.send_message(prompt, persona=persona)
                 st.markdown(response)
                 st.rerun()
-
 elif mode == "Dashboard Mode (Progress)":
     # Navigation Header for Dashboard
     col_dash_head1, col_dash_head2 = st.columns([3, 1])
