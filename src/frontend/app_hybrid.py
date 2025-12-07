@@ -137,6 +137,21 @@ with st.sidebar:
     
     # Logic derivation (Internal)
     nav = st.session_state.app_nav_selection
+    
+    # --- State Tracking for Navigation Flux (Dashboard Return) ---
+    if "last_chat_nav" not in st.session_state:
+        st.session_state.last_chat_nav = "経営者インタビュー"
+
+    valid_return_targets = [
+        "経営者インタビュー", 
+        "従業員インタビュー", 
+        "商工会職員インタビュー", 
+        "Main Consensus Room (全体合意)"
+    ]
+    if nav in valid_return_targets:
+        st.session_state.last_chat_nav = nav
+    # -------------------------------------------------------------
+
     if nav == "経営者インタビュー":
         mode = "Chat Mode (Interview)"
         persona = "経営者"
@@ -557,8 +572,8 @@ elif mode == "Dashboard Mode (Progress)":
                     # We want the AI to speak first ideally, or context to be set.
                     # For now, just focus setting is enough as the System Prompt checks focus fields.
                     
-                    # 3. Switch Navigation to Chat
-                    st.session_state.app_nav_selection = "経営者インタビュー" 
+                    # 3. Switch Navigation to Chat (Correctly restoring last active persona)
+                    st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
                     
                     # 4. Rerun to effect change
                     st.rerun()
