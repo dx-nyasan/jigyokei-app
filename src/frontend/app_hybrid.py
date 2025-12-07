@@ -340,7 +340,7 @@ if mode == "Chat Mode (Interview)":
                 st.caption("💡 **ヒント**: 地域防災計画やハザードマップの情報を共有してください。")
 
     # --- Next Action Suggestions (Above Chat Input) ---
-    st.write("💡 **Next Topics:** (クリックで提案トピックについて話します)")
+    st.caption("💡 **Quick Replies:** (クリックで返信・トピック選択)")
     suggestion_cols = st.columns(3)
     
     # 簡易的なペルソナ別提案リスト (Fallback)
