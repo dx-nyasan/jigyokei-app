@@ -23,8 +23,8 @@ class CompletionChecker:
         mandatory_checks = {
             "BasicInfo": bool(plan.basic_info.corporate_name and plan.basic_info.representative_name),
             "Goals": bool(plan.goals.disaster_scenario.disaster_assumption and plan.goals.disaster_scenario.disaster_assumption != "未設定"),
-            "ResponseProcedures": bool(len(plan.response_procedures) > 0),
-            "Measures": bool(len(plan.measures) > 0),
+            "ResponseProcedures": bool(len(plan.response_procedures) >= 2), # Stricter: Need multiple items
+            "Measures": bool(len(plan.measures) >= 2), # Stricter: Need multiple items
             "FinancialPlan": bool(len(plan.financial_plan.items) > 0),
             "PDCA": bool(plan.pdca.training_education and plan.pdca.training_education != "未設定")
         }
