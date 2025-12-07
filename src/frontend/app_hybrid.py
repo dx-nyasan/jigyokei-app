@@ -88,6 +88,12 @@ if not check_password():
 # Main App Logic
 # ==========================================
 
+# State Transition Helper
+def change_mode(mode_name, persona_name=None):
+    st.session_state.app_mode_selection = mode_name
+    if persona_name:
+        st.session_state.app_persona_selection = persona_name
+
 with st.sidebar:
     st.header("Jigyokei Hybrid System")
     st.caption("Cloud Edition ☁️")
@@ -112,10 +118,15 @@ with st.sidebar:
     # Persona Selection
     if mode == "Chat Mode (Interview)":
         st.subheader("Who are you?")
+        # Initialize key if needed
+        if "app_persona_selection" not in st.session_state:
+            st.session_state.app_persona_selection = "経営者"
+            
         persona = st.radio(
             "Select Persona",
             ["経営者", "従業員", "商工会職員"],
-            index=0
+            index=0,
+            key="app_persona_selection"
         )
     else:
         persona = "Viewer"
@@ -170,9 +181,11 @@ if mode == "Chat Mode (Interview)":
     with col_head1:
         st.title("🤖 AI Interviewer (Chat Mode)")
     with col_head2:
-        if st.button("📊 Go to Dashboard"):
-             st.session_state.app_mode_selection = "Dashboard Mode (Progress)"
-             st.rerun()
+        st.button(
+            "📊 Go to Dashboard",
+            on_click=change_mode,
+            args=("Dashboard Mode (Progress)",)
+        )
 
     # 2. Document Upload Area (Always Available)
     with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=not st.session_state.ai_interviewer.history):
@@ -258,9 +271,10 @@ elif mode == "Dashboard Mode (Progress)":
     with col_dash_head1:
         st.title("📊 Progress Dashboard")
     with col_dash_head2:
-        if st.button("⬅️ Return to Chat"):
-            st.session_state.app_mode_selection = "Chat Mode (Interview)"
-            st.rerun()
+        # 3-Way Back Navigation
+        st.button("⬅️ 経営者チャットへ", on_click=change_mode, args=("Chat Mode (Interview)", "経営者"))
+        st.button("⬅️ 従業員チャットへ", on_click=change_mode, args=("Chat Mode (Interview)", "従業員"))
+        st.button("⬅️ 商工会チャットへ", on_click=change_mode, args=("Chat Mode (Interview)", "商工会職員"))
 
     st.info("チャット履歴から事業計画書の完成度を自動判定します。")
     
