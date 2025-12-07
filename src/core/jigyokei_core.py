@@ -34,6 +34,10 @@ class AIInterviewer:
         - 専門用語は避け、分かりやすい言葉で話しかけてください。
         - 一度に複数の質問をせず、一つずつ確認してください。
 
+        【禁止事項】
+        - ユーザーに対する「思考プロセス」や「分析内容」を出力しないでください。内部的な推論は隠し、最終的な回答のみを提示してください。
+        - **"思考プロセス:" や "Thinking Process:" といったヘッダーを含むテキストは出力禁止です。**
+
         【次のアクション提案 (Suggestions)】
         毎回、応答の最後に、ユーザーがワンクリックで返信できる具体的な候補を3つ提案してください。
         単なる「はい/いいえ」ではなく、文脈に沿った建設的な回答や、次に深掘りすべきトピックを提示すること。
@@ -194,6 +198,18 @@ class AIInterviewer:
             # Geminiへの送信
             response = self.chat_session.send_message(actual_prompt)
             text_response = response.text
+            
+            # Post-processing to remove leaked thought process
+            import re
+            # Remove "思考プロセス:" block. It usually seems to be at the start or distinct block.
+            # Logic: Remove content starting with "思考プロセス:" or "Thinking Process:" until a double newline or end.
+            patterns = [
+                r"^思考プロセス:.*?(?:\n\n|\Z)",
+                r"^Thinking Process:.*?(?:\n\n|\Z)",
+                r"【思考プロセス】.*?(?:\n\n|\Z)"
+            ]
+            for pat in patterns:
+                text_response = re.sub(pat, "", text_response, flags=re.DOTALL | re.MULTILINE).strip()
             
             self.history.append({
                 "role": "model",
