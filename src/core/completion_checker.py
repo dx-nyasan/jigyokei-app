@@ -56,41 +56,47 @@ class CompletionChecker:
         if mandatory_checks["FinancialPlan"]: score += 9
         if mandatory_checks["PDCA"]: score += 9
         
-        # B. Quality & Quantity (Max 30 pts) - "Skasuka" Check
-        # Business Overview Length
+        # B. Quality & Quantity (Max 30 pts) - NotebookLM Insights + Skasuka Check
+        
+        # 1. Role in Overview (NotebookLM: Critical)
         ov_text = plan.goals.business_overview or ""
-        if len(ov_text) >= 20: 
+        role_keywords = ["サプライチェーン", "シェア", "地域", "役割", "供給", "責任", "インフラ", "雇用"]
+        if any(k in ov_text for k in role_keywords) and len(ov_text) >= 20:
             score += 5
         elif mandatory_checks["Goals"]:
-            suggestions.append("事業概要の記述が短すぎます。20文字以上で具体的に記述してください。")
+            suggestions.append("「サプライチェーン上の役割（シェア率、供給責任）」や「地域経済における重要性」を具体的に記述してください。")
 
-        # Disaster Assumption Detail
-        # Assuming impact_list has content
-        has_risk_detail = False
-        if plan.goals.disaster_scenario.impact_list:
-             # Check if any text is decent length
-             for imp in plan.goals.disaster_scenario.impact_list:
-                 if len(imp.impact_building or "") > 10 or len(imp.impact_personnel or "") > 10:
-                     has_risk_detail = True
-                     break
-        if has_risk_detail:
+        # 2. Hazard Map Reference (NotebookLM: Critical)
+        dis_text = plan.goals.disaster_scenario.disaster_assumption or ""
+        # Also check risk detail text
+        all_risk_text = dis_text + " " + str([r.impact_info for r in plan.goals.disaster_scenario.impact_list])
+        hazard_keywords = ["ハザードマップ", "J-SHIS", "浸水", "震度", "マグニチュード", "階級"]
+        if any(k in all_risk_text for k in hazard_keywords):
             score += 5
         elif mandatory_checks["Goals"]:
-            suggestions.append("被害想定（ヒト/モノ）の記述が『未設定』または短すぎます。")
+            suggestions.append("被害想定の根拠として「ハザードマップ」や「J-SHIS」の名前を出し、具体的な数値（震度○、浸水○m）を記述してください。")
 
-        # Response Count (Manual often suggests multiple)
+        # 3. Management Commitment (NotebookLM: Critical)
+        pdca_text = str(plan.pdca.management_system) + str(plan.pdca.training_education)
+        mgmt_keywords = ["代表", "経営", "社長", "役員", "トップ"]
+        if any(k in pdca_text for k in mgmt_keywords):
+            score += 5
+        elif mandatory_checks["PDCA"]:
+            suggestions.append("推進体制に「代表取締役」や「経営層」の関与を明記してください。（例：代表取締役の指揮の下で年1回見直す）")
+
+        # 4. Response Count (Quantity)
         if len(plan.response_procedures) >= 2:
             score += 5
         elif mandatory_checks["ResponseProcedures"]:
             suggestions.append("初動対応は複数（人命安全、被害状況確認など）登録することが望ましいです。")
 
-        # Measures Count (Manual requires covering Person, Building, Money, Info ideally, or at least 3)
+        # 5. Measures Count (Quantity)
         if len(plan.measures) >= 3:
-            score += 10
+            score += 5
         elif mandatory_checks["Measures"]:
-            suggestions.append(f"事前対策が現在{len(plan.measures)}件です。認定には3件以上の具体的な対策登録を強く推奨します。")
+            suggestions.append(f"事前対策は3件以上（ヒト・モノ・カネ・情報）の登録を強く推奨します。")
 
-        # Financial Items (redundancy check, maybe strictly need 'method' filled)
+        # 6. Financial Detail
         financial_ok = False
         for f in plan.financial_plan.items:
             if f.amount > 0 or (f.method and len(f.method) > 2):
