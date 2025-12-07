@@ -165,6 +165,7 @@ with st.sidebar:
                 
                 # Load with merge=True
                 st.session_state.ai_interviewer.load_history(valid_history, merge=True)
+                st.session_state.loaded_msg_count = len(st.session_state.ai_interviewer.history)
                 st.session_state.last_loaded_file_id = file_id
                 
                 st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
@@ -264,17 +265,18 @@ if mode == "Chat Mode (Interview)":
             "下の入力欄から会話を始めてください。"
         )
     
-    for msg in st.session_state.ai_interviewer.history:
-        if not isinstance(msg, dict): continue
+    # Helper to render a single message
+    def render_message(msg, current_persona):
+        if not isinstance(msg, dict): return
         role = msg["role"]
         msg_persona = msg.get("persona", "Unknown")
         target_persona = msg.get("target_persona")
         
-        # Filtering Logic: Only show relevant messages for current persona
+        # Filtering Logic
         visible = False
-        if role == "user" and msg_persona == persona:
+        if role == "user" and msg_persona == current_persona:
             visible = True
-        elif role == "model" and target_persona == persona:
+        elif role == "model" and target_persona == current_persona:
             visible = True
         
         if visible:
@@ -288,21 +290,40 @@ if mode == "Chat Mode (Interview)":
                 if role == "user":
                     st.caption(f"{msg_persona}")
                 
-                # Sanitize content for display (remove suggestions block)
+                # Sanitize content
                 import re
                 display_content = re.sub(r'<suggestions>.*?</suggestions>', '', msg["content"], flags=re.DOTALL).strip()
                 st.markdown(display_content)
 
-                # Capture suggestions from the latest model message
+                # Capture suggestions (only from model)
                 if role == "model":
                     match = re.search(r'<suggestions>(.*?)</suggestions>', msg["content"], flags=re.DOTALL)
                     if match:
                         try:
-                            # Store in session state or logic variable to be used below
-                            # Since we are in a loop, this will naturally overwrite with the latest valid suggestions
-                            current_dynamic_suggestions = json.loads(match.group(1))
+                            st.session_state._temp_suggestions = json.loads(match.group(1))
                         except:
                             pass
+
+    # Reset temp suggestions
+    if "_temp_suggestions" in st.session_state:
+        del st.session_state["_temp_suggestions"]
+
+    history = st.session_state.ai_interviewer.history
+    loaded_count = st.session_state.get("loaded_msg_count", 0)
+
+    # 1. Past History (Collapsible)
+    if loaded_count > 0:
+        with st.expander("🕒 過去のチャット履歴を表示 (Loaded History)", expanded=False):
+            for i in range(loaded_count):
+                if i < len(history):
+                     render_message(history[i], persona)
+
+    # 2. New Session History
+    for i in range(loaded_count, len(history)):
+        render_message(history[i], persona)
+    
+    # Retrieve suggestions
+    current_dynamic_suggestions = st.session_state.get("_temp_suggestions", None)
         
     # --- Resume Guidance (System Message) ---
     if st.session_state.ai_interviewer.history:
