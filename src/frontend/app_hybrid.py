@@ -227,6 +227,28 @@ with st.sidebar:
             file_name=f"jigyokei_full_backup_{int(time.time())}.json",
             mime="application/json"
         )
+
+        # 1.5 Draft Plan Export (Markdown) - Only if analyzed
+        if "current_plan" in st.session_state and st.session_state.current_plan:
+            plan = st.session_state.current_plan
+            # Simple MD generation
+            md_text = f"# 事業継続力強化計画（下書き）\n\n"
+            md_text += f"## 基本情報\n- 企業名: {plan.basic_info.company_name}\n- 代表者: {plan.basic_info.representative_name}\n- 住所: {plan.basic_info.address}\n\n"
+            md_text += f"## 事業内容\n- 顧客: {plan.business_content.target_customers}\n- 商品・サービス: {plan.business_content.products_services}\n- 提供方法: {plan.business_content.delivery_methods}\n- 強み: {plan.business_content.core_competence}\n\n"
+            md_text += f"## 被害想定 (リスク)\n"
+            for r in plan.disaster_risks:
+                md_text += f"- {r.risk_type}: {r.impact_description}\n"
+            md_text += f"\n## 事前対策\n"
+            for m in plan.pre_disaster_measures:
+                md_text += f"- {m.item}: {m.content} (担当: {m.in_charge})\n"
+            
+            st.download_button(
+                label="📝 下書きシートを保存 (Markdown)",
+                data=md_text,
+                file_name=f"jigyokei_draft_{int(time.time())}.md",
+                mime="text/markdown",
+                help="解析済みの計画書データをテキストファイルとして保存します。"
+            )
         
         # 2. Persona Specific Export
         my_history = []
