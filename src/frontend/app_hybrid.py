@@ -153,15 +153,18 @@ with st.sidebar:
                 data = json.load(uploaded_file)
                 
                 # Tag Injection Logic
+                # Validate history items are dicts
+                valid_history = [m for m in data.get("history", []) if isinstance(m, dict)]
+                
                 if import_owner != "自動 (Auto)":
-                    for msg in data.get("history", []):
+                    for msg in valid_history:
                         if "persona" not in msg and msg.get("role") == "user":
                             msg["persona"] = import_owner
                         if "target_persona" not in msg and msg.get("role") == "model":
                             msg["target_persona"] = import_owner
                 
-                # Load with merge=True
-                st.session_state.ai_interviewer.load_history(data, merge=True)
+                # Load with merge=True (Pass dict with 'history' key)
+                st.session_state.ai_interviewer.load_history({"history": valid_history}, merge=True)
                 st.session_state.last_loaded_file_id = file_id
                 
                 st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
@@ -187,6 +190,7 @@ with st.sidebar:
         # 2. Persona Specific Export
         my_history = []
         for msg in st.session_state.ai_interviewer.history:
+            if not isinstance(msg, dict): continue
             p = msg.get("persona")
             tp = msg.get("target_persona")
             if (msg["role"] == "user" and p == persona) or (msg["role"] == "model" and tp == persona):
@@ -261,6 +265,7 @@ if mode == "Chat Mode (Interview)":
         )
     
     for msg in st.session_state.ai_interviewer.history:
+        if not isinstance(msg, dict): continue
         role = msg["role"]
         msg_persona = msg.get("persona", "Unknown")
         target_persona = msg.get("target_persona")
