@@ -109,7 +109,7 @@ with st.sidebar:
 
     mode = st.radio(
         "Select Mode",
-        ["Chat Mode (Interview)", "Dashboard Mode (Progress)"],
+        ["Chat Mode (Interview)", "Dashboard Mode (Progress)", "Main Consensus Room (Resolution)"],
         index=0,
         key="app_mode_selection"
     )
@@ -117,17 +117,26 @@ with st.sidebar:
     st.divider()
 
     # Persona Selection
-    if mode == "Chat Mode (Interview)":
+    if mode in ["Chat Mode (Interview)", "Main Consensus Room (Resolution)"]:
         st.subheader("Who are you?")
         if "app_persona_selection" not in st.session_state:
             st.session_state.app_persona_selection = "経営者"
             
-        persona = st.radio(
-            "Select Persona",
-            ["経営者", "従業員", "商工会職員"],
-            index=0,
-            key="app_persona_selection"
-        )
+        if mode == "Chat Mode (Interview)":
+            persona = st.radio(
+                "Select Persona",
+                ["経営者", "従業員", "商工会職員"],
+                index=0,
+                key="app_persona_selection"
+            )
+        else:
+            persona = "総合調整役"
+            st.info("役割: 全体合意形成 (総合調整役)")
+
+        # User Metadata Inputs
+        st.caption("詳細情報 (任意)")
+        st.text_input("お名前 (Name)", key="user_name_input", placeholder="例: 山田 太郎")
+        st.text_input("役職 (Position)", key="user_position_input", placeholder="例: 代表取締役")
     else:
         persona = "Viewer"
 
@@ -388,9 +397,18 @@ if mode == "Chat Mode (Interview)":
         with st.chat_message("user", avatar="👤"):
             st.markdown(final_prompt)
         
+        # Prepare metadata for context
+        user_name = st.session_state.get("user_name_input", "")
+        user_position = st.session_state.get("user_position_input", "")
+        user_data = {"name": user_name, "position": user_position}
+
         with st.chat_message("model", avatar="🤖"):
             with st.spinner("AI is thinking..."):
-                response = st.session_state.ai_interviewer.send_message(final_prompt, persona=persona)
+                response = st.session_state.ai_interviewer.send_message(
+                    final_prompt, 
+                    persona=persona,
+                    user_data=user_data
+                )
                 st.markdown(response)
                 
                 # Feedback Toast
@@ -513,3 +531,62 @@ elif mode == "Dashboard Mode (Progress)":
     st.divider()
     with st.expander("Show Raw Chat History"):
         st.json(st.session_state.ai_interviewer.history)
+
+elif mode == "Main Consensus Room (Resolution)":
+    st.title("⚖️ Consensus Room (全体合意)")
+    st.caption("各ペルソナの意見を調整し、最終的な方針を決定します。")
+    
+    # Conflict Detection
+    with st.expander("🧐 矛盾・未合意事項の検知 (Conflict Detection)", expanded=True):
+        if st.button("矛盾を再スキャンする", type="primary"):
+            with st.spinner("Analyzing conflicts..."):
+                conflicts = st.session_state.ai_interviewer.detect_conflicts()
+                st.session_state._conflicts_cache = conflicts
+        
+        # Retrieve cache
+        current_conflicts_data = st.session_state.get("_conflicts_cache", {})
+        current_conflicts = current_conflicts_data.get("conflicts", [])
+        
+        if current_conflicts:
+            st.warning(f"{len(current_conflicts)}件の矛盾または未合意事項が見つかりました。")
+            for i, c in enumerate(current_conflicts):
+                st.markdown(f"#### {i+1}. {c.get('topic', 'Topic')}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.info(f"**A: {c.get('persona_A')}**\n\n{c.get('statement_A')}")
+                with col2:
+                    st.info(f"**B: {c.get('persona_B')}**\n\n{c.get('statement_B')}")
+                st.success(f"💡 **AI Suggestion**: {c.get('suggestion')}")
+                st.divider()
+        else:
+             st.info("矛盾は見つかりませんでした (未スキャンまたは解消済み)")
+
+    st.divider()
+    st.subheader("💬 全体方針の決定")
+    
+    # Chat History
+    history = st.session_state.ai_interviewer.history
+    
+    # Show history using rendered helper
+    for i in range(len(history)):
+         render_message(history[i], "総合調整役") 
+    
+    # Input
+    if prompt := st.chat_input("全体方針を入力してください (例: 避難場所は高台の公園とします)"):
+         with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+         
+         # Metadata
+         user_name = st.session_state.get("user_name_input", "")
+         user_position = st.session_state.get("user_position_input", "")
+         user_data = {"name": user_name, "position": user_position}
+         
+         with st.chat_message("model", avatar="🤖"):
+            with st.spinner("AI Facilitator is recording..."):
+                response = st.session_state.ai_interviewer.send_message(
+                    prompt, 
+                    persona="総合調整役",
+                    user_data=user_data
+                )
+                st.markdown(response)
+                st.rerun()
