@@ -359,17 +359,21 @@ if mode == "Chat Mode (Interview)":
     # I will use a safe access pattern or `locals().get`. 
     
     # Just to be safe and clean, let's use the fallback lookup.
-    final_suggestions = locals().get("current_dynamic_suggestions", fallback_map.get(persona, []))
+    # Dynamic suggestion logic
+    dynamic_list = None
+    if current_dynamic_suggestions:
+        if isinstance(current_dynamic_suggestions, dict):
+            dynamic_list = current_dynamic_suggestions.get("suggested_topics")
+        elif isinstance(current_dynamic_suggestions, list):
+            dynamic_list = current_dynamic_suggestions
+
+    final_suggestions = dynamic_list if dynamic_list else fallback_map.get(persona, [])
     
     suggested_prompt = None
     
-    for i, topic in enumerate(final_suggestions):
-        if i < 3: # Limit to 3 columns
-            # ボタンテキストはそのままトピック名
+    if final_suggestions:
+        for i, topic in enumerate(final_suggestions[:3]):
             if suggestion_cols[i].button(f"🗣️ {topic}", use_container_width=True):
-                # ユーザーの要望「選択肢を選ぶだけで良い」-> トピックテキストをそのまま回答とする
-                # ただし、「〜について」のような抽象的な話題の場合は補完してもよいが、AIが「はい」「いいえ」を出す場合はそのままが良い。
-                # 汎用的にするため、そのまま送る。
                 suggested_prompt = topic
 
     # User Input
