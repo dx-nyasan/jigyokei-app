@@ -60,18 +60,50 @@ class JigyokeiPlan(BaseModel):
 
     def progress_score(self) -> int:
         """
-        簡易的な進捗スコア計算 (0-100)
+        厳格な進捗スコア計算 (0-100)
+        - Gatekeeper: 基本情報未入力なら最高10点
+        - Quantity & Quality: 文字数や項目数で加点
         """
         score = 0
-        total_points = 5  # 評価項目数
-
-        if self.basic_info.company_name != "未設定": score += 1
-        if self.business_content.products_services != "未設定": score += 1
-        if self.disaster_risks: score += 1
-        if self.pre_disaster_measures: score += 1
-        if self.post_disaster_measures: score += 1
-
-        return int((score / total_points) * 100)
+        
+        # 1. Gatekeeper: Basic Info (Must be filled)
+        basic_ok = (self.basic_info.company_name != "未設定")
+        if not basic_ok:
+            return 10 # Cap score if basic info missing
+            
+        score += 10 # Basic Info OK base point
+        
+        # 2. Business Content (Max 30)
+        bc = self.business_content
+        if bc.products_services != "未設定":
+            score += 10 if len(bc.products_services) >= 10 else 5
+        if bc.target_customers != "未設定":
+            score += 10
+        if bc.delivery_methods != "未設定":
+            score += 10
+            
+        # 3. Risks (Max 30)
+        if self.disaster_risks:
+            score += 10 # Existence
+            # Quality Check (Specific Impact)
+            detailed_impacts = [r for r in self.disaster_risks if len(r.impact_description) >= 15]
+            if detailed_impacts:
+                score += 20
+            elif [r for r in self.disaster_risks if r.impact_description != "未設定"]:
+                score += 10 # Valid but short
+        
+        # 4. Measures (Max 30)
+        pre_count = len(self.pre_disaster_measures)
+        if pre_count >= 3:
+            score += 20
+        else:
+            score += pre_count * 5 # 5 pts per item up to 15
+            
+        post_count = len(self.post_disaster_measures)
+        if post_count >= 1:
+            score += 10
+            
+        return min(100, score)
 
     def check_quality(self) -> List[QualityIssue]:
         """
