@@ -132,28 +132,6 @@ with st.sidebar:
         persona = "Viewer"
 
     # Recommended Documents based on Persona
-    # (Moved to Main Area Landing Page)
-    
-    # File Uploader
-    # (Moved to Main Area Landing Page)
-
-    st.subheader("Data Management")
-    uploaded_file = st.file_uploader("Load Previous Session (JSON)", type=["json"])
-    
-    # Download Button
-    if st.session_state.ai_interviewer.history:
-        history_json = json.dumps({"history": st.session_state.ai_interviewer.history}, indent=2, ensure_ascii=False)
-        st.download_button(
-            label="💾 Download Session (JSON)",
-            data=history_json,
-            file_name=f"session_{int(time.time())}.json",
-            mime="application/json"
-        )
-
-    if uploaded_file:
-        # Prevent infinite rerun loop by checking file ID
-        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-        
         if st.session_state.get("last_loaded_file_id") != file_id:
             try:
                 uploaded_file.seek(0)
@@ -267,6 +245,20 @@ if mode == "Chat Mode (Interview)":
                             current_dynamic_suggestions = json.loads(match.group(1))
                         except:
                             pass
+        
+    # --- Resume Guidance (System Message) ---
+    if st.session_state.ai_interviewer.history:
+        with st.container(border=True):
+            st.markdown(f"**🤖 System Notification**")
+            st.write("以前のチャット履歴を読み込みました。続きから始めましょう。")
+            
+            # Simple missing info heuristic or static guidance
+            if persona == "経営者":
+                st.caption("💡 **ヒント**: 会社案内や事業計画書をアップロードすると、入力の手間が省けます。")
+            elif persona == "従業員":
+                st.caption("💡 **ヒント**: 現場の写真や業務マニュアルがあれば、アップロードしてください。")
+            elif persona == "商工会職員":
+                st.caption("💡 **ヒント**: 地域防災計画やハザードマップの情報を共有してください。")
 
     # --- Next Action Suggestions (Above Chat Input) ---
     st.write("💡 **Next Topics:** (クリックで提案トピックについて話します)")
