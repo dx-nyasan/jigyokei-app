@@ -639,7 +639,7 @@ elif mode == "Dashboard Mode (Progress)":
             c1, c2, c3 = st.columns(3)
             c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
             c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
-            c3.link_button("💴 リスクファイナンス", "https://www.smrj.go.jp/sme/disaster/kyoujinka/")
+            c3.link_button("💴 リスクファイナンス", "https://www.smrj.go.jp/sme/resilience/index.html")
 
     else:
         st.info("☝️ Click the button to analyze current chat history.")
