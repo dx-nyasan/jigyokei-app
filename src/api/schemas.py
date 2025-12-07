@@ -68,7 +68,7 @@ class EquipmentItem(BaseModel):
 
 class EquipmentList(BaseModel):
     """Section 3(3): Equipment List Wrapper"""
-    use_tax_incentive: bool = Field(False, description="税制優遇措置を活用する")
+    use_tax_incentive: Optional[bool] = Field(None, description="税制優遇措置を活用する")
     items: List[EquipmentItem] = Field(default_factory=list, description="設備リスト")
     compliance_checks: List[str] = Field(default_factory=list, description="確認事項チェックリスト")
 
@@ -98,15 +98,15 @@ class FinancialPlan(BaseModel):
 
 class AttachmentsChecklist(BaseModel):
     """Section 4 & 5: Attachments & Checklist"""
-    certification_compliance: bool = Field(False, description="認定要件への適合")
-    no_false_statements: bool = Field(False, description="虚偽記載なし")
-    not_anti_social: bool = Field(False, description="反社でないこと")
-    not_cancellation_subject: bool = Field(False, description="認定取消対象でないこと")
-    legal_compliance: bool = Field(False, description="法令適合")
-    sme_requirements: bool = Field(False, description="中小企業要件")
-    registration_consistency: bool = Field(False, description="登記と一致")
-    data_utilization_consent: str = Field("不可", description="データ活用同意")
-    case_publication_consent: str = Field("不可", description="事例公表同意")
+    certification_compliance: Optional[bool] = Field(None, description="認定要件への適合")
+    no_false_statements: Optional[bool] = Field(None, description="虚偽記載なし")
+    not_anti_social: Optional[bool] = Field(None, description="反社でないこと")
+    not_cancellation_subject: Optional[bool] = Field(None, description="認定取消対象でないこと")
+    legal_compliance: Optional[bool] = Field(None, description="法令適合")
+    sme_requirements: Optional[bool] = Field(None, description="中小企業要件")
+    registration_consistency: Optional[bool] = Field(None, description="登記と一致")
+    data_utilization_consent: Optional[str] = Field(None, description="データ活用同意")
+    case_publication_consent: Optional[str] = Field(None, description="事例公表同意")
 
 class ApplicationRoot(BaseModel):
     """Root Model for the entire Application (SSOT)"""
