@@ -570,7 +570,10 @@ if mode == "Chat Mode (Interview)":
                 if example:
                     st.success(f"**回答例**: {example}")
                     # Improvement: Button to use the example as answer
-                    if st.button("📋 回答例の通り回答する", key=f"use_example_{int(time.time())}"):
+                    # Use stable key based on content hash
+                    import hashlib
+                    stable_key = hashlib.md5(example.encode()).hexdigest()
+                    if st.button("📋 回答例の通り回答する", key=f"use_example_{stable_key}"):
                         suggested_prompt = example
 
     # --- Next Action Suggestions (Quick Replies) ---
