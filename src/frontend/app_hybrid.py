@@ -20,15 +20,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 import src.core.jigyokei_core
 import src.api.schemas
 import src.core.completion_checker
+import src.core.draft_exporter
 importlib.reload(src.core.jigyokei_core)
 importlib.reload(src.api.schemas)
 importlib.reload(src.core.completion_checker)
+importlib.reload(src.core.draft_exporter)
 
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
+from src.core.completion_checker import CompletionChecker
+from src.core.draft_exporter import DraftExporter
 
 # --- Version Control ---
-APP_VERSION = "3.3.1-multimodal-fix"
+APP_VERSION = "3.4.0-ux-improvement"
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -241,17 +245,19 @@ with st.sidebar:
                         elif "basic_info" in data or "goals" in data:
                             from src.api.schemas import ApplicationRoot
                             try:
+                                # Migration Step
+                                clean_data = ApplicationRoot.migrate_legacy_data(data)
+                                
                                 # Attempt to validate and load as current plan
-                                # Note: validate might fail if partial data, so we might need construct=True or partial validation
-                                # But let's try strict first as user said "test data"
-                                plan = ApplicationRoot.model_validate(data)
+                                plan = ApplicationRoot.model_validate(clean_data)
                                 st.session_state.current_plan = plan
                                 st.toast("✅ 事業計画データを読み込みました (Direct Load)", icon="📄")
                             except Exception as val_e:
-                                st.warning(f"データ構造読み込み警告: {val_e}")
-                                # Fallback: Load as dict anyway for debugging
-                                # st.session_state.current_plan = ApplicationRoot.construct(**data) 
-                                pass
+                                st.error(f"データ構造読み込みエラー: {val_e}")
+                                # Stop execution so user sees the error
+                                st.stop()
+
+
                         
                         else:
                             st.warning("⚠️ 読み込めるデータ形式ではありません (history, basic_info, goals キーが見つかりません)")
@@ -260,7 +266,9 @@ with st.sidebar:
 
                     st.session_state.last_loaded_file_id = file_id
                     time.sleep(1)
+                    # Only rerun if successful (toast would persist?) - actually Streamlit recommends rerun on state change
                     st.rerun()
+
                 except Exception as e:
                     st.error(f"Error loading JSON: {e}")
 
@@ -414,7 +422,6 @@ if mode == "Chat Mode (Interview)":
                             st.session_state._temp_suggestions = json.loads(match.group(1))
                         except:
                             pass
-
     # Reset temp suggestions
     if "_temp_suggestions" in st.session_state:
         del st.session_state["_temp_suggestions"]
@@ -432,67 +439,60 @@ if mode == "Chat Mode (Interview)":
     # 2. New Session History
     for i in range(loaded_count, len(history)):
         render_message(history[i], persona)
+
+    # --- Rendering Contextual Support (Hints & Examples) ---
+    # Retrieve suggestions from LAST message if it was from model
+    last_msg = history[-1] if history else None
+    current_suggestions = {}
     
-    # Retrieve suggestions
-    current_dynamic_suggestions = st.session_state.get("_temp_suggestions", None)
+    if last_msg and last_msg["role"] == "model":
+        import re
+        match = re.search(r'<suggestions>(.*?)</suggestions>', last_msg["content"], flags=re.DOTALL)
+        if match:
+            try:
+                current_suggestions = json.loads(match.group(1))
+            except:
+                pass
+
+    if current_suggestions:
+        hints = current_suggestions.get("hints")
+        example = current_suggestions.get("example")
         
-    # --- Resume Guidance (System Message) ---
-    # Only show if loaded history exists and no new messages have been added yet
-    if loaded_count > 0 and len(history) == loaded_count:
-        with st.container(border=True):
-            st.markdown(f"**🤖 System Notification**")
-            st.write("以前のチャット履歴を読み込みました。続きから始めましょう。")
-            
-            # Simple missing info heuristic or static guidance
-            if persona == "経営者":
-                st.caption("💡 **ヒント**: 会社案内や事業計画書をアップロードすると、入力の手間が省けます。")
-            elif persona == "従業員":
-                st.caption("💡 **ヒント**: 現場の写真や業務マニュアルがあれば、アップロードしてください。")
-            elif persona == "商工会職員":
-                st.caption("💡 **ヒント**: 地域防災計画やハザードマップの情報を共有してください。")
+        if hints or example:
+            with st.container(border=True): # Distinct box for AI assistance
+                st.caption("💡 AIからのアドバイス")
+                if hints:
+                    st.info(f"**ヒント**: {hints}")
+                if example:
+                    st.success(f"**回答例**: {example}")
 
-    # --- Next Action Suggestions (Above Chat Input) ---
-    st.caption("💡 **Quick Replies:** (クリックで返信・トピック選択)")
-    suggestion_cols = st.columns(3)
+    # --- Next Action Suggestions (Quick Replies) ---
+    st.caption("👇 クイック返信 (クリックで送信)")
     
-    # 簡易的なペルソナ別提案リスト (Fallback)
-    fallback_map = {
-        "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
-        "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
-        "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
-    }
+    # Prioritize dynamic options
+    options = current_suggestions.get("options", [])
     
-    # Use dynamic if available, else fallback
-    # Note: 'current_dynamic_suggestions' needs to be initialized before loop if we want to be safe, 
-    # but practically we can just init it here if not found.
-    # Actually, Python variable scope in script means 'current_dynamic_suggestions' from loop might be unbound if loop didn't run or define it.
-    # Better to initialize it before loop. 
-    # BUT, since I can't edit "before loop" easily in this chunk without big context, 
-    # I will use a safe access pattern or `locals().get`. 
-    
-    # Just to be safe and clean, let's use the fallback lookup.
-    # Dynamic suggestion logic
-    dynamic_list = None
-    if current_dynamic_suggestions:
-        if isinstance(current_dynamic_suggestions, dict):
-            dynamic_list = current_dynamic_suggestions.get("suggested_topics")
-        elif isinstance(current_dynamic_suggestions, list):
-            dynamic_list = current_dynamic_suggestions
+    # Fallback if no dynamic options
+    if not options:
+        fallback_map = {
+            "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
+            "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
+            "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
+        }
+        options = fallback_map.get(persona, [])
 
-    final_suggestions = dynamic_list if dynamic_list else fallback_map.get(persona, [])
-    
+    # Render Options
     suggested_prompt = None
-    
-    if final_suggestions:
-        for i, topic in enumerate(final_suggestions[:3]):
-            if suggestion_cols[i].button(f"🗣️ {topic}", use_container_width=True):
-                suggested_prompt = topic
+    if options:
+        cols = st.columns(min(len(options), 4))
+        for i, opt in enumerate(options[:4]):
+            if cols[i].button(opt, use_container_width=True, key=f"quick_reply_{i}_{int(time.time())}"):
+                suggested_prompt = opt
 
     # User Input
     chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
     
-    # Determine which prompt to use (Button click takes precedence, but st.chat_input is usually None if button clicked)
-    # Note: Streamlit execution model means if button clicked, rerun happens, chat_input is None.
+    # Determine which prompt to use
     final_prompt = suggested_prompt if suggested_prompt else chat_input_prompt
 
     if final_prompt:
@@ -633,6 +633,9 @@ elif mode == "Dashboard Mode (Progress)":
                         missing_msgs = [m['msg'] for m in result['missing_mandatory']]
                         st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
                         st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
+                        # Set flag to auto-start conversation on redirect
+                        st.session_state.auto_trigger_message = "現在、ダッシュボードで確認した不足項目（focus_fields）について、具体的な質問を開始してください。ユーザーに選択肢を提示し、回答しやすくしてください。"
+                        st.session_state.auto_trigger_persona = st.session_state.get("last_chat_nav", "経営者インタビュー").replace("インタビュー", "") # Rough parse
                         st.rerun()
 
         elif result['recommended_progress'] < 1.0:
@@ -741,25 +744,35 @@ elif mode == "Dashboard Mode (Progress)":
         
         # TAB 3: Disaster Scenario
         with tab3:
-            st.caption("📋 様式第3 想定される自然災害等のリスク")
+            st.caption("📋 様式第3 事業活動に影響を与える自然災害等の想定")
             
             with st.container(border=True):
-                st.subheader("想定する災害")
+                st.subheader("想定する自然災害等")
                 if plan.goals.disaster_scenario.disaster_assumption:
                     st.info(plan.goals.disaster_scenario.disaster_assumption)
                 else:
                     st.error("🚨 災害想定が未入力です。")
-                    st.caption("ハザードマップやJ-SHISを参照し、「震度○○」「浸水深○○m」など具体的な数値を記載してください。")
+                    st.caption("ハザードマップを参照し、「震度○○」「浸水深○○m」など具体的な数値を記載してください。")
             
-            if plan.goals.disaster_scenario.impact_list:
-                st.subheader(f"影響評価（{len(plan.goals.disaster_scenario.impact_list)}件） (任意)")
-                st.table([i.model_dump() for i in plan.goals.disaster_scenario.impact_list])
+            # New Impact Structure Display
+            st.subheader("自然災害等の発生が事業活動に与える影響")
+            imp = plan.goals.disaster_scenario.impacts
+            impact_data = {
+                "人員": imp.impact_personnel,
+                "建物・設備": imp.impact_building,
+                "資金繰り": imp.impact_funds,
+                "情報": imp.impact_info
+            }
+            # Filter non-empty
+            impact_rows = [{"項目": k, "内容": v} for k, v in impact_data.items() if v]
+            if impact_rows:
+                st.table(impact_rows)
             else:
-                st.info("影響評価データなし (任意)")
+                st.warning("⚠️ 影響詳細が未入力です。")
         
         # TAB 4: First Response
         with tab4:
-            st.caption(f"📋 様式第4 初動対応手順等: {result['counts']['procedures']}件登録済")
+            st.caption(f"📋 様式第4 初動対応手順等: {len(plan.response_procedures)}件登録済")
             if plan.response_procedures:
                 st.table([m.model_dump() for m in plan.response_procedures])
             else:
@@ -767,15 +780,29 @@ elif mode == "Dashboard Mode (Progress)":
                     st.error("🚨 初動対応が未登録です。")
                     st.caption("災害発生直後に誰が何をするか（例：安否確認、避難誘導）を決めてください。")
         
-        # TAB 5: Measures
+        # TAB 5: Measures (A/B/C/D)
         with tab5:
-            st.caption(f"📋 様式第5 平時の取組: {result['counts']['measures']}件登録済")
-            if plan.measures:
-                st.table([m.model_dump() for m in plan.measures])
-            else:
-                with st.container(border=True):
-                    st.error("🚨 事前対策がまだ登録されていません。")
-                    st.caption("リスクを軽減するための具体的な対策（例：在庫分散、棚の固定、クラウドバックアップ）を登録してください。")
+            st.caption(f"📋 様式第5 平時の推進体制 (4カテゴリ)")
+            
+            measures = plan.measures
+            
+            # Helper to display MeasureDetail
+            def show_measure(label, item):
+                with st.expander(label, expanded=True):
+                    c1, c2 = st.columns(2)
+                    c1.markdown("**現在の取組**")
+                    if item.current_measure: c1.info(item.current_measure)
+                    else: c1.warning("未入力")
+                    
+                    c2.markdown("**今後の計画**")
+                    if item.future_plan: c2.success(item.future_plan)
+                    else: c2.caption("なし")
+
+            show_measure("A: 人員体制の整備 (ヒト)", measures.personnel)
+            show_measure("B: 建物・設備の保全 (モノ)", measures.building)
+            show_measure("C: 資金調達手段の確保 (カネ)", measures.money)
+            show_measure("D: 情報の保護 (情報)", measures.data)
+
         
         # TAB 6: Finance & PDCA
         with tab6:

@@ -78,12 +78,21 @@ class DraftExporter:
         row += 1
         
         bi = plan.basic_info
-        write_row(row, "会社名", bi.corporate_name, "BasicInfo"); row += 1
-        write_row(row, "代表者", f"{bi.representative_title or ''} {bi.representative_name or ''}".strip(), "BasicInfo"); row += 1
+        write_row(row, "事業者の氏名又は名称", bi.corporate_name, "BasicInfo"); row += 1
+        write_row(row, "事業者の氏名又は名称（フリガナ）", bi.corporate_name_kana, "BasicInfo"); row += 1
+        write_row(row, "法人番号", bi.corporate_number, "BasicInfo"); row += 1
+        write_row(row, "設立年月日", bi.establishment_date, "BasicInfo"); row += 1
+        write_row(row, "代表者の役職", bi.representative_title, "BasicInfo"); row += 1
+        write_row(row, "代表者の氏名", f"{bi.representative_name or ''}".strip(), "BasicInfo"); row += 1
         write_row(row, "郵便番号", bi.address_zip, "BasicInfo"); row += 1
-        write_row(row, "住所", f"{bi.address_pref or ''}{bi.address_city or ''}{bi.address_street or ''}{bi.address_building or ''}", "BasicInfo"); row += 1
-        write_row(row, "資本金 (円)", bi.capital, "BasicInfo"); row += 1
-        write_row(row, "従業員数 (人)", bi.employees, "BasicInfo"); row += 1
+        write_row(row, "都道府県", bi.address_pref, "BasicInfo"); row += 1
+        write_row(row, "市区町村", bi.address_city, "BasicInfo"); row += 1
+        write_row(row, "住所（字・番地等）", bi.address_street, "BasicInfo"); row += 1
+        write_row(row, "マンション名等", bi.address_building, "BasicInfo"); row += 1
+        write_row(row, "業種（大分類）", bi.industry_major, "BasicInfo"); row += 1
+        write_row(row, "業種（中分類）", bi.industry_middle, "BasicInfo"); row += 1
+        write_row(row, "資本金又は出資の額", bi.capital, "BasicInfo"); row += 1
+        write_row(row, "常時使用する従業員の数", bi.employees, "BasicInfo"); row += 1
         row += 1
         
         # Section 2: Goals
@@ -92,15 +101,25 @@ class DraftExporter:
         row += 1
         
         write_row(row, "事業活動の概要", plan.goals.business_overview, "Goals"); row += 1
-        write_row(row, "取組目的", plan.goals.business_purpose, "Goals"); row += 1
+        write_row(row, "事業継続力強化に取り組む目的", plan.goals.business_purpose, "Goals"); row += 1
         row += 1
         
         # Section 3: Disaster
         ws.merge_cells(f'A{row}:B{row}')
-        ws.cell(row=row, column=1, value="【様式第3】 災害想定").font = Font(bold=True)
+        ws.cell(row=row, column=1, value="【様式第3】 事業活動に影響を与える自然災害等の想定").font = Font(bold=True)
         row += 1
         
-        write_row(row, "想定する災害", plan.goals.disaster_scenario.disaster_assumption, "Goals"); row += 1
+        # New Impact Structure
+        ds = plan.goals.disaster_scenario
+        write_row(row, "事業活動に影響を与える自然災害等の想定", ds.disaster_assumption, "Goals"); row += 1
+        
+        # Impacts
+        imp = ds.impacts
+        # Note: Section title inside logic might be implicit, but fields need full name
+        write_row(row, "自然災害等の発生が事業活動に与える影響 (人員)", imp.impact_personnel, "Goals"); row += 1
+        write_row(row, "自然災害等の発生が事業活動に与える影響 (建物・設備)", imp.impact_building, "Goals"); row += 1
+        write_row(row, "自然災害等の発生が事業活動に与える影響 (資金繰り)", imp.impact_funds, "Goals"); row += 1
+        write_row(row, "自然災害等の発生が事業活動に与える影響 (情報)", imp.impact_info, "Goals"); row += 1
         row += 1
         
         # Section 4: Response
@@ -108,19 +127,55 @@ class DraftExporter:
         ws.cell(row=row, column=1, value="【様式第4】 初動対応").font = Font(bold=True)
         row += 1
         
+        
+        def safe_get(obj, attr, default=""):
+            # Helper to get value from object, dict, or tuple (heuristic)
+            if hasattr(obj, attr):
+                return getattr(obj, attr)
+            if isinstance(obj, dict):
+                return obj.get(attr, default)
+            # Tuple fallback? (Dangerous but maybe debug related)
+            return default
+
         for i, proc in enumerate(plan.response_procedures, 1):
-            write_row(row, f"{i}. カテゴリ", proc.category, "ResponseProcedures"); row += 1
-            write_row(row, f"   内容", proc.action_content, "ResponseProcedures"); row += 1
+            cat = safe_get(proc, "category")
+            act = safe_get(proc, "action_content")
+            tim = safe_get(proc, "timing")
+            write_row(row, f"{i}. カテゴリ", cat, "ResponseProcedures"); row += 1
+            write_row(row, f"   内容", act, "ResponseProcedures"); row += 1
+            write_row(row, f"   発災後の対応時期", tim, "ResponseProcedures"); row += 1
+        row += 1
+
+        # Cooperation Partners (Separated)
+        ws.merge_cells(f'A{row}:B{row}')
+        ws.cell(row=row, column=1, value="協力者").font = Font(bold=True)
         row += 1
         
-        # Section 5: Measures
+        for i, cp in enumerate(plan.cooperation_partners, 1):
+            name = safe_get(cp, "name")
+            content = safe_get(cp, "content")
+            write_row(row, f"{i}. 名称", name, "Cooperation"); row += 1
+            write_row(row, f"   協力の内容", content, "Cooperation"); row += 1
+        row += 1
+
+        
+        # Section 5: Measures (A/B/C/D)
         ws.merge_cells(f'A{row}:B{row}')
         ws.cell(row=row, column=1, value="【様式第5】 事前対策").font = Font(bold=True)
         row += 1
         
-        for i, m in enumerate(plan.measures, 1):
-            write_row(row, f"{i}. カテゴリ", m.category, "Measures"); row += 1
-            write_row(row, f"   内容", m.current_measure, "Measures"); row += 1
+        measures = plan.measures
+        
+        def write_measure(code, label, item):
+            nonlocal row
+            ws.cell(row=row, column=1, value=f"{code}. {label}").font = Font(bold=True); row += 1
+            write_row(row, "現在の取組", item.current_measure, "Measures"); row += 1
+            write_row(row, "今後の計画", item.future_plan, "Measures"); row += 1
+
+        write_measure("A", "自然災害等が発生した場合における人員体制の整備", measures.personnel)
+        write_measure("B", "事業継続力強化に資する設備、機器及び装置の導入", measures.building)
+        write_measure("C", "事業活動を継続するための資金の調達手段の確保", measures.money)
+        write_measure("D", "事業活動を継続するための重要情報の保護", measures.data)
         row += 1
         
         # Section 6: Finance
@@ -129,9 +184,10 @@ class DraftExporter:
         row += 1
         
         for i, f in enumerate(plan.financial_plan.items, 1):
-            write_row(row, f"{i}. 項目", f.item, "FinancialPlan"); row += 1
+            write_row(row, f"{i}. 実施事項", f.item, "FinancialPlan"); row += 1
+            write_row(row, f"   使途・用途", f.usage, "FinancialPlan"); row += 1
+            write_row(row, f"   資金調達方法", f.method, "FinancialPlan"); row += 1
             write_row(row, f"   金額 (円)", f.amount, "FinancialPlan"); row += 1
-            write_row(row, f"   調達方法", f.method, "FinancialPlan"); row += 1
         row += 1
         
         # PDCA
@@ -139,11 +195,25 @@ class DraftExporter:
         ws.cell(row=row, column=1, value="【推進体制】").font = Font(bold=True)
         row += 1
         
-        write_row(row, "管理体制", plan.pdca.management_system, "PDCA"); row += 1
-        write_row(row, "訓練・教育", plan.pdca.training_education, "PDCA"); row += 1
+        write_row(row, "経営層の下推進 (平時の推進体制)", plan.pdca.management_system, "PDCA"); row += 1
+        write_row(row, "教育・訓練", plan.pdca.training_education, "PDCA"); row += 1
+        write_row(row, "見直しを計画", plan.pdca.plan_review, "PDCA"); row += 1
+        
+        # Period & Applicant Info
+        row += 1
+        ws.merge_cells(f'A{row}:B{row}')
+        ws.cell(row=row, column=1, value="【その他】 申請情報").font = Font(bold=True)
+        row += 1
+        
+        write_row(row, "実施期間(開始)", plan.period.start_date, "BasicInfo"); row += 1
+        write_row(row, "実施期間(終了)", plan.period.end_date, "BasicInfo"); row += 1
+        write_row(row, "担当者名", plan.applicant_info.contact_name, "BasicInfo"); row += 1
+        write_row(row, "メールアドレス", plan.applicant_info.email, "BasicInfo"); row += 1
+        write_row(row, "電話番号", plan.applicant_info.phone, "BasicInfo"); row += 1
+        write_row(row, "決算月", plan.applicant_info.closing_month, "BasicInfo"); row += 1
         
         # Adjust column widths
-        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['A'].width = 35
         ws.column_dimensions['B'].width = 60
         
         # Save to BytesIO

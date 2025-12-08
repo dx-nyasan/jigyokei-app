@@ -1,5 +1,5 @@
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # --- Jigyokei Application Models (SSOT Implementation) ---
 # These models correspond to the definitions in src/core/definitions.py
@@ -16,27 +16,59 @@ class BasicInfo(BaseModel):
     address_city: Optional[str] = Field(None, description="市区町村")
     address_street: Optional[str] = Field(None, description="住所（字・番地等）")
     address_building: Optional[str] = Field(None, description="マンション名等")
-    capital: Optional[int] = Field(None, description="資本金又は出資の額 (円)")
-    employees: Optional[int] = Field(None, description="常時使用する従業員の数 (人)")
-    establishment_date: Optional[str] = Field(None, description="設立年月日 (YYYY/MM/DD)")
+    capital: Optional[int] = Field(None, description="資本金又は出資の額")
+    employees: Optional[int] = Field(None, description="常時使用する従業員の数")
+    establishment_date: Optional[str] = Field(None, description="設立年月日")
     industry_major: Optional[str] = Field(None, description="業種（大分類）")
     industry_middle: Optional[str] = Field(None, description="業種（中分類）")
     industry_minor: Optional[str] = Field(None, description="業種（小分類）")
     corporate_number: Optional[str] = Field(None, description="法人番号")
 
+    # NotebookLM Feedback: Add missing fields
+    corporate_name_kana: Optional[str] = Field(None, description="事業者の氏名又は名称（フリガナ）")
+    establishment_date: Optional[str] = Field(None, description="設立年月日 (YYYY/MM/DD)")
+    industry_major: Optional[str] = Field(None, description="業種（大分類）")
+    industry_middle: Optional[str] = Field(None, description="業種（中分類）")
+
+    @field_validator('representative_name')
+    @classmethod
+    def ensure_full_width_space(cls, v: Optional[str]) -> Optional[str]:
+        if v and ' ' not in v and '　' not in v:
+            # Simple heuristic: Split last 2 chars as name if > 3 chars? 
+            # Or just warn? For now, if no space, just leave it or naive insert?
+            # NotebookLM said: "Insert if missing". We will try to insert after standard surname length or just leave if ambiguous.
+            # Ideally, we should just assume user input is correct or warn. 
+            # But let's replace half-width space with full-width if present.
+            return v
+        if v:
+            return v.replace(' ', '　')
+        return v
+    
+    @field_validator('capital', 'employees', mode='before')
+    @classmethod
+    def clean_int(cls, v):
+        if isinstance(v, str):
+            import re
+            # Remove non-digits
+            nums = re.sub(r'[^\d]', '', v)
+            return int(nums) if nums else None
+        return v
+
 class ImpactAssessment(BaseModel):
-    """Nested model for DisasterScenario"""
-    disaster_type: Optional[str] = Field(None, description="想定する自然災害等")
-    impact_personnel: Optional[str] = Field(None, description="人員に関する影響")
-    impact_building: Optional[str] = Field(None, description="建物・設備に関する影響")
-    impact_funds: Optional[str] = Field(None, description="資金繰りに関する影響")
-    impact_info: Optional[str] = Field(None, description="情報に関する影響")
-    impact_other: Optional[str] = Field(None, description="その他の影響")
+    """Nested model for DisasterScenario (Detail 4 types)"""
+    impact_personnel: Optional[str] = Field(None, description="自然災害等の発生が事業活動に与える影響 (人員)")
+    impact_building: Optional[str] = Field(None, description="自然災害等の発生が事業活動に与える影響 (建物・設備)")
+    impact_funds: Optional[str] = Field(None, description="自然災害等の発生が事業活動に与える影響 (資金繰り)")
+    impact_info: Optional[str] = Field(None, description="自然災害等の発生が事業活動に与える影響 (情報)")
+    # impact_other: Optional[str] = Field(None, description="その他の影響") # Removed as per stricter system req if needed, or keep as extra
+
 
 class DisasterScenario(BaseModel):
     """Section 2: Disaster Assumptions & Impact"""
-    disaster_assumption: Optional[str] = Field(None, description="想定する自然災害等 (全体)")
-    impact_list: Optional[List[ImpactAssessment]] = Field(None, description="影響リスト")
+    disaster_assumption: Optional[str] = Field(None, description="事業活動に影響を与える自然災害等の想定")
+    # Flattened impacts as they are 1-to-1 in the system usually per scenario, but we can keep object
+    impacts: ImpactAssessment = Field(default_factory=ImpactAssessment, description="影響詳細")
+
 
 class BusinessStabilityGoal(BaseModel):
     """Section 2: Goals"""
@@ -51,11 +83,17 @@ class FirstResponse(BaseModel):
     timing: Optional[str] = Field(None, description="発災後の対応時期")
     preparation_content: Optional[str] = Field(None, description="事前対策の内容")
 
-class MeasureItem(BaseModel):
-    """Section 3(2): Measures"""
-    category: Optional[str] = Field(None, description="対策カテゴリ (例: 人員体制の整備)")
+class MeasureDetail(BaseModel):
     current_measure: Optional[str] = Field(None, description="現在の取組")
     future_plan: Optional[str] = Field(None, description="今後の計画")
+
+class PreDisasterMeasures(BaseModel):
+    """Section 3(2): Measures (Fixed 4 Categories)"""
+    personnel: MeasureDetail = Field(default_factory=MeasureDetail, description="自然災害等が発生した場合における人員体制の整備")
+    building: MeasureDetail = Field(default_factory=MeasureDetail, description="事業継続力強化に資する設備、機器及び装置の導入")
+    money: MeasureDetail = Field(default_factory=MeasureDetail, description="事業活動を継続するための資金の調達手段の確保")
+    data: MeasureDetail = Field(default_factory=MeasureDetail, description="事業活動を継続するための重要情報の保護")
+
 
 class EquipmentItem(BaseModel):
     """Section 3(3): Equipment List Item"""
@@ -107,15 +145,117 @@ class AttachmentsChecklist(BaseModel):
     registration_consistency: Optional[bool] = Field(None, description="登記と一致")
     data_utilization_consent: Optional[str] = Field(None, description="データ活用同意")
     case_publication_consent: Optional[str] = Field(None, description="事例公表同意")
+    confirm_email: Optional[str] = Field(None, description="確認用メールアドレス")
+    fax: Optional[str] = Field(None, description="FAX番号")
+    questionnaire_consent: Optional[bool] = Field(None, description="アンケート送信に対する許可")
+
+class ImplementationPeriod(BaseModel):
+    start_date: Optional[str] = Field(None, description="開始日")
+    end_date: Optional[str] = Field(None, description="終了日")
+
+class ApplicantInfo(BaseModel):
+    contact_name: Optional[str] = Field(None, description="担当者名")
+    email: Optional[str] = Field(None, description="メールアドレス")
+    phone: Optional[str] = Field(None, description="電話番号")
+    closing_month: Optional[str] = Field(None, description="決算月")
 
 class ApplicationRoot(BaseModel):
     """Root Model for the entire Application (SSOT)"""
     basic_info: BasicInfo = Field(default_factory=BasicInfo)
     goals: BusinessStabilityGoal = Field(default_factory=BusinessStabilityGoal)
     response_procedures: List[FirstResponse] = Field(default_factory=list)
-    measures: List[MeasureItem] = Field(default_factory=list)
+    measures: PreDisasterMeasures = Field(default_factory=PreDisasterMeasures) # Changed from List
     equipment: EquipmentList = Field(default_factory=EquipmentList)
     cooperation_partners: List[CooperationPartner] = Field(default_factory=list)
     pdca: PDCA = Field(default_factory=PDCA)
     financial_plan: FinancialPlan = Field(default_factory=FinancialPlan)
+    period: ImplementationPeriod = Field(default_factory=ImplementationPeriod) # New
+    applicant_info: ApplicantInfo = Field(default_factory=ApplicantInfo) # New
     attachments: AttachmentsChecklist = Field(default_factory=AttachmentsChecklist)
+
+    @classmethod
+    def migrate_legacy_data(cls, data: dict) -> dict:
+        """Migrate legacy JSON data to match current schema"""
+        import copy
+        new_data = copy.deepcopy(data)
+
+        # 1. Migrate Measures (List -> Object)
+        if "measures" in new_data and isinstance(new_data["measures"], list):
+            old_list = new_data["measures"]
+            new_measures = {}
+            # Auto-map based on keywords
+            dataset = {
+                "personnel": ["人", "安全", "教育", "訓練", "human"],
+                "building": ["物", "設備", "建物", "在庫", "building"],
+                "money": ["金", "資金", "保険", "money"],
+                "data": ["情報", "データ", "セキュリティ", "data"]
+            }
+            
+            for item in old_list:
+                cat = item.get("category", "")
+                content = item.get("current_measure", "")
+                future = item.get("future_plan", "")
+                
+                # Assign to matching slot
+                assigned = False
+                for key, keywords in dataset.items():
+                    if any(k in cat for k in keywords):
+                        new_measures[key] = {"current_measure": content, "future_plan": future}
+                        assigned = True
+                        break
+            
+            # Ensure all keys exist
+            for key in ["personnel", "building", "money", "data"]:
+                if key not in new_measures:
+                    new_measures[key] = {"current_measure": "", "future_plan": ""}
+            
+            new_data["measures"] = new_measures
+
+        # 2. Migrate DisasterScenario (impact_list -> impacts)
+        if "goals" in new_data and "disaster_scenario" in new_data["goals"]:
+            ds = new_data["goals"]["disaster_scenario"]
+            if "impact_list" in ds and isinstance(ds["impact_list"], list) and ds["impact_list"]:
+                # Take the first one
+                old_imp = ds["impact_list"][0]
+                new_data["goals"]["disaster_scenario"]["impacts"] = {
+                    "impact_personnel": old_imp.get("impact_personnel"),
+                    "impact_building": old_imp.get("impact_building"),
+                    "impact_funds": old_imp.get("impact_funds"),
+                    "impact_info": old_imp.get("impact_info")
+                }
+            # Also ensure disaster_assumption fits
+            if "disaster_type" in ds and "disaster_assumption" not in ds:
+                 new_data["goals"]["disaster_scenario"]["disaster_assumption"] = ds["disaster_type"]
+
+        # 3. Migrate ResponseProcedures (Separate Cooperation)
+        if "response_procedures" in new_data:
+            rp_list = new_data["response_procedures"]
+            new_rp = []
+            new_coop = new_data.get("cooperation_partners", [])
+            
+            for item in rp_list:
+                cat = item.get("category", "")
+                # Detect "Cooperation" or "連携"
+                if "cooperation" in cat or "連携" in cat or "地域" in cat:
+                    # Move to CooperationPartner
+                    new_coop.append({
+                        "name": item.get("action_content", ""), # Mapping content to name/content loosely
+                        "content": item.get("action_content", ""),
+                        "address": "", # Default missing
+                        "representative": "" # Default missing
+                    })
+                else:
+                    new_rp.append(item)
+            
+            new_data["response_procedures"] = new_rp
+            new_data["cooperation_partners"] = new_coop
+
+        # 4. Add Defaults for New Fields
+        if "applicant_info" not in new_data:
+            new_data["applicant_info"] = {}
+        if "period" not in new_data:
+            new_data["period"] = {}
+
+        return new_data
+
+

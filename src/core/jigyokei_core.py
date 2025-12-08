@@ -37,6 +37,21 @@ class AIInterviewer:
 - **事業所住所**: 登記上の正確な住所を入力させること。
 - **必須要件**: 「自然災害（地震、水害等）」の想定は必須。感染症やサイバー攻撃は推奨だが任意。
 
+# Output Rules (Response Format)
+- **構造化データ**: ユーザーへの回答の最後（末尾）に、必ず以下のXMLタグで囲んだJSONデータを出力してください。
+  ```xml
+  <suggestions>
+  {
+    "options": ["はい", "いいえ", "選択肢A", "選択肢B"], 
+    "hints": "回答のヒント（例：製造業の場合は...）",
+    "example": "回答例（例：工場内の重要設備として、X号機プレス機があります。）"
+  }
+  </suggestions>
+  ```
+- **options**: ユーザーがワンタップで返信できる短い選択肢（最大4つ）。「はい/いいえ」や、具体的な候補（「地震」「水害」など）。
+- **hints**: ユーザーが考えやすくするための観点や、業界別の一般的な傾向。
+- **example**: 具体的な回答の例文。ユーザーがこれを参考に文章を作れるようにする。
+
 ---
 
 # Interaction Flow
@@ -322,17 +337,23 @@ class AIInterviewer:
                 "business_purpose": "目的",
                 "disaster_scenario": {{
                     "disaster_assumption": "想定災害",
-                    "impact_list": [
-                        {{ "disaster_type": "...", "impact_personnel": "...", "impact_building": "...", "impact_funds": "...", "impact_info": "..." }}
-                    ]
+                    "impacts": {{
+                        "impact_personnel": "人員への影響",
+                        "impact_building": "建物への影響",
+                        "impact_funds": "資金への影響",
+                        "impact_info": "情報への影響"
+                    }}
                 }}
             }},
             "response_procedures": [
-                {{ "category": "...", "action_content": "...", "timing": "...", "preparation_content": "..." }}
+                {{ "category": "...", "action_content": "...", "timing": "発災直後", "preparation_content": "..." }}
             ],
-            "measures": [
-                {{ "category": "...", "current_measure": "...", "future_plan": "..." }}
-            ],
+            "measures": {{
+                "personnel": {{ "current_measure": "...", "future_plan": "..." }},
+                "building": {{ "current_measure": "...", "future_plan": "..." }},
+                "money": {{ "current_measure": "...", "future_plan": "..." }},
+                "data": {{ "current_measure": "...", "future_plan": "..." }}
+            }},
             "equipment": {{
                 "use_tax_incentive": false,
                 "items": [
@@ -340,7 +361,7 @@ class AIInterviewer:
                 ],
                 "compliance_checks": []
             }},
-            "cooperation": [
+            "cooperation_partners": [
                 {{ "name": "...", "address": "...", "representative": "...", "content": "..." }}
             ],
             "pdca": {{
@@ -352,6 +373,16 @@ class AIInterviewer:
                 "items": [
                     {{ "item": "...", "usage": "...", "method": "...", "amount": 0 }}
                 ]
+            }},
+            "period": {{
+                "start_date": "YYYY/MM/DD",
+                "end_date": "YYYY/MM/DD"
+            }},
+            "applicant_info": {{
+                "contact_name": "...",
+                "email": "...",
+                "phone": "...",
+                "closing_month": "..."
             }},
             "attachments": {{
                 "check_sheet_uploaded": false,

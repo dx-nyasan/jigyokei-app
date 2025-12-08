@@ -18,13 +18,24 @@ class CompletionChecker:
         - suggestions (List[str]): Quality improvement suggestions
         """
         
+        # Helper to count valid measures
+        def count_measures(m) -> int:
+            count = 0
+            if m.personnel and (m.personnel.current_measure or m.personnel.future_plan): count += 1
+            if m.building and (m.building.current_measure or m.building.future_plan): count += 1
+            if m.money and (m.money.current_measure or m.money.future_plan): count += 1
+            if m.data and (m.data.current_measure or m.data.future_plan): count += 1
+            return count
+
+        measures_count = count_measures(plan.measures)
+
         # --- 1. Mandatory Progress (Start Rate) ---
         # Checks if sections are "touched" or minimal requirements met.
         mandatory_checks = {
             "BasicInfo": bool(plan.basic_info.corporate_name and plan.basic_info.representative_name),
             "Goals": bool(plan.goals.disaster_scenario.disaster_assumption and plan.goals.disaster_scenario.disaster_assumption != "未設定"),
             "ResponseProcedures": bool(len(plan.response_procedures) >= 2), # Stricter: Need multiple items
-            "Measures": bool(len(plan.measures) >= 2), # Stricter: Need multiple items
+            "Measures": bool(measures_count >= 2), # Updated: Check count of filled categories
             "FinancialPlan": bool(len(plan.financial_plan.items) > 0),
             "PDCA": bool(plan.pdca.training_education and plan.pdca.training_education != "未設定")
         }
@@ -78,7 +89,7 @@ class CompletionChecker:
                 "severity": severity
             })
         if not mandatory_checks["Measures"]:
-            severity = "critical" if not plan.measures else "warning"
+            severity = "critical" if measures_count == 0 else "warning"
             missing_mandatory.append({
                 "section": "Measures",
                 "msg": "事前対策が登録されていません",
@@ -133,7 +144,12 @@ class CompletionChecker:
         # 2. Hazard Map Reference (NotebookLM: Critical)
         dis_text = plan.goals.disaster_scenario.disaster_assumption or ""
         # Also check risk detail text
-        all_risk_text = dis_text + " " + str([r.impact_info for r in (plan.goals.disaster_scenario.impact_list or [])])
+        # impact_list is GONE. Use impacts object.
+        imp_vals = []
+        if plan.goals.disaster_scenario.impacts:
+             imp = plan.goals.disaster_scenario.impacts
+             imp_vals = [imp.impact_personnel, imp.impact_building, imp.impact_funds, imp.impact_info]
+        all_risk_text = dis_text + " " + str(imp_vals)
         hazard_keywords = ["ハザードマップ", "J-SHIS", "浸水", "震度", "マグニチュード", "階級"]
         if any(k in all_risk_text for k in hazard_keywords):
             score += 5
@@ -155,7 +171,7 @@ class CompletionChecker:
             suggestions.append("初動対応は複数（人命安全、被害状況確認など）登録することが望ましいです。")
 
         # 5. Measures Count (Quantity)
-        if len(plan.measures) >= 3:
+        if measures_count >= 3:
             score += 5
         elif mandatory_checks["Measures"]:
             suggestions.append(f"事前対策は3件以上（ヒト・モノ・カネ・情報）の登録を強く推奨します。")
@@ -168,7 +184,7 @@ class CompletionChecker:
         if financial_ok:
             score += 5
         elif mandatory_checks["FinancialPlan"]:
-             suggestions.append("資金計画の内容（金額または調達方法）を具体的に入力してください。")
+              suggestions.append("資金計画の内容（金額または調達方法）を具体的に入力してください。")
 
         # C. Compliance & Checklist (Max 10 pts, Reduced from 20)
         checklist = plan.attachments
@@ -209,8 +225,9 @@ class CompletionChecker:
             "missing_mandatory": missing_mandatory,
             "suggestions": suggestions,
             "counts": {
-                "measures": len(plan.measures),
+                "measures": measures_count,
                 "procedures": len(plan.response_procedures),
-                "risks": len(plan.goals.disaster_scenario.impact_list) if plan.goals.disaster_scenario.impact_list else 0
+                "risks": 1 if plan.goals.disaster_scenario.impacts else 0
             }
         }
+
