@@ -788,65 +788,6 @@ elif mode == "Dashboard Mode (Progress)":
             c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
             c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
             c3.link_button("💴 BCPポータル (リスクファイナンス等)", "https://kyoujinnka.smrj.go.jp/")
-            else:
-                with st.container(border=True):
-                    st.error("🚨 初動対応が未登録です。")
-                    st.caption("災害発生直後に誰が何をするか（例：安否確認、避難誘導）を決めてください。")
-
-        with tab3:
-            col3a, col3b = st.columns(2)
-            with col3a:
-                st.caption("基本情報")
-                # Reformatted: Use table or grid instead of raw JSON
-                if plan.basic_info:
-                    bi = plan.basic_info
-                    # Create a readable dictionary for display
-                    # FIX: Map correctly to src/api/schemas.py fields
-                    # Schema has: address_zip, address_pref, address_city, address_street, address_building
-                    
-                    full_address = f"{bi.address_pref or ''}{bi.address_city or ''}{bi.address_street or ''}{bi.address_building or ''}"
-                    
-                    display_data = {
-                        "会社名": bi.corporate_name,
-                        "代表者": f"{bi.representative_title or ''} {bi.representative_name or ''}".strip(),
-                        "資本金": f"{bi.capital:,}円" if bi.capital else "-",
-                        "従業員数": f"{bi.employees}名" if bi.employees else "-",
-                        "郵便番号": bi.address_zip,
-                        "住所": full_address,
-                        "電話番号": getattr(bi, 'phone_number', '-') # schema might not have phone_number, verify usage or use safe get
-                    }
-                    st.table([{"項目": k, "内容": v} for k, v in display_data.items() if v and v != "-"])
-                else:
-                    st.warning("基本情報が未入力です")
-
-            with col3b:
-                st.caption("事業概要・災害想定")
-                st.info(f"**Assumption (想定災害):**\n{plan.goals.disaster_scenario.disaster_assumption}")
-                st.info(f"**Overview (事業概要):**\n{plan.goals.business_overview}")
-        
-        with tab4:
-             st.caption("資金計画")
-             if plan.financial_plan.items:
-                 st.table([i.model_dump() for i in plan.financial_plan.items])
-             else:
-                 with st.container(border=True):
-                     st.warning("⚠️ 資金計画が未入力です。")
-                     st.caption("復旧にかかる費用の目安と、その調達方法（手元資金、借入など）を検討してください。")
-                 
-             st.caption("設備リスト (税制優遇)")
-             if plan.equipment.items:
-                 st.table([i.model_dump() for i in plan.equipment.items])
-             else:
-                 st.info("設備リストなし (任意)")
-
-        # --- 4. Sidebar Tools (Injected here dynamically or rely on static layout) ---
-        # Note: Sidebar is already rendered at top of script. We can add to it here or just leave as is.
-        # Adding a dedicated "Tools" expander in main area for visibility
-        with st.expander("🛠️ お役立ちツール (External Tools)"):
-            c1, c2, c3 = st.columns(3)
-            c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
-            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
-            c3.link_button("💴 BCPポータル (リスクファイナンス等)", "https://kyoujinnka.smrj.go.jp/")
 
     else:
         st.info("☝️ Click the button to analyze current chat history.")
