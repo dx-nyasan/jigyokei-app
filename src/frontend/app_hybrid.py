@@ -597,7 +597,7 @@ elif mode == "Dashboard Mode (Progress)":
             st.progress(result['mandatory_progress'])
             st.caption(f"必須項目の達成率: {int(result['mandatory_progress']*100)}% 完了")
             
-        # --- 2. Actionable Alerts (Missing Mandatory) ---
+        # --- 2. Actionable Alerts (Missing Mandatory) - SEVERITY-BASED ---
         if result['status'] != "success":
             with st.container(border=True): # Red/Error container simulation
                 st.error("🚨 申請に向けて、以下の必須項目が不足しています")
@@ -610,9 +610,22 @@ elif mode == "Dashboard Mode (Progress)":
                     "FinancialPlan": "資金計画",
                     "PDCA": "推進体制 (PDCA)"
                 }
-                for item in result['missing_mandatory']:
-                    sec_label = section_map.get(item['section'], item['section'])
-                    st.markdown(f"- **{sec_label}**: {item['msg']}")
+                
+                # Group by severity for clearer display
+                critical_items = [m for m in result['missing_mandatory'] if m.get('severity') == 'critical']
+                warning_items = [m for m in result['missing_mandatory'] if m.get('severity') == 'warning']
+                
+                if critical_items:
+                    st.markdown("### 🔴 **Critical (未入力)**")
+                    for item in critical_items:
+                        sec_label = section_map.get(item['section'], item['section'])
+                        st.error(f"**{sec_label}**: {item['msg']}", icon="🔴")
+                
+                if warning_items:
+                    st.markdown("### 🟡 **Warning (入力不足)**")
+                    for item in warning_items:
+                        sec_label = section_map.get(item['section'], item['section'])
+                        st.warning(f"**{sec_label}**: {item['msg']}", icon="🟡")
                 
                 # Action Buttons (Simulation)
                 # Action Buttons (Fixed Logic)

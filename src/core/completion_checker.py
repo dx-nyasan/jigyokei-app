@@ -33,14 +33,76 @@ class CompletionChecker:
         mandatory_total = len(mandatory_checks)
         mandatory_progress = mandatory_passed_count / mandatory_total
 
-        # Build detailed missing list for UI
+
+        # Helper function for severity classification
+        def classify_severity(value, field_name: str) -> str:
+            """Classify field severity: 'critical' or 'warning'"""
+            # Critical: None, empty string, empty list/dict
+            if value is None:
+                return "critical"
+            if isinstance(value, str) and (not value or value.strip() == ""):
+                return "critical"
+            if isinstance(value, (list, dict)) and len(value) == 0:
+                return "critical"
+            
+            # Warning: Minimal/placeholder content
+            if isinstance(value, str):
+                minimal_phrases = ["なし", "未設定", "-", "N/A", "該当なし"]
+                if value.strip() in minimal_phrases or len(value.strip()) < 10:
+                    return "warning"
+            
+            # Otherwise, consider it complete
+            return "complete"
+
+        # Build detailed missing list for UI (WITH SEVERITY)
         missing_mandatory = []
-        if not mandatory_checks["BasicInfo"]: missing_mandatory.append({"section": "BasicInfo", "msg": "基本情報（企業名・代表者名）が未入力です"})
-        if not mandatory_checks["Goals"]: missing_mandatory.append({"section": "Goals", "msg": "災害想定が選択されていません"})
-        if not mandatory_checks["ResponseProcedures"]: missing_mandatory.append({"section": "ResponseProcedures", "msg": "初動対応が登録されていません"})
-        if not mandatory_checks["Measures"]: missing_mandatory.append({"section": "Measures", "msg": "事前対策が登録されていません"})
-        if not mandatory_checks["FinancialPlan"]: missing_mandatory.append({"section": "FinancialPlan", "msg": "資金計画が登録されていません"})
-        if not mandatory_checks["PDCA"]: missing_mandatory.append({"section": "PDCA", "msg": "PDCA（訓練計画）が未入力です"})
+        if not mandatory_checks["BasicInfo"]:
+            severity = classify_severity(plan.basic_info.corporate_name if plan.basic_info else None, "corporate_name")
+            missing_mandatory.append({
+                "section": "BasicInfo",
+                "msg": "基本情報（企業名・代表者名）が未入力です",
+                "severity": severity
+            })
+        if not mandatory_checks["Goals"]:
+            severity = classify_severity(plan.goals.business_overview, "business_overview")
+            missing_mandatory.append({
+                "section": "Goals",
+                "msg": "災害想定が選択されていません",
+                "severity": severity
+            })
+        if not mandatory_checks["ResponseProcedures"]:
+            severity = "critical" if not plan.response_procedures else "warning"
+            missing_mandatory.append({
+                "section": "ResponseProcedures",
+                "msg": "初動対応が登録されていません",
+                "severity": severity
+            })
+        if not mandatory_checks["Measures"]:
+            severity = "critical" if not plan.measures else "warning"
+            missing_mandatory.append({
+                "section": "Measures",
+                "msg": "事前対策が登録されていません",
+                "severity": severity
+            })
+        if not mandatory_checks["FinancialPlan"]:
+            severity = "critical" if not plan.financial_plan.items else "warning"
+            missing_mandatory.append({
+                "section": "FinancialPlan",
+                "msg": "資金計画が登録されていません",
+                "severity": severity
+            })
+        if not mandatory_checks["PDCA"]:
+            severity = classify_severity(plan.pdca.training_education, "training_education")
+            missing_mandatory.append({
+                "section": "PDCA",
+                "msg": "PDCA（訓練計画）が未入力です",
+                "severity": severity
+            })
+        
+        # Sort by severity: critical first, then warning
+        severity_order = {"critical": 0, "warning": 1, "complete": 2}
+        missing_mandatory.sort(key=lambda x: severity_order.get(x.get("severity", "complete"), 2))
+
 
         # --- 2. Strict Scoring (Total Score) ---
         # Criteria: 100 points = Fully compliant with Electronic Application Manual
