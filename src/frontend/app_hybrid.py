@@ -611,6 +611,7 @@ elif mode == "Dashboard Mode (Progress)":
                     "PDCA": "推進体制 (PDCA)"
                 }
                 
+                # ... (Logic omitted for brevity in tool call, but context needs to match) ...
                 # Group by severity for clearer display
                 critical_items = [m for m in result['missing_mandatory'] if m.get('severity') == 'critical']
                 warning_items = [m for m in result['missing_mandatory'] if m.get('severity') == 'warning']
@@ -627,41 +628,12 @@ elif mode == "Dashboard Mode (Progress)":
                         sec_label = section_map.get(item['section'], item['section'])
                         st.warning(f"**{sec_label}**: {item['msg']}", icon="🟡")
                 
-                # Action Buttons (Simulation)
-                # Action Buttons (Fixed Logic)
-                col_btn1, col_btn2 = st.columns(2)
-                
-                with col_btn1:
+                with st.columns(2)[0]:
                     if st.button("インタビュアーに不足項目を聞いてもらう", type="primary", key="btn_ask_missing"):
-                        # 1. Set Focus
                         missing_msgs = [m['msg'] for m in result['missing_mandatory']]
                         st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
-                        
-                        # 2. Inject System/User Trigger (Optional but helpful)
-                        # We want the AI to speak first ideally, or context to be set.
-                        # For now, just focus setting is enough as the System Prompt checks focus fields.
-                        
-                        # 3. Switch Navigation to Chat (Correctly restoring last active persona)
                         st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
-                        
-                        # 4. Rerun to effect change
                         st.rerun()
-                
-                with col_btn2:
-                    if st.button("📄 下書きシート出力 (Excel)", key="btn_export_draft"):
-                        try:
-                            from src.core.draft_exporter import DraftExporter
-                            excel_data = DraftExporter.export_to_excel(plan, result)
-                            st.download_button(
-                                label="⬇️ ダウンロード",
-                                data=excel_data,
-                                file_name=f"jigyokei_draft_{plan.basic_info.corporate_name or 'plan'}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key="btn_download_excel"
-                            )
-                            st.success("下書きシートを生成しました！ダウンロードボタンをクリックしてください。")
-                        except Exception as e:
-                            st.error(f"エクスポートエラー: {e}")
 
         elif result['recommended_progress'] < 1.0:
             st.success("✅ 申請要件はクリアしています！ (さらに計画を強化しましょう)")
@@ -672,6 +644,27 @@ elif mode == "Dashboard Mode (Progress)":
         else:
              st.balloons()
              st.success("🏆 Perfect! 計画は完璧です。申請の準備が整いました。")
+        
+        # --- Universal Export Button (Always Visible) ---
+        st.divider()
+        col_exp1, col_exp2 = st.columns([3, 1])
+        with col_exp2:
+            if st.button("📄 下書きシート出力 (Excel)", key="btn_export_draft", use_container_width=True):
+                try:
+                    from src.core.draft_exporter import DraftExporter
+                    excel_data = DraftExporter.export_to_excel(plan, result)
+                    st.download_button(
+                        label="⬇️ ダウンロード開始",
+                        data=excel_data,
+                        file_name=f"jigyokei_draft_{plan.basic_info.corporate_name or 'plan'}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="btn_download_excel_real"
+                    )
+                    st.success("Excel生成完了！上のダウンロードボタンを押してください。")
+                except ImportError as ie:
+                     st.error(f"依存ライブラリ不足: {ie} (pip install openpyxl が必要です)")
+                except Exception as e:
+                    st.error(f"エクスポートエラー: {e}")
 
         # --- 3. Section Breakdown (Application Form Style: 6 Tabs) ---
         st.divider()
