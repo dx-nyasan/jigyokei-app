@@ -601,8 +601,18 @@ elif mode == "Dashboard Mode (Progress)":
         if result['status'] != "success":
             with st.container(border=True): # Red/Error container simulation
                 st.error("🚨 申請に向けて、以下の必須項目が不足しています")
+                # Define a mapping for section names to Japanese
+                section_map = {
+                    "BasicInfo": "基本情報",
+                    "Goals": "事業概要・目標",
+                    "ResponseProcedures": "初動対応",
+                    "Measures": "事前対策",
+                    "FinancialPlan": "資金計画",
+                    "PDCA": "推進体制 (PDCA)"
+                }
                 for item in result['missing_mandatory']:
-                    st.markdown(f"- **{item['section']}**: {item['msg']}")
+                    sec_label = section_map.get(item['section'], item['section'])
+                    st.markdown(f"- **{sec_label}**: {item['msg']}")
                 
                 # Action Buttons (Simulation)
                 # Action Buttons (Fixed Logic)
