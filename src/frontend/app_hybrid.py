@@ -775,8 +775,7 @@ elif mode == "Dashboard Mode (Progress)":
                 st.subheader("🔄 推進体制・訓練")
                 pdca_data = {
                     "管理体制": plan.pdca.management_system or "-",
-                    "訓練・教育": plan.pdca.training_education or "-",
-                    "見直し頻度": plan.pdca.review_cycle or "-"
+                    "訓練・教育": plan.pdca.training_education or "-"
                 }
                 st.table([{"項目": k, "内容": v} for k, v in pdca_data.items()])
 
