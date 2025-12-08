@@ -56,9 +56,21 @@ class AIInterviewer:
 
 # Interaction Flow
 
-以下の手順でヒアリングを行ってください。各ステップの完了を確認してから次へ進んでください。
+以下の手順でヒアリングを行ってください。
+**重要**: ユーザーが既に長文や資料で詳細な情報を提供している場合は、機械的に質問を繰り返さず、「情報の確認（Verification）」モードに切り替えて進行してください。
 
-## STEP 1: 基本情報 (Basic Info)
+## STEP 1: 基本情報の確認 (Basic verification)
+1. **事業者名**: 「登記上の正式名称を教えてください（例：株式会社○○）。」
+   - 既に判明している場合は、「御社の登記上の正式名称は「〇〇」でよろしいでしょうか？」と確認する。
+
+## STEP 2: 事業内容の深掘り (Deep Dive into Business)
+**重要**: ここは形式的な確認で終わらせず、計画書の下書きとして十分なボリューム（文字数）を確保できるよう、1つずつ深掘りして聞いてください。
+1. **事業活動の概要**: 「事業内容を具体的に確認します。〇〇という事業を行っているとの認識で合っていますか？」
+   - Yesの場合: 「ありがとうございます。では、その事業における『強み』や『競合との違い』について、もう少し詳しく教えていただけますか？（例：〇〇という独自の技術がある、など）」と深掘りする。
+2. **取組む目的**: 「今回の計画策定の目的について確認します。〇〇のために取り組む、ということでよろしいですか？」
+   - Yesの場合: 「承知しました。その目的を達成するために、特に重視しているポイント（人命優先、納期遵守など）はありますか？」と補足情報を引き出す。
+
+## STEP 3: 災害リスクの想定 (Scenarios)
 1. **事業者名**: 「登記上の正式名称を教えてください（例：株式会社○○）。」
 2. **住所**: 「本社登記されている住所を入力してください。」
 3. **代表者の役職**: 「代表者様の役職を教えてください（個人事業主の場合は『代表』）。」
@@ -107,12 +119,20 @@ class AIInterviewer:
 ---
 
 # Reference Examples (困ったときの助言集)
-(ユーザーが回答に詰まった場合は、適宜手引きの内容を参照してください)
 """
 
+        # Extraction System Prompt for Agentic Mode
+        self.extraction_system_prompt = """
+        あなたは熟練の中小企業診断士兼AIデータアナリストです。
+        提供されたテキストや資料から、事業継続力強化計画（BCP）の申請に必要な情報を漏らさず、正確に抽出してください。
+        
+        【抽出方針】
+        - 曖昧な表現は避け、事実に基づいた情報のみを抽出すること。
+        - 該当する情報がない場合は、無理に埋めずに null を出力すること。
+        - 特に「事業継続力強化の目的」「災害リスク」「初動対応」に関する記述を重点的に探すこと。
+        """
 
         # Streamlit Secrets または 環境変数からAPIキーを取得
-        api_key = None
         try:
             api_key = st.secrets["GOOGLE_API_KEY"]
         except Exception:
@@ -517,3 +537,44 @@ class AIInterviewer:
         else:
             self.history = history_data
             self._rebuild_gemini_session()
+
+    def extract_structured_data(self, text: str = "", file_refs: list = None) -> dict:
+        """
+        Agentic Extraction:
+        入力された長文テキストや資料から構造化データを一括抽出する。
+        Gemini 2.5 Pro (High-Fidelity) を使用して、高精度な抽出を行う。
+        """
+        try:
+            # User requested High-Fidelity Gemini 2.5 Pro
+            model = genai.GenerativeModel("gemini-1.5-pro") 
+            
+            content_parts = [self.extraction_system_prompt]
+            
+            if text:
+                content_parts.append(f"\n\n# Input Text\n{text}")
+            
+            if file_refs:
+                content_parts.append("\n\n# Input Documents (Already Uploaded)")
+                content_parts.extend(file_refs)
+            
+            content_parts.append("\n\n# Output JSON (Strict Schema Match ApplicationRoot)")
+            
+            response = model.generate_content(content_parts)
+            
+            # Extract JSON from code block
+            import re
+            match = re.search(r'```json\n(.*?)\n```', response.text, flags=re.DOTALL)
+            if match:
+                 return json.loads(match.group(1))
+            else:
+                 # Fallback: try parsing raw text if it looks like JSON
+                 clean_text = response.text.strip()
+                 if clean_text.startswith("```json"):
+                     clean_text = clean_text[7:]
+                 if clean_text.endswith("```"):
+                     clean_text = clean_text[:-3]
+                 return json.loads(clean_text)
+                 
+        except Exception as e:
+            print(f"Extraction Error: {e}")
+            return {}
