@@ -683,16 +683,21 @@ elif mode == "Dashboard Mode (Progress)":
                 if plan.basic_info:
                     bi = plan.basic_info
                     # Create a readable dictionary for display
+                    # FIX: Map correctly to src/api/schemas.py fields
+                    # Schema has: address_zip, address_pref, address_city, address_street, address_building
+                    
+                    full_address = f"{bi.address_pref or ''}{bi.address_city or ''}{bi.address_street or ''}{bi.address_building or ''}"
+                    
                     display_data = {
                         "会社名": bi.corporate_name,
-                        "代表者": f"{bi.representative_title} {bi.representative_name}",
+                        "代表者": f"{bi.representative_title or ''} {bi.representative_name or ''}".strip(),
                         "資本金": f"{bi.capital:,}円" if bi.capital else "-",
                         "従業員数": f"{bi.employees}名" if bi.employees else "-",
-                        "郵便番号": bi.postal_code,
-                        "住所": bi.address,
-                        "電話番号": bi.phone_number
+                        "郵便番号": bi.address_zip,
+                        "住所": full_address,
+                        "電話番号": getattr(bi, 'phone_number', '-') # schema might not have phone_number, verify usage or use safe get
                     }
-                    st.table([{"項目": k, "内容": v} for k, v in display_data.items() if v])
+                    st.table([{"項目": k, "内容": v} for k, v in display_data.items() if v and v != "-"])
                 else:
                     st.warning("基本情報が未入力です")
 
