@@ -161,7 +161,7 @@ class AIInterviewer:
         """
         self.focus_fields = fields
 
-    def process_files(self, uploaded_files):
+    def process_files(self, uploaded_files, target_persona: str = None):
         """
         StreamlitのUploadedFileリストを受け取り、Gemini File APIにアップロードし、
         チャットセッションに登録する。
@@ -225,7 +225,8 @@ class AIInterviewer:
                 self.history.append({
                     "role": "model",
                     "content": f"📁 {count}件の資料（{', '.join([f.display_name for f in new_files])}）を受け取りました。\n内容を確認して、分かる部分は入力を省略できるようにしますね。",
-                    "persona": "AI Concierge"
+                    "persona": "AI Concierge",
+                    "target_persona": target_persona # Explicitly set target
                 })
             except Exception as e:
                  st.error(f"Error sending files to chat: {e}")

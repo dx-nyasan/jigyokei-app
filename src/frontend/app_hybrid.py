@@ -419,7 +419,7 @@ if mode == "Chat Mode (Interview)":
         if uploaded_refs and st.button("🚀 資料を読み込む (Process Files)"):
              with st.spinner("資料を解析中..."):
                 try:
-                    count = st.session_state.ai_interviewer.process_files(uploaded_refs)
+                    count = st.session_state.ai_interviewer.process_files(uploaded_refs, target_persona=persona)
                     st.success(f"{count}件の資料を読み込みました！")
                     
                     # --- Agentic Extraction Trigger (File Upload) ---
@@ -811,10 +811,10 @@ elif mode == "Dashboard Mode (Progress)":
              st.balloons()
              st.success("🏆 Perfect! 計画は完璧です。申請の準備が整いました。")
         
-        # --- Universal Export Button (Always Visible) ---
         st.divider()
         col_exp1, col_exp2 = st.columns([3, 1])
         with col_exp2:
+            # Excel Export
             if st.button("📄 下書きシート出力 (Excel)", key="btn_export_draft", use_container_width=True):
                 try:
                     from src.core.draft_exporter import DraftExporter
@@ -831,6 +831,18 @@ elif mode == "Dashboard Mode (Progress)":
                      st.error(f"依存ライブラリ不足: {ie} (pip install openpyxl が必要です)")
                 except Exception as e:
                     st.error(f"エクスポートエラー: {e}")
+
+            # JSON Export (For Commerce Society / Backup)
+            st.divider()
+            json_str = plan.model_dump_json(indent=2)
+            st.download_button(
+                label="💾 計画データを保存 (JSON)",
+                data=json_str,
+                file_name=f"jigyokei_data_{plan.basic_info.corporate_name or 'plan'}.json",
+                mime="application/json",
+                help="商工会連携用、またはバックアップとして保存します。",
+                use_container_width=True
+            )
 
         # --- 3. Section Breakdown (Application Form Style: 6 Tabs) ---
         st.divider()
