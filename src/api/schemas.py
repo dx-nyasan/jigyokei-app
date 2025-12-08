@@ -185,10 +185,10 @@ class ApplicationRoot(BaseModel):
             new_measures = {}
             # Auto-map based on keywords
             dataset = {
-                "personnel": ["人", "安全", "教育", "訓練", "human"],
-                "building": ["物", "設備", "建物", "在庫", "building"],
-                "money": ["金", "資金", "保険", "money"],
-                "data": ["情報", "データ", "セキュリティ", "data"]
+                "personnel": ["人", "安全", "教育", "訓練", "human", "personnel"],
+                "building": ["物", "設備", "建物", "在庫", "building", "facility"],
+                "money": ["金", "資金", "保険", "money", "fund", "finance"],
+                "data": ["情報", "データ", "セキュリティ", "data", "info"]
             }
             
             for item in old_list:

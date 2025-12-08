@@ -4,6 +4,7 @@ import streamlit as st
 import json
 import time
 import importlib
+import streamlit.components.v1 as components
 
 # --- Page Config (Must be the first Streamlit command) ---
 st.set_page_config(
@@ -143,6 +144,29 @@ with st.sidebar:
     st.header("Jigyokei Hybrid System")
     st.caption("Cloud Edition ☁️")
     st.text(f"Ver: {APP_VERSION}") # バージョンを常に表示
+
+    # --- Live Progress Indicator ---
+    from src.core.completion_checker import CompletionChecker
+    
+    current_plan_obj = st.session_state.get("current_plan")
+    if current_plan_obj:
+        try:
+             checker = CompletionChecker(current_plan_obj)
+             # Basic Info is Step 1, Goals Step 2... Let's use overall completeness
+             missing_count = len(checker.check_missing_fields())
+             total_fields = 20 # Estimate
+             progress = max(0, min(100, int((20 - missing_count) / 20 * 100)))
+             
+             st.divider()
+             st.progress(progress / 100)
+             st.caption(f"現在の進捗: {progress}% (残り項目: {missing_count})")
+             
+             if st.button("📊 進捗詳細を確認 (Dashboard)", key="sidebar_progress_btn"):
+                 st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
+                 st.rerun()
+             st.divider()
+        except:
+             pass
     
     # Navigation Selection
     if "app_nav_selection" not in st.session_state:
@@ -476,9 +500,33 @@ if mode == "Chat Mode (Interview)":
                             st.session_state._temp_suggestions = json.loads(match.group(1))
                         except:
                             pass
+                            pass
     # Reset temp suggestions
     if "_temp_suggestions" in st.session_state:
         del st.session_state["_temp_suggestions"]
+
+    # --- Auto-Scroll Logic ---
+    # Check if a new message has been added
+    current_len = len(st.session_state.ai_interviewer.history)
+    last_len = st.session_state.get("last_history_len", 0)
+
+    if current_len > last_len:
+        # Inject JavaScript to scroll to the top of the last message
+        js = """
+        <script>
+            var elements = window.parent.document.querySelectorAll('.stChatMessage');
+            if (elements.length > 0) {
+                var last = elements[elements.length - 1];
+                last.scrollIntoView({behavior: "smooth", block: "start"});
+            }
+        </script>
+        """
+        components.html(js, height=0)
+        st.session_state["last_history_len"] = current_len
+    
+    # Ensure baseline is set if it's the first run or reset
+    if "last_history_len" not in st.session_state:
+        st.session_state["last_history_len"] = current_len
 
     history = st.session_state.ai_interviewer.history
     loaded_count = st.session_state.get("loaded_msg_count", 0)
@@ -508,6 +556,8 @@ if mode == "Chat Mode (Interview)":
             except:
                 pass
 
+    suggested_prompt = None
+
     if current_suggestions:
         hints = current_suggestions.get("hints")
         example = current_suggestions.get("example")
@@ -519,6 +569,9 @@ if mode == "Chat Mode (Interview)":
                     st.info(f"**ヒント**: {hints}")
                 if example:
                     st.success(f"**回答例**: {example}")
+                    # Improvement: Button to use the example as answer
+                    if st.button("📋 回答例の通り回答する", key=f"use_example_{int(time.time())}"):
+                        suggested_prompt = example
 
     # --- Next Action Suggestions (Quick Replies) ---
     st.caption("👇 クイック返信 (クリックで送信)")
@@ -536,7 +589,6 @@ if mode == "Chat Mode (Interview)":
         options = fallback_map.get(persona, [])
 
     # Render Options
-    suggested_prompt = None
     if options:
         cols = st.columns(min(len(options), 4))
         for i, opt in enumerate(options[:4]):
@@ -659,9 +711,12 @@ elif mode == "Dashboard Mode (Progress)":
             if extracted_data:
                 status_placeholder.text("⏳ Validating data with Pydantic...")
                 try:
-                    plan = ApplicationRoot.model_validate(extracted_data)
+                    # Robust Migration for Legacy/Loose Formats
+                    migrated = ApplicationRoot.migrate_legacy_data(extracted_data)
+                    plan = ApplicationRoot.model_validate(migrated)
+                    
                     st.session_state.current_plan = plan
-                    status_placeholder.success("🎉 Analysis Complete!")
+                    status_placeholder.success("🎉 Analysis Complete & Plan Updated!")
                 except Exception as val_e:
                     status_placeholder.error(f"Validation Error: {val_e}")
                     st.json(extracted_data)
