@@ -1,0 +1,81 @@
+{
+    "basic_info": {
+        "corporate_name": "株式会社努力商会",
+        "address": "大阪府大阪市中央区大手前１－１",
+        "representative_title": "代表取締役",
+        "representative_name": "努力　次郎",
+        "employees": 20,
+        "capital": 5000000,
+        "major_industry": "卸売業",
+        "middle_industry": "建築材料卸売業"
+    },
+    "goals": {
+        "business_overview": "地元の工務店向けに建築資材を卸しており、地域の住宅建設に貢献している。",
+        "business_purpose": "従業員の安全確保と、顧客への供給責任を果たすため。",
+        "disaster_scenario": {
+            "disaster_assumption": "地震",
+            "impact_list": [
+                {
+                    "impact_info": "棚からの落下物により従業員が負傷する恐れがある。"
+                },
+                {
+                    "impact_info": "倉庫の荷崩れにより、商品が出荷できなくなる。"
+                },
+                {
+                    "impact_info": "売上が減少し、復旧費用がかかる。"
+                },
+                {
+                    "impact_info": "パソコンが破損し、顧客データが見られなくなる。"
+                }
+            ]
+        }
+    },
+    "response_procedures": [
+        {
+            "category": "safety",
+            "timing": "発災直後",
+            "action_content": "従業員は近くの公園に避難し、電話で安否を確認する。"
+        },
+        {
+            "category": "emergency_hq",
+            "timing": "安全確保後",
+            "action_content": "社長を本部長として対策本部を設置する。"
+        },
+        {
+            "category": "info_sharing",
+            "timing": "状況把握後",
+            "action_content": "電話で取引先に状況を伝える。"
+        }
+    ],
+    "measures": [
+        {
+            "category": "mono",
+            "current_measure": "ヘルメットの購入",
+            "future_plan": "倉庫の棚の固定を行う予定。"
+        },
+        {
+            "category": "info",
+            "current_measure": "特になし",
+            "future_plan": "USBメモリにバックアップを取る。"
+        }
+    ],
+    "financial_plan": {
+        "items": [
+            {
+                "usage": "復旧費用",
+                "method": "自己資金",
+                "amount": 1000
+            }
+        ]
+    },
+    "pdca": {
+        "management_system": "社長の指示のもと実施する。",
+        "training_education": "年1回（避難訓練）",
+        "plan_review": "年1回"
+    },
+    "attachments": {
+        "certification_compliance": true,
+        "no_false_statements": true,
+        "not_anti_social": true
+    }
+}

@@ -629,20 +629,39 @@ elif mode == "Dashboard Mode (Progress)":
                 
                 # Action Buttons (Simulation)
                 # Action Buttons (Fixed Logic)
-                if st.button("インタビュアーに不足項目を聞いてもらう", type="primary", key="btn_ask_missing"):
-                    # 1. Set Focus
-                    missing_msgs = [m['msg'] for m in result['missing_mandatory']]
-                    st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
-                    
-                    # 2. Inject System/User Trigger (Optional but helpful)
-                    # We want the AI to speak first ideally, or context to be set.
-                    # For now, just focus setting is enough as the System Prompt checks focus fields.
-                    
-                    # 3. Switch Navigation to Chat (Correctly restoring last active persona)
-                    st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
-                    
-                    # 4. Rerun to effect change
-                    st.rerun()
+                col_btn1, col_btn2 = st.columns(2)
+                
+                with col_btn1:
+                    if st.button("インタビュアーに不足項目を聞いてもらう", type="primary", key="btn_ask_missing"):
+                        # 1. Set Focus
+                        missing_msgs = [m['msg'] for m in result['missing_mandatory']]
+                        st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
+                        
+                        # 2. Inject System/User Trigger (Optional but helpful)
+                        # We want the AI to speak first ideally, or context to be set.
+                        # For now, just focus setting is enough as the System Prompt checks focus fields.
+                        
+                        # 3. Switch Navigation to Chat (Correctly restoring last active persona)
+                        st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
+                        
+                        # 4. Rerun to effect change
+                        st.rerun()
+                
+                with col_btn2:
+                    if st.button("📄 下書きシート出力 (Excel)", key="btn_export_draft"):
+                        try:
+                            from src.core.draft_exporter import DraftExporter
+                            excel_data = DraftExporter.export_to_excel(plan, result)
+                            st.download_button(
+                                label="⬇️ ダウンロード",
+                                data=excel_data,
+                                file_name=f"jigyokei_draft_{plan.basic_info.corporate_name or 'plan'}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key="btn_download_excel"
+                            )
+                            st.success("下書きシートを生成しました！ダウンロードボタンをクリックしてください。")
+                        except Exception as e:
+                            st.error(f"エクスポートエラー: {e}")
 
         elif result['recommended_progress'] < 1.0:
             st.success("✅ 申請要件はクリアしています！ (さらに計画を強化しましょう)")
@@ -740,7 +759,7 @@ elif mode == "Dashboard Mode (Progress)":
                     st.caption("ハザードマップやJ-SHISを参照し、「震度○○」「浸水深○○m」など具体的な数値を記載してください。")
             
             if plan.goals.disaster_scenario.impact_list:
-                st.subheader(f"影響評価（{len(plan.goals.disaster_scenario.impact_list)}件）")
+                st.subheader(f"影響評価（{len(plan.goals.disaster_scenario.impact_list)}件） (任意)")
                 st.table([i.model_dump() for i in plan.goals.disaster_scenario.impact_list])
             else:
                 st.info("影響評価データなし (任意)")
@@ -778,7 +797,7 @@ elif mode == "Dashboard Mode (Progress)":
                     st.caption("復旧にかかる費用の目安と、その調達方法（保険、自己資金、借入など）を検討してください。")
             
             with st.container(border=True):
-                st.subheader("🛠️ 設備リスト (税制優遇)")
+                st.subheader("🛠️ 設備リスト (税制優遇) (任意)")
                 if plan.equipment.items:
                     st.table([i.model_dump() for i in plan.equipment.items])
                 else:

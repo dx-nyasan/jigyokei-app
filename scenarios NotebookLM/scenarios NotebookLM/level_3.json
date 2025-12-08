@@ -1,0 +1,86 @@
+{
+    "basic_info": {
+        "corporate_name": "株式会社スタンダード精工",
+        "address": "愛知県名古屋市中区三の丸３－１",
+        "representative_title": "代表取締役",
+        "representative_name": "標準　三郎",
+        "employees": 50,
+        "capital": 10000000,
+        "major_industry": "製造業",
+        "middle_industry": "金属製品製造業"
+    },
+    "goals": {
+        "business_overview": "自動車部品メーカーA社のエンジン部品（ブラケット）の30%を製造しており、当社の供給停止はA社のライン停止に直結する重要な役割を担っている。",
+        "business_purpose": "従業員の人命を最優先とし、発災後3日以内の供給再開を目指す。",
+        "disaster_scenario": {
+            "disaster_assumption": "地震・水害",
+            "impact_list": [
+                {
+                    "impact_info": "震度6弱の揺れにより、転倒した機械に挟まれるリスクがある。"
+                },
+                {
+                    "impact_info": "南海トラフ地震発生時、震度6弱が想定される。また、河川氾濫により床下50cmの浸水が想定され、1階のプレス機が水没する。"
+                },
+                {
+                    "impact_info": "操業停止により月額2000万円の売上損失が発生する。"
+                },
+                {
+                    "impact_info": "サーバーが水没し、図面データが消失する。"
+                }
+            ]
+        }
+    },
+    "response_procedures": [
+        {
+            "category": "safety",
+            "timing": "発災後1時間以内",
+            "action_content": "安否確認システム「〇〇」を使用し、全従業員の無事を確認する。"
+        },
+        {
+            "category": "emergency_hq",
+            "timing": "震度5強以上発生時",
+            "action_content": "代表取締役を本部長とする災害対策本部を本社2階会議室に設置する。"
+        },
+        {
+            "category": "info_sharing",
+            "timing": "発災後3時間以内",
+            "action_content": "被災状況および復旧見込みの第一報を、主要取引先A社の購買担当へメールおよび電話で報告する。"
+        }
+    ],
+    "measures": [
+        {
+            "category": "mono",
+            "current_measure": "プレス機のアンカーボルト固定",
+            "future_plan": "重要設備のモーター位置を嵩上げし、浸水対策を行う。"
+        },
+        {
+            "category": "kane",
+            "current_measure": "火災保険への加入",
+            "future_plan": "水災特約を追加し、設備損害をカバーする。"
+        }
+    ],
+    "financial_plan": {
+        "items": [
+            {
+                "usage": "設備嵩上げ工事",
+                "method": "自己資金",
+                "amount": 500
+            },
+            {
+                "usage": "水災保険料",
+                "method": "自己資金",
+                "amount": 100
+            }
+        ]
+    },
+    "pdca": {
+        "management_system": "代表取締役の指揮の下、総務部長を責任者として推進する。",
+        "training_education": "年1回（9月防災の日）",
+        "plan_review": "年1回（決算月）"
+    },
+    "attachments": {
+        "certification_compliance": true,
+        "no_false_statements": true,
+        "not_anti_social": true
+    }
+}

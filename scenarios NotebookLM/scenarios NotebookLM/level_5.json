@@ -1,0 +1,104 @@
+{
+    "basic_info": {
+        "corporate_name": "株式会社パーフェクト・ソリューション",
+        "address": "東京都港区芝公園",
+        "representative_title": "代表取締役社長",
+        "representative_name": "模範　五郎",
+        "employees": 300,
+        "capital": 90000000,
+        "major_industry": "製造業",
+        "middle_industry": "電子部品・デバイス・電子回路製造業"
+    },
+    "goals": {
+        "business_overview": "世界シェア15%を有する特殊センサー部品を製造し、国内外の自動車メーカー5社へ供給している。当社の供給停止は世界の自動車生産に多大な影響を与える。",
+        "business_purpose": "サプライチェーンの要として、複合災害時においても72時間以内に代替生産体制へ移行し、供給責任を全うする。",
+        "disaster_scenario": {
+            "disaster_assumption": "地震・水害・感染症・電力不足",
+            "impact_list": [
+                {
+                    "impact_info": "首都直下地震（今後30年70%）により、従業員の3割が帰宅困難となる（J-SHIS）。"
+                },
+                {
+                    "impact_info": "震度6強の揺れで精密検査機器の転倒・破損リスクあり。"
+                },
+                {
+                    "impact_info": "1ヶ月の操業停止で固定費・逸失利益合わせ約1.5億円の損失を試算（リスクファイナンス判断シート）。"
+                },
+                {
+                    "impact_info": "設計データの消失は事業存続に関わる致命的ダメージとなる。"
+                }
+            ]
+        }
+    },
+    "response_procedures": [
+        {
+            "category": "safety",
+            "timing": "発災後10分以内",
+            "action_content": "安否確認システムにより全従業員の安全を確保・集計する。"
+        },
+        {
+            "category": "emergency_hq",
+            "timing": "震度5強以上または警戒レベル4発令時",
+            "action_content": "アクションカードに基づき、社長を本部長とする対策本部を設置。各班長は衛星電話を用いて各拠点と通信を確立する。"
+        },
+        {
+            "category": "cooperation",
+            "timing": "発災後24時間以内",
+            "action_content": "協定を結んでいる協力会社B社（大阪工場）へ代替生産の要請を行う。"
+        }
+    ],
+    "measures": [
+        {
+            "category": "kane",
+            "current_measure": "火災保険",
+            "future_plan": "リスクファイナンス判断シートの試算に基づき、休業損失（月1.5億円）をカバーする利益保険（Business Interruption Insurance）に加入する。"
+        },
+        {
+            "category": "cooperation",
+            "current_measure": "なし",
+            "future_plan": "同業他社B社と「災害時相互応援協定」を締結し、金型・治具の互換性を確保する。"
+        },
+        {
+            "category": "mono",
+            "current_measure": "精密検査機器の転倒防止",
+            "future_plan": "【税制優遇適用】免震台を導入し、震度6強でも機器の破損を防ぐ。"
+        },
+        {
+            "category": "info",
+            "current_measure": "社内サーバーバックアップ",
+            "future_plan": "設計データを遠隔地クラウドへリアルタイム同期し、サイバー攻撃および被災時のデータ消失を防ぐ。"
+        }
+    ],
+    "cooperation_partners": [
+        {
+            "name": "株式会社B社",
+            "address": "大阪府大阪市...",
+            "representative": "協力　花子",
+            "content": "被災時における代替生産ラインの提供および技術者の派遣。"
+        }
+    ],
+    "financial_plan": {
+        "items": [
+            {
+                "usage": "利益保険料",
+                "method": "自己資金",
+                "amount": 2000
+            },
+            {
+                "usage": "予備電源設備（税制優遇）",
+                "method": "日本政策金融公庫（強靭化融資）",
+                "amount": 15000
+            }
+        ]
+    },
+    "pdca": {
+        "management_system": "経営計画発表会にてBCP方針を全社共有し、取締役会で毎月リスク管理状況をモニタリングする。",
+        "training_education": "年4回（実動訓練、図上訓練、サプライチェーン連携訓練含む）",
+        "plan_review": "年1回および災害発生・組織変更時"
+    },
+    "attachments": {
+        "certification_compliance": true,
+        "no_false_statements": true,
+        "not_anti_social": true
+    }
+}

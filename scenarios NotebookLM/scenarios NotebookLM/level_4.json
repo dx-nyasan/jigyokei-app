@@ -1,0 +1,86 @@
+{
+    "basic_info": {
+        "corporate_name": "株式会社ハイレベル・テック",
+        "address": "福岡県福岡市博多区東公園１－１",
+        "representative_title": "代表取締役",
+        "representative_name": "優秀　四郎",
+        "employees": 100,
+        "capital": 30000000,
+        "major_industry": "情報通信業",
+        "middle_industry": "情報サービス業"
+    },
+    "goals": {
+        "business_overview": "地域の基幹病院や自治体のシステム保守を担っており、災害時においても地域の社会インフラを支える極めて重要な役割を果たしている。",
+        "business_purpose": "いかなる状況下でも24時間以内に重要システムの復旧支援体制を確立する。",
+        "disaster_scenario": {
+            "disaster_assumption": "水害・感染症・サイバー攻撃",
+            "impact_list": [
+                {
+                    "impact_info": "感染症パンデミックにより、出勤率が50%以下となる。"
+                },
+                {
+                    "impact_info": "御笠川氾濫により最大3m（2階床上）の浸水が想定される（福岡市ハザードマップ）。"
+                },
+                {
+                    "impact_info": "ランサムウェア被害により、復旧費用として数千万円が必要となる（IPAガイドライン参照）。"
+                },
+                {
+                    "impact_info": "サイバー攻撃により顧客の個人情報漏洩およびシステムロックが発生する。"
+                }
+            ]
+        }
+    },
+    "response_procedures": [
+        {
+            "category": "info_sharing",
+            "timing": "インシデント認知直後",
+            "action_content": "CSIRTを緊急招集し、ネットワーク遮断およびIPA・警察への届出を行う。"
+        },
+        {
+            "category": "safety",
+            "timing": "発災後まもなく",
+            "action_content": "全社員へ安否確認メールを一斉送信し、テレワーク移行を指示する。"
+        }
+    ],
+    "measures": [
+        {
+            "category": "mono",
+            "current_measure": "自家発電機の設置",
+            "future_plan": "【税制優遇活用】止水板（型式：FloodBarrier-X）を1階開口部に設置し、浸水を防ぐ。"
+        },
+        {
+            "category": "info",
+            "current_measure": "ウイルス対策ソフト",
+            "future_plan": "UTMの導入および「サイバーセキュリティお助け隊」による24時間監視体制の構築。"
+        },
+        {
+            "category": "human",
+            "current_measure": "テレワーク規定の整備",
+            "future_plan": "全従業員向けのリモートアクセス研修を実施し、感染症時の出社率を30%以下に抑える。"
+        }
+    ],
+    "financial_plan": {
+        "items": [
+            {
+                "usage": "止水板導入",
+                "method": "自己資金（税制優遇活用）",
+                "amount": 3000
+            },
+            {
+                "usage": "UTM導入",
+                "method": "IT導入補助金",
+                "amount": 1000
+            }
+        ]
+    },
+    "pdca": {
+        "management_system": "経営会議直轄の「BCP推進委員会」を設置し、四半期ごとに進捗を確認。",
+        "training_education": "年2回（標的型メール訓練、避難訓練）",
+        "plan_review": "年1回および社会情勢変化時"
+    },
+    "attachments": {
+        "certification_compliance": true,
+        "no_false_statements": true,
+        "not_anti_social": true
+    }
+}

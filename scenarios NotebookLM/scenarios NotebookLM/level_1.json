@@ -1,0 +1,70 @@
+{
+    "basic_info": {
+        "corporate_name": "株式会社不備サンプル",
+        "address": "東京都千代田区霞が関１－３－１",
+        "representative_title": "代表取締役",
+        "representative_name": "不備　太郎",
+        "employees": 5,
+        "capital": 1000000,
+        "major_industry": "製造業",
+        "middle_industry": "食料品製造業"
+    },
+    "goals": {
+        "business_overview": "パンを製造しています。",
+        "business_purpose": "事業を継続するため。",
+        "disaster_scenario": {
+            "disaster_assumption": "地震",
+            "impact_list": [
+                {
+                    "impact_info": "怪我人が出る可能性がある。"
+                },
+                {
+                    "impact_info": "建物が壊れる。"
+                },
+                {
+                    "impact_info": "お金がかかる。"
+                },
+                {
+                    "impact_info": "データが消える。"
+                }
+            ]
+        }
+    },
+    "response_procedures": [
+        {
+            "category": "safety",
+            "timing": "直後",
+            "action_content": "逃げる。"
+        },
+        {
+            "category": "emergency_hq",
+            "timing": "直後",
+            "action_content": "対策本部を作る。"
+        },
+        {
+            "category": "info_sharing",
+            "timing": "直後",
+            "action_content": "連絡する。"
+        }
+    ],
+    "measures": [
+        {
+            "category": "human",
+            "current_measure": "なし",
+            "future_plan": "頑張る。"
+        }
+    ],
+    "financial_plan": {
+        "items": []
+    },
+    "pdca": {
+        "management_system": "担当者が行う。",
+        "training_education": "年1回",
+        "plan_review": "年1回"
+    },
+    "attachments": {
+        "certification_compliance": true,
+        "no_false_statements": true,
+        "not_anti_social": true
+    }
+}
