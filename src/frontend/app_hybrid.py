@@ -570,9 +570,11 @@ if mode == "Chat Mode (Interview)":
                 if example:
                     st.success(f"**回答例**: {example}")
                     # Improvement: Button to use the example as answer
-                    # Use stable key based on content hash
+                    # Use stable key based on content hash AND history length to ensure uniqueness per turn
                     import hashlib
-                    stable_key = hashlib.md5(example.encode()).hexdigest()
+                    # Include length of history to differentiate "Yes" at turn 1 vs "Yes" at turn 5
+                    unique_str = f"{example}_{len(st.session_state.ai_interviewer.history)}"
+                    stable_key = hashlib.md5(unique_str.encode()).hexdigest()
                     if st.button("📋 回答例の通り回答する", key=f"use_example_{stable_key}"):
                         suggested_prompt = example
 
