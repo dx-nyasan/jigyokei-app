@@ -204,21 +204,61 @@ with st.sidebar:
                     uploaded_file.seek(0)
                     data = json.load(uploaded_file)
                     
-                    # Tag Injection Logic
-                    valid_history = [m for m in data.get("history", []) if isinstance(m, dict)]
+                    # Handle if data is a list (e.g. raw history list or basic_scenario)
+                    if isinstance(data, list):
+                        # Check if it looks like a valid history list (items must be dicts with 'role' and 'content')
+                        if all(isinstance(m, dict) and "role" in m and "content" in m for m in data):
+                             valid_history = data
+                             if import_owner != "自動 (Auto)":
+                                for msg in valid_history:
+                                    if "persona" not in msg: msg["persona"] = import_owner
+                                    if "target_persona" not in msg and msg.get("role") == "model": msg["target_persona"] = import_owner
+                             
+                             st.session_state.ai_interviewer.load_history(valid_history, merge=True)
+                             st.session_state.loaded_msg_count = len(st.session_state.ai_interviewer.history)
+                             st.toast(f"✅ 会話履歴(リスト形式)を統合しました ({len(valid_history)}件)", icon="📥")
+                        else:
+                             st.warning("⚠️ 読み込めるデータ形式ではありません (対応形式: 事業計画JSON, または会話履歴リスト)")
                     
-                    if import_owner != "自動 (Auto)":
-                        for msg in valid_history:
-                            if "persona" not in msg and msg.get("role") == "user":
-                                msg["persona"] = import_owner
-                            if "target_persona" not in msg and msg.get("role") == "model":
-                                msg["target_persona"] = import_owner
-                    
-                    st.session_state.ai_interviewer.load_history(valid_history, merge=True)
-                    st.session_state.loaded_msg_count = len(st.session_state.ai_interviewer.history)
+                    elif isinstance(data, dict):
+                        # 1. History Loading Logic (Existing Wrapper)
+                        if "history" in data:
+                            valid_history = [m for m in data.get("history", []) if isinstance(m, dict)]
+                            
+                            if import_owner != "自動 (Auto)":
+                                for msg in valid_history:
+                                    if "persona" not in msg and msg.get("role") == "user":
+                                        msg["persona"] = import_owner
+                                    if "target_persona" not in msg and msg.get("role") == "model":
+                                        msg["target_persona"] = import_owner
+                            
+                            st.session_state.ai_interviewer.load_history(valid_history, merge=True)
+                            st.session_state.loaded_msg_count = len(st.session_state.ai_interviewer.history)
+                            st.toast(f"✅ 会話履歴を統合しました ({len(valid_history)}件)", icon="📥")
+
+                        # 2. Direct Plan Loading Logic (New for Test Data)
+                        # Check if 'basic_info' or 'goals' (key fields of ApplicationRoot) exists
+                        elif "basic_info" in data or "goals" in data:
+                            from src.api.schemas import ApplicationRoot
+                            try:
+                                # Attempt to validate and load as current plan
+                                # Note: validate might fail if partial data, so we might need construct=True or partial validation
+                                # But let's try strict first as user said "test data"
+                                plan = ApplicationRoot.model_validate(data)
+                                st.session_state.current_plan = plan
+                                st.toast("✅ 事業計画データを読み込みました (Direct Load)", icon="📄")
+                            except Exception as val_e:
+                                st.warning(f"データ構造読み込み警告: {val_e}")
+                                # Fallback: Load as dict anyway for debugging
+                                # st.session_state.current_plan = ApplicationRoot.construct(**data) 
+                                pass
+                        
+                        else:
+                            st.warning("⚠️ 読み込めるデータ形式ではありません (history, basic_info, goals キーが見つかりません)")
+                    else:
+                         st.warning("⚠️ JSON形式が無効です")
+
                     st.session_state.last_loaded_file_id = file_id
-                    
-                    st.toast(f"✅ データを統合しました ({import_owner})", icon="📥")
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:

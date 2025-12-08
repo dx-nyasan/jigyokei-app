@@ -34,3 +34,5 @@ env/
 
 # Logs
 *.log
+
+.streamlit/secrets.toml
