@@ -641,45 +641,153 @@ elif mode == "Dashboard Mode (Progress)":
              st.balloons()
              st.success("🏆 Perfect! 計画は完璧です。申請の準備が整いました。")
 
-        # --- 3. Section Breakdown (Tabs) ---
+        # --- 3. Section Breakdown (Application Form Style: 6 Tabs) ---
         st.divider()
         
-        # Dynamic Tab Labels
+        # Dynamic Tab Labels (6-tab structure matching electronic application)
         tabs_labels = {
-            "Measures": "🛡️ 対策 (Measures)",
-            "ResponseProcedures": "🚨 初動・体制",
-            "BasicInfo": "🏢 基本・事業",
-            "FinancialPlan": "💰 資金・その他"
+            "BasicInfo": "1️⃣ 基本情報",
+            "Goals": "2️⃣ 事業概要・目標",
+            "Disaster": "3️⃣ 災害想定",
+            "Response": "4️⃣ 初動対応",
+            "Measures": "5️⃣ 事前対策",
+            "Finance": "6️⃣ 資金・推進体制"
         }
         
         # Check missing items to add warning icons
         missing_sections = [m['section'] for m in result['missing_mandatory']]
         
+        if "BasicInfo" in missing_sections: tabs_labels["BasicInfo"] += " ⚠️"
+        if "Goals" in missing_sections: tabs_labels["Goals"] += " ⚠️"
+        if "Goals" in missing_sections: tabs_labels["Disaster"] += " ⚠️"  # Disaster is part of Goals
+        if "ResponseProcedures" in missing_sections: tabs_labels["Response"] += " ⚠️"
         if "Measures" in missing_sections: tabs_labels["Measures"] += " ⚠️"
-        if "ResponseProcedures" in missing_sections: tabs_labels["ResponseProcedures"] += " ⚠️"
-        if "BasicInfo" in missing_sections or "Goals" in missing_sections: tabs_labels["BasicInfo"] += " ⚠️"
-        if "FinancialPlan" in missing_sections: tabs_labels["FinancialPlan"] += " ⚠️"
+        if "FinancialPlan" in missing_sections or "PDCA" in missing_sections: tabs_labels["Finance"] += " ⚠️"
 
-        tab1, tab2, tab3, tab4 = st.tabs([
-            tabs_labels["Measures"], 
-            tabs_labels["ResponseProcedures"], 
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             tabs_labels["BasicInfo"], 
-            tabs_labels["FinancialPlan"]
+            tabs_labels["Goals"], 
+            tabs_labels["Disaster"],
+            tabs_labels["Response"],
+            tabs_labels["Measures"],
+            tabs_labels["Finance"]
         ])
         
+        # TAB 1: Basic Info
         with tab1:
-            st.caption(f"事前対策: {result['counts']['measures']}件登録済")
+            st.caption("📋 様式第1 基本情報")
+            if plan.basic_info:
+                bi = plan.basic_info
+                full_address = f"{bi.address_pref or ''}{bi.address_city or ''}{bi.address_street or ''}{bi.address_building or ''}"
+                
+                display_data = {
+                    "会社名": bi.corporate_name,
+                    "代表者": f"{bi.representative_title or ''} {bi.representative_name or ''}".strip(),
+                    "資本金": f"{bi.capital:,}円" if bi.capital else "-",
+                    "従業員数": f"{bi.employees}名" if bi.employees else "-",
+                    "郵便番号": bi.address_zip,
+                    "住所": full_address,
+                    "業種": f"{bi.industry_major or ''} / {bi.industry_middle or ''}".strip(" /"),
+                    "法人番号": bi.corporate_number or "-"
+                }
+                st.table([{"項目": k, "内容": v} for k, v in display_data.items() if v and v != "-"])
+            else:
+                with st.container(border=True):
+                    st.warning("⚠️ 基本情報が未入力です。")
+        
+        # TAB 2: Overview & Goals
+        with tab2:
+            st.caption("📋 様式第2 事業活動の概要・取組目的")
+            
+            with st.container(border=True):
+                st.subheader("事業活動の概要")
+                if plan.goals.business_overview:
+                    st.info(plan.goals.business_overview)
+                else:
+                    st.error("🚨 事業活動の概要が未入力です。")
+                    st.caption("自社の事業内容、サプライチェーン上の役割、地域経済への貢献を具体的に記述してください。")
+            
+            with st.container(border=True):
+                st.subheader("取組目的")
+                if plan.goals.business_purpose:
+                    st.info(plan.goals.business_purpose)
+                else:
+                    st.warning("⚠️ 取組目的が未入力です。")
+        
+        # TAB 3: Disaster Scenario
+        with tab3:
+            st.caption("📋 様式第3 想定される自然災害等のリスク")
+            
+            with st.container(border=True):
+                st.subheader("想定する災害")
+                if plan.goals.disaster_scenario.disaster_assumption:
+                    st.info(plan.goals.disaster_scenario.disaster_assumption)
+                else:
+                    st.error("🚨 災害想定が未入力です。")
+                    st.caption("ハザードマップやJ-SHISを参照し、「震度○○」「浸水深○○m」など具体的な数値を記載してください。")
+            
+            if plan.goals.disaster_scenario.impact_list:
+                st.subheader(f"影響評価（{len(plan.goals.disaster_scenario.impact_list)}件）")
+                st.table([i.model_dump() for i in plan.goals.disaster_scenario.impact_list])
+            else:
+                st.info("影響評価データなし (任意)")
+        
+        # TAB 4: First Response
+        with tab4:
+            st.caption(f"📋 様式第4 初動対応手順等: {result['counts']['procedures']}件登録済")
+            if plan.response_procedures:
+                st.table([m.model_dump() for m in plan.response_procedures])
+            else:
+                with st.container(border=True):
+                    st.error("🚨 初動対応が未登録です。")
+                    st.caption("災害発生直後に誰が何をするか（例：安否確認、避難誘導）を決めてください。")
+        
+        # TAB 5: Measures
+        with tab5:
+            st.caption(f"📋 様式第5 平時の取組: {result['counts']['measures']}件登録済")
             if plan.measures:
                 st.table([m.model_dump() for m in plan.measures])
             else:
-                with st.container(border=True): # Red alert for emphasis
-                    st.error("🚨 対策がまだ登録されていません。")
-                    st.caption("リスクを軽減するための具体的な対策（例：棚の固定、データのバックアップ）を登録してください。")
-                
-        with tab2:
-            st.caption(f"初動対応: {result['counts']['procedures']}件登録済")
-            if plan.response_procedures:
-                st.table([m.model_dump() for m in plan.response_procedures])
+                with st.container(border=True):
+                    st.error("🚨 事前対策がまだ登録されていません。")
+                    st.caption("リスクを軽減するための具体的な対策（例：在庫分散、棚の固定、クラウドバックアップ）を登録してください。")
+        
+        # TAB 6: Finance & PDCA
+        with tab6:
+            st.caption("📋 様式第6 資金計画・推進体制")
+            
+            with st.container(border=True):
+                st.subheader("💰 資金計画")
+                if plan.financial_plan.items:
+                    st.table([i.model_dump() for i in plan.financial_plan.items])
+                else:
+                    st.warning("⚠️ 資金計画が未入力です。")
+                    st.caption("復旧にかかる費用の目安と、その調達方法（保険、自己資金、借入など）を検討してください。")
+            
+            with st.container(border=True):
+                st.subheader("🛠️ 設備リスト (税制優遇)")
+                if plan.equipment.items:
+                    st.table([i.model_dump() for i in plan.equipment.items])
+                else:
+                    st.info("設備リストなし (任意)")
+            
+            with st.container(border=True):
+                st.subheader("🔄 推進体制・訓練")
+                pdca_data = {
+                    "管理体制": plan.pdca.management_system or "-",
+                    "訓練・教育": plan.pdca.training_education or "-",
+                    "見直し頻度": plan.pdca.review_cycle or "-"
+                }
+                st.table([{"項目": k, "内容": v} for k, v in pdca_data.items()])
+
+        # --- 4. Sidebar Tools (Injected here dynamically or rely on static layout) ---
+        # Note: Sidebar is already rendered at top of script. We can add to it here or just leave as is.
+        # Adding a dedicated "Tools" expander in main area for visibility
+        with st.expander("🛠️ お役立ちツール (External Tools)"):
+            c1, c2, c3 = st.columns(3)
+            c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
+            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
+            c3.link_button("💴 BCPポータル (リスクファイナンス等)", "https://kyoujinnka.smrj.go.jp/")
             else:
                 with st.container(border=True):
                     st.error("🚨 初動対応が未登録です。")
