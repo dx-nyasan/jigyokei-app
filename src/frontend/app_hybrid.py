@@ -633,38 +633,82 @@ elif mode == "Dashboard Mode (Progress)":
 
         # --- 3. Section Breakdown (Tabs) ---
         st.divider()
-        tab1, tab2, tab3, tab4 = st.tabs(["🛡️ 対策 (Measures)", "🚨 初動・体制", "🏢 基本・事業", "💰 資金・その他"])
+        
+        # Dynamic Tab Labels
+        tabs_labels = {
+            "Measures": "🛡️ 対策 (Measures)",
+            "ResponseProcedures": "🚨 初動・体制",
+            "BasicInfo": "🏢 基本・事業",
+            "FinancialPlan": "💰 資金・その他"
+        }
+        
+        # Check missing items to add warning icons
+        missing_sections = [m['section'] for m in result['missing_mandatory']]
+        
+        if "Measures" in missing_sections: tabs_labels["Measures"] += " ⚠️"
+        if "ResponseProcedures" in missing_sections: tabs_labels["ResponseProcedures"] += " ⚠️"
+        if "BasicInfo" in missing_sections or "Goals" in missing_sections: tabs_labels["BasicInfo"] += " ⚠️"
+        if "FinancialPlan" in missing_sections: tabs_labels["FinancialPlan"] += " ⚠️"
+
+        tab1, tab2, tab3, tab4 = st.tabs([
+            tabs_labels["Measures"], 
+            tabs_labels["ResponseProcedures"], 
+            tabs_labels["BasicInfo"], 
+            tabs_labels["FinancialPlan"]
+        ])
         
         with tab1:
             st.caption(f"事前対策: {result['counts']['measures']}件登録済")
             if plan.measures:
                 st.table([m.model_dump() for m in plan.measures])
             else:
-                st.info("対策がまだ登録されていません。")
+                with st.container(border=True): # Red alert for emphasis
+                    st.error("🚨 対策がまだ登録されていません。")
+                    st.caption("リスクを軽減するための具体的な対策（例：棚の固定、データのバックアップ）を登録してください。")
                 
         with tab2:
             st.caption(f"初動対応: {result['counts']['procedures']}件登録済")
             if plan.response_procedures:
                 st.table([m.model_dump() for m in plan.response_procedures])
             else:
-                st.info("初動対応が未登録です。")
+                with st.container(border=True):
+                    st.error("🚨 初動対応が未登録です。")
+                    st.caption("災害発生直後に誰が何をするか（例：安否確認、避難誘導）を決めてください。")
 
         with tab3:
             col3a, col3b = st.columns(2)
             with col3a:
                 st.caption("基本情報")
-                st.json(plan.basic_info.model_dump(exclude_none=True))
+                # Reformatted: Use table or grid instead of raw JSON
+                if plan.basic_info:
+                    bi = plan.basic_info
+                    # Create a readable dictionary for display
+                    display_data = {
+                        "会社名": bi.corporate_name,
+                        "代表者": f"{bi.representative_title} {bi.representative_name}",
+                        "資本金": f"{bi.capital:,}円" if bi.capital else "-",
+                        "従業員数": f"{bi.employees}名" if bi.employees else "-",
+                        "郵便番号": bi.postal_code,
+                        "住所": bi.address,
+                        "電話番号": bi.phone_number
+                    }
+                    st.table([{"項目": k, "内容": v} for k, v in display_data.items() if v])
+                else:
+                    st.warning("基本情報が未入力です")
+
             with col3b:
                 st.caption("事業概要・災害想定")
-                st.write(f"**Assumption:** {plan.goals.disaster_scenario.disaster_assumption}")
-                st.write(f"**Overview:** {plan.goals.business_overview}")
+                st.info(f"**Assumption (想定災害):**\n{plan.goals.disaster_scenario.disaster_assumption}")
+                st.info(f"**Overview (事業概要):**\n{plan.goals.business_overview}")
         
         with tab4:
              st.caption("資金計画")
              if plan.financial_plan.items:
                  st.table([i.model_dump() for i in plan.financial_plan.items])
              else:
-                 st.warning("資金計画が未入力です。")
+                 with st.container(border=True):
+                     st.warning("⚠️ 資金計画が未入力です。")
+                     st.caption("復旧にかかる費用の目安と、その調達方法（手元資金、借入など）を検討してください。")
                  
              st.caption("設備リスト (税制優遇)")
              if plan.equipment.items:

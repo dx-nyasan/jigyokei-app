@@ -44,17 +44,19 @@ class CompletionChecker:
 
         # --- 2. Strict Scoring (Total Score) ---
         # Criteria: 100 points = Fully compliant with Electronic Application Manual
+        # REVISED LOGIC: Shift focus from check-filling to substantive content (Measures & Finance)
+        
         score = 0
         suggestions = []
 
-        # A. Foundation (Max 50 pts) - Directly linked to Mandatory Checks
-        # Using slightly different weights if needed, but simple distribution is fine.
-        if mandatory_checks["BasicInfo"]: score += 8
-        if mandatory_checks["Goals"]: score += 8
-        if mandatory_checks["ResponseProcedures"]: score += 8
-        if mandatory_checks["Measures"]: score += 8
-        if mandatory_checks["FinancialPlan"]: score += 9
-        if mandatory_checks["PDCA"]: score += 9
+        # A. Foundation (Max 40 pts) - Directly linked to Mandatory Checks
+        # Previous: ~8pts each. New: Basic/PDCA reduced, Measures/Finance increased.
+        if mandatory_checks["BasicInfo"]: score += 5
+        if mandatory_checks["Goals"]: score += 5
+        if mandatory_checks["ResponseProcedures"]: score += 5
+        if mandatory_checks["Measures"]: score += 15  # Key Section
+        if mandatory_checks["FinancialPlan"]: score += 15 # Key Section
+        if mandatory_checks["PDCA"]: score += 5 # Basic Req
         
         # B. Quality & Quantity (Max 30 pts) - NotebookLM Insights + Skasuka Check
         
@@ -106,27 +108,32 @@ class CompletionChecker:
         elif mandatory_checks["FinancialPlan"]:
              suggestions.append("資金計画の内容（金額または調達方法）を具体的に入力してください。")
 
-        # C. Compliance & Checklist (Max 20 pts) - Electronic Application Reqs
-        # Checking AttachmentsChecklist booleans
-        # Note: These default to False (None -> False in previous fix? No, None allowed).
-        # We need to treat None as False for scoring.
+        # C. Compliance & Checklist (Max 10 pts, Reduced from 20)
         checklist = plan.attachments
         c_score = 0
-        if checklist.certification_compliance: c_score += 4
+        if checklist.certification_compliance: c_score += 2
         else: suggestions.append("認定要件への適合チェックが未完了です。")
         
-        if checklist.no_false_statements: c_score += 4
-        if checklist.not_anti_social: c_score += 4
-        if checklist.legal_compliance: c_score += 4
-        
-        # Data Consent (Optional but good for 'application' readiness context?)
-        # Let's check 'sme_requirements' instead as it is critical
-        if checklist.sme_requirements: c_score += 4
+        if checklist.no_false_statements: c_score += 2
+        if checklist.not_anti_social: c_score += 2
+        if checklist.legal_compliance: c_score += 2
+        if checklist.sme_requirements: c_score += 2
         
         score += c_score
         
-        # --- Final Adjustments ---
-        total_score = min(100, score) # Cap at 100
+        # --- Final Adjustments & CAP ---
+        # Rule: If critical sections (Measures, FinancialPlan) are missing, score cannot exceed 40.
+        critical_missing = False
+        if not mandatory_checks["Measures"] or not mandatory_checks["FinancialPlan"]:
+            critical_missing = True
+        
+        total_score = min(100, score)
+        
+        if critical_missing:
+            # Force cap at 40 to indicate "Not Ready"
+            total_score = min(total_score, 40)
+            if total_score == 40:
+                suggestions.append("⚠️ 重要な項目（事前対策または資金計画）が未入力のため、スコアが制限されています。")
         
         status = "critical"
         if len(missing_mandatory) == 0:
