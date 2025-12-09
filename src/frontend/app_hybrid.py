@@ -1044,6 +1044,54 @@ elif mode == "Dashboard Mode (Progress)":
 elif mode == "Main Consensus Room (Resolution)":
     st.title("⚖️ Consensus Room (全体合意)")
     st.caption("各ペルソナの意見を調整し、最終的な方針を決定します。")
+
+    # --- File Upload for Consensus (New) ---
+    with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=False):
+        uploaded_refs_consensus = st.file_uploader(
+            "全体合意用資料をアップロード (PDF/画像)", 
+            type=["pdf", "png", "jpg", "jpeg"], 
+            accept_multiple_files=True,
+            key="uploader_consensus"
+        )
+        
+        # --- Auto-Process Logic (Consensus) ---
+        if "processed_file_ids" not in st.session_state:
+            st.session_state.processed_file_ids = set()
+
+        if uploaded_refs_consensus:
+            new_files_to_process = []
+            for file in uploaded_refs_consensus:
+                file_id = f"{file.name}_{file.size}"
+                if file_id not in st.session_state.processed_file_ids:
+                    new_files_to_process.append(file)
+                    st.session_state.processed_file_ids.add(file_id)
+            
+            if new_files_to_process:
+                 with st.spinner("資料を解析中... (Processing for Consensus)"):
+                    try:
+                        # Process files as "総合調整役" (Coordinator)
+                        count = st.session_state.ai_interviewer.process_files(new_files_to_process, target_persona="総合調整役")
+                        st.success(f"{count}件の資料を全体合意用に読み込みました！")
+                        
+                        # Agentic Extraction Trigger (Optional but good for consistency)
+                        if count > 0:
+                             with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
+                                 status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
+                                 try:
+                                     all_files = st.session_state.ai_interviewer.uploaded_file_refs
+                                     extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
+                                     if extracted_data:
+                                         status.write("✅ 構造化データを検出しました。")
+                                     else:
+                                         status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
+                                 except Exception as ex_e:
+                                     status.error(f"Extraction Error: {ex_e}")
+
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"読み込みエラー: {e}")
+
     
     # Conflict Detection
     with st.expander("🧐 矛盾・未合意事項の検知 (Conflict Detection)", expanded=True):
@@ -1076,9 +1124,36 @@ elif mode == "Main Consensus Room (Resolution)":
     # Chat History
     history = st.session_state.ai_interviewer.history
     
+    # Helper for rendering messages in Consensus Mode (Duplicate of Chat Mode helper to avoid scope issues)
+    def render_message_consensus(msg, current_persona):
+        if not isinstance(msg, dict): return
+        role = msg["role"]
+        msg_persona = msg.get("persona", "Unknown")
+        target_persona = msg.get("target_persona")
+        
+        # In Consensus, we generally want to see everything, OR filter by "General" context.
+        # However, to be safe and match user expectation: show messages relevant to '総合調整役' or public.
+        # Let's show everything for now as it is a "Consensus" room.
+        # But if we want to be strict: 
+        visible = True # Default to visible in Consensus
+        # Apply filter if needed:
+        # if role == "model" and target_persona and target_persona != "総合調整役": visible = False
+        
+        if visible:
+            avatar = "🤖" if role == "model" else "👤"
+            if msg_persona == "経営者": avatar = "👨‍💼"
+            elif msg_persona == "従業員": avatar = "👷"
+            elif msg_persona == "商工会職員": avatar = "🧑‍🏫"
+            elif msg_persona == "AI Concierge": avatar = "🤖"
+            elif msg_persona == "総合調整役": avatar = "⚖️"
+            
+            with st.chat_message(role, avatar=avatar):
+                st.caption(f"{msg_persona}")
+                st.markdown(msg["content"])
+
     # Show history using rendered helper
     for i in range(len(history)):
-         render_message(history[i], "総合調整役") 
+         render_message_consensus(history[i], "総合調整役") 
     
     # Input
     if prompt := st.chat_input("全体方針を入力してください (例: 避難場所は高台の公園とします)"):
