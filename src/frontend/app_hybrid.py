@@ -32,25 +32,6 @@ importlib.reload(src.core.draft_exporter)
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 from src.core.completion_checker import CompletionChecker
-from src.core.draft_exporter import DraftExporter
-from src.core.session_manager import SessionManager
-
-# --- Version Control ---
-APP_VERSION = "3.4.0-ux-improvement-autoresume"
-
-# Initialize Session Manager
-if "session_manager" not in st.session_state:
-    st.session_state.session_manager = SessionManager()
-
-# --- Auto Resume Logic ---
-# [DISABLED] Automatic loading of shared session file causes data leak between users in Cloud environment.
-# if "ai_interviewer" not in st.session_state and "last_resume_check" not in st.session_state:
-#     st.session_state.last_resume_check = True
-#     saved_data = st.session_state.session_manager.load_session()
-#     if saved_data and saved_data.get("history"):
-#         st.toast("🔄 前回の中断箇所から復元しました (Session Auto-Resumed)", icon="📂")
-#         # Initialize interviewer with history immediately
-#         st.session_state.ai_interviewer = AIInterviewer()
 #         
 #         # Restore History
 #         history = saved_data["history"]
@@ -461,6 +442,7 @@ if mode == "Chat Mode (Interview)":
                                      status.error(f"Extraction Error: {ex_e}")
                         
                         time.sleep(1)
+                        perform_auto_save()
                         st.rerun()
                     except Exception as e:
                         st.error(f"読み込みエラー: {e}")
@@ -614,47 +596,6 @@ if mode == "Chat Mode (Interview)":
             # Use stable key based on option content and index to prevent state loss
             if cols[i].button(opt, use_container_width=True, key=f"quick_reply_{i}_{opt}"):
                 suggested_prompt = opt
-
-    # User Input
-    chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
-    
-    # Determine which prompt to use
-    final_prompt = suggested_prompt if suggested_prompt else chat_input_prompt
-
-    if final_prompt:
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(final_prompt)
-        
-        # Prepare metadata for context
-        user_name = st.session_state.get("user_name_input", "")
-        user_position = st.session_state.get("user_position_input", "")
-        user_data = {"name": user_name, "position": user_position}
-
-        # --- Agentic Smart Extraction (Experimental) ---
-        if len(final_prompt) > 200 or "資料" in final_prompt:
-             with st.status("🤖 AI Agent Working: 情報を抽出中...", expanded=False) as status:
-                  status.write("📝 文脈から構造化データを読み取っています (Extracting Facts)...")
-                  try:
-                      extracted_data = st.session_state.ai_interviewer.extract_structured_data(final_prompt)
-                      if extracted_data:
-                          status.write("✅ データを検出しました。計画書に反映します。")
-                          # Merge Logic (Simplified: Update session state plan)
-                          from src.api.schemas import ApplicationRoot
-                          
-                          # Load existing or create new
-                          current_obj = st.session_state.get("current_plan")
-                          if not current_obj:
-                              current_obj = ApplicationRoot()
-                          
-                          # We need a robust merge mechanism, but for now, let's try to update key fields
-                          # Or simply re-validate the merged dict if we had a dict.
-                          # Parsing to Pydantic is safest.
-                          # For now, let's just log it to console or toast, to avoid corruption until we have a merge helper.
-                          # But the requirement is "Text to Gemini 3.0 API... then Gemini 2.5 takes over".
-                          # So we MUST update the plan.
-                          
-                          # Let's assume extracted_data is a partial dict compatible with ApplicationRoot.
-                          # We will use keys present in extracted_data to update.
                           # Since it's nested Pydantic, this is non-trivial without a proper recursive merge.
                           # Plan B: Just store it in "latest_extracted" and let the Dashboard "Analyze" button handle the full merge?
                           # No, user wants immediate effect.
@@ -672,7 +613,10 @@ if mode == "Chat Mode (Interview)":
                   except Exception as e:
                       print(f"Extraction failed: {e}")
                       status.update(label="⚠️ Extraction skipped", state="error")
-
+        
+        # Determine who responds: Model or just UI update (Wait, logic flow check)
+        # The structure here is: if we have a prompt (user input or suggestion), we send it.
+        
         with st.chat_message("model", avatar="🤖"):
             with st.spinner("AI is thinking..."):
                 response = st.session_state.ai_interviewer.send_message(
@@ -682,18 +626,11 @@ if mode == "Chat Mode (Interview)":
                 )
                 st.markdown(response)
                 
-                # --- Auto-Save Session ---
-                current_plan_dict = None
-                if "current_plan" in st.session_state and st.session_state.current_plan:
-                    current_plan_dict = st.session_state.current_plan.model_dump(mode='json')
-                
-                st.session_state.session_manager.save_session(
-                    history=st.session_state.ai_interviewer.history,
-                    current_plan_dict=current_plan_dict
-                )
+                # --- Auto-Save Hook ---
+                perform_auto_save()
                 
                 # Feedback Toast
-                st.toast("📝 会話ログを更新しました (Conversation Log Updated)", icon="✅")
+                st.toast("📝 会話ログを更新しました (Log Saved)", icon="✅")
                 time.sleep(1) # Wait for toast to be seen briefly
                 st.rerun()
 elif mode == "Dashboard Mode (Progress)":
@@ -736,6 +673,9 @@ elif mode == "Dashboard Mode (Progress)":
                     
                     st.session_state.current_plan = plan
                     status_placeholder.success("🎉 Analysis Complete & Plan Updated!")
+                    
+                    # Auto-Save after Analysis
+                    perform_auto_save()
                 except Exception as val_e:
                     status_placeholder.error(f"Validation Error: {val_e}")
                     st.json(extracted_data)
@@ -1088,6 +1028,7 @@ elif mode == "Main Consensus Room (Resolution)":
                                      status.error(f"Extraction Error: {ex_e}")
 
                         time.sleep(1)
+                        perform_auto_save()
                         st.rerun()
                     except Exception as e:
                         st.error(f"読み込みエラー: {e}")
@@ -1173,4 +1114,5 @@ elif mode == "Main Consensus Room (Resolution)":
                     user_data=user_data
                 )
                 st.markdown(response)
+                perform_auto_save()
                 st.rerun()
