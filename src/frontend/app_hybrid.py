@@ -19,32 +19,31 @@ st.markdown("""
 <style>
     /* Customize Sidebar Toggle (Expanded/Collapsed Control) */
     [data-testid="stSidebarCollapsedControl"] {
-        background-color: rgba(255, 75, 75, 0.1); /* Light highlighting */
+        background-color: rgba(255, 75, 75, 0.1); 
         border: 1px solid rgba(255, 75, 75, 0.3);
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 4px;
-        width: 48px;
-        height: 48px;
+        width: 40px;
+        height: 80px; /* Taller for vertical text */
         display: flex;
         align-items: center;
         justify-content: center;
     }
     
-    /* Add 'MENU' label via pseudo-element */
-    [data-testid="stSidebarCollapsedControl"]::after {
-        content: "MENU";
-        font-size: 9px;
-        font-weight: 800;
-        color: #ff4b4b; /* Streamlit Primary Red/Pink */
-        position: absolute;
-        bottom: 2px;
+    /* Hide the default '>>' icon */
+    [data-testid="stSidebarCollapsedControl"] > svg {
+        display: none !important;
     }
     
-    /* Adjust icon position */
-    [data-testid="stSidebarCollapsedControl"] > svg {
-        margin-bottom: 8px; /* Make room for text */
-        width: 20px;
-        height: 20px;
+    /* Add 'メニュー' label vertically */
+    [data-testid="stSidebarCollapsedControl"]::after {
+        content: "メニュー";
+        font-size: 14px;
+        font-weight: 800;
+        color: #ff4b4b;
+        writing-mode: vertical-rl;
+        text-orientation: upright;
+        letter-spacing: 2px;
     }
 </style>
 """, unsafe_allow_html=True)
