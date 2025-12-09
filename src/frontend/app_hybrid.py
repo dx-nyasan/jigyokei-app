@@ -43,34 +43,42 @@ if "session_manager" not in st.session_state:
     st.session_state.session_manager = SessionManager()
 
 # --- Auto Resume Logic ---
-# Check if this is a fresh load (no history) but we have a saved session
-if "ai_interviewer" not in st.session_state and "last_resume_check" not in st.session_state:
-    st.session_state.last_resume_check = True
-    saved_data = st.session_state.session_manager.load_session()
-    if saved_data and saved_data.get("history"):
-        st.toast("🔄 前回の中断箇所から復元しました (Session Auto-Resumed)", icon="📂")
-        # Initialize interviewer with history immediately
-        st.session_state.ai_interviewer = AIInterviewer()
-        
-        # Restore History
-        history = saved_data["history"]
-        st.session_state.ai_interviewer.load_history(history, merge=False)
-        st.session_state.loaded_msg_count = len(history)
-        
-        # Restore Plan if exists
-        current_plan_dict = saved_data.get("current_plan")
-        if current_plan_dict:
-             try:
-                from src.api.schemas import ApplicationRoot
-                plan = ApplicationRoot.model_validate(current_plan_dict)
-                st.session_state.current_plan = plan
-             except Exception:
-                 pass # Ignore plan restore error
+# [DISABLED] Automatic loading of shared session file causes data leak between users in Cloud environment.
+# if "ai_interviewer" not in st.session_state and "last_resume_check" not in st.session_state:
+#     st.session_state.last_resume_check = True
+#     saved_data = st.session_state.session_manager.load_session()
+#     if saved_data and saved_data.get("history"):
+#         st.toast("🔄 前回の中断箇所から復元しました (Session Auto-Resumed)", icon="📂")
+#         # Initialize interviewer with history immediately
+#         st.session_state.ai_interviewer = AIInterviewer()
+#         
+#         # Restore History
+#         history = saved_data["history"]
+#         st.session_state.ai_interviewer.load_history(history, merge=False)
+#         st.session_state.loaded_msg_count = len(history)
+#         
+#         # Restore Plan if exists
+#         current_plan_dict = saved_data.get("current_plan")
+#         if current_plan_dict:
+#              try:
+#                 from src.api.schemas import ApplicationRoot
+#                 plan = ApplicationRoot.model_validate(current_plan_dict)
+#                 st.session_state.current_plan = plan
+#              except Exception:
+#                  pass # Ignore plan restore error
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
     st.session_state.app_version = APP_VERSION
     st.rerun()
+
+# --- Debug / Reset Controls ---
+with st.sidebar:
+    with st.expander("🔧 System Menu", expanded=False):
+        if st.button("🗑️ Reset All Data", key="btn_hard_reset", type="primary", help="警告: すべてのデータを削除して初期化します"):
+            st.session_state.clear()
+            st.session_state.session_manager.clear_session()
+            st.rerun()
 
 # --- Initialize Managers (Standard) ---
 if "ai_interviewer" not in st.session_state:
