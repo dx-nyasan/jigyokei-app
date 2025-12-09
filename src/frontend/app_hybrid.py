@@ -437,25 +437,33 @@ if mode == "Chat Mode (Interview)":
                     new_files_to_process.append(file)
                     st.session_state.processed_file_ids.add(file_id)
             
-            if new_files_to_process:
+                if new_files_to_process:
                 # Automatically process new files
                  with st.spinner("資料を解析中... (Auto-Processing)"):
                     try:
                         count = st.session_state.ai_interviewer.process_files(new_files_to_process, target_persona=persona)
                         st.success(f"{count}件の新しい資料を読み込みました！")
-
-                    
-                    # --- Agentic Extraction Trigger (File Upload) ---
-                    # 資料をアップロードした直後に詳細抽出をかける
-                    if count > 0:
-                        with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
-                             status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
-                             try:
-                    
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"読み込みエラー: {e}")
+                        
+                        # --- Agentic Extraction Trigger (File Upload) ---
+                        if count > 0:
+                            with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
+                                 status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
+                                 try:
+                                     all_files = st.session_state.ai_interviewer.uploaded_file_refs
+                                     extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
+                                     
+                                     if extracted_data:
+                                         status.write("✅ 構造化データを検出しました。")
+                                         status.write("💡 抽出結果は会話コンテキストに保持されました。")
+                                     else:
+                                         status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
+                                 except Exception as ex_e:
+                                     status.error(f"Extraction Error: {ex_e}")
+                        
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"読み込みエラー: {e}")
 
     # 3. Chat Interface
     st.divider()
