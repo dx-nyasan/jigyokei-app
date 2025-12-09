@@ -421,14 +421,29 @@ if mode == "Chat Mode (Interview)":
             upload_label, 
             type=["pdf", "png", "jpg", "jpeg"], 
             accept_multiple_files=True,
-            key=f"uploader_{persona}_{int(time.time())}" # Add timestamp to reset key slightly if needed
+            key=f"uploader_{persona}" # Remove timestamp to keep uploader stable
         )
         
-        if uploaded_refs and st.button("🚀 資料を読み込む (Process Files)"):
-             with st.spinner("資料を解析中..."):
-                try:
-                    count = st.session_state.ai_interviewer.process_files(uploaded_refs, target_persona=persona)
-                    st.success(f"{count}件の資料を読み込みました！")
+        # --- Auto-Process Logic ---
+        if "processed_file_ids" not in st.session_state:
+            st.session_state.processed_file_ids = set()
+
+        if uploaded_refs:
+            new_files_to_process = []
+            for file in uploaded_refs:
+                # Create a simple unique ID for the file instance
+                file_id = f"{file.name}_{file.size}"
+                if file_id not in st.session_state.processed_file_ids:
+                    new_files_to_process.append(file)
+                    st.session_state.processed_file_ids.add(file_id)
+            
+            if new_files_to_process:
+                # Automatically process new files
+                 with st.spinner("資料を解析中... (Auto-Processing)"):
+                    try:
+                        count = st.session_state.ai_interviewer.process_files(new_files_to_process, target_persona=persona)
+                        st.success(f"{count}件の新しい資料を読み込みました！")
+
                     
                     # --- Agentic Extraction Trigger (File Upload) ---
                     # 資料をアップロードした直後に詳細抽出をかける
@@ -436,23 +451,6 @@ if mode == "Chat Mode (Interview)":
                         with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
                              status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
                              try:
-                                 # 最新のアップロードファイル参照を取得して渡す
-                                 # process_filesで追加された self.uploaded_file_refs を使うが、
-                                 # extract_structured_data は引数で渡す仕様にしたので、
-                                 # ここでは直近追加されたファイルだけ渡すか、全量渡すか。全量が安全。
-                                 all_files = st.session_state.ai_interviewer.uploaded_file_refs
-                                 
-                                 extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
-                                 
-                                 if extracted_data:
-                                     status.write("✅ 構造化データを検出しました。")
-                                     # Simplified Merge - In future use robust merge
-                                     # For now, relying on Chat Context + Dashboard Analysis on demand
-                                     status.write("💡 抽出結果は会話コンテキストに保持されました。")
-                                 else:
-                                     status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
-                             except Exception as ex_e:
-                                 status.error(f"Extraction Error: {ex_e}")
                     
                     time.sleep(1)
                     st.rerun()
