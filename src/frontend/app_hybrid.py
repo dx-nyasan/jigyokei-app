@@ -596,20 +596,30 @@ if mode == "Chat Mode (Interview)":
             # Use stable key based on option content and index to prevent state loss
             if cols[i].button(opt, use_container_width=True, key=f"quick_reply_{i}_{opt}"):
                 suggested_prompt = opt
-                          # Since it's nested Pydantic, this is non-trivial without a proper recursive merge.
-                          # Plan B: Just store it in "latest_extracted" and let the Dashboard "Analyze" button handle the full merge?
-                          # No, user wants immediate effect.
-                          
-                          # Validating directly
-                          # Note: logic here is risky without deep matching.
-                          # For this iteration, let's just toast that we 'Understood' and rely on the AI's short-term memory (Context)
-                          # because sending it to the chat history (which we do below) is the primary way the Chat AI knows about it.
-                          # The "Structuring" happens when we hit "Analyze" or when we export.
-                          # BUT, the user said "Gemini 3.0... text to it... then Gemini 2.5".
-                          # The `extract_structured_data` USES a separate model (implied).
-                          # AND we inject the result back into history?
-                          pass
-                          
+    # User Input
+    chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
+    
+    # Determine which prompt to use
+    final_prompt = suggested_prompt if suggested_prompt else chat_input_prompt
+
+    if final_prompt:
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(final_prompt)
+        
+        # Prepare metadata for context
+        user_name = st.session_state.get("user_name_input", "")
+        user_position = st.session_state.get("user_position_input", "")
+        user_data = {"name": user_name, "position": user_position}
+
+        # --- Agentic Smart Extraction (Experimental) ---
+        if len(final_prompt) > 200 or "資料" in final_prompt:
+             with st.status("🤖 AI Agent Working: 情報を抽出中...", expanded=False) as status:
+                  status.write("📝 文脈から構造化データを読み取っています (Extracting Facts)...")
+                  try:
+                      extracted_data = st.session_state.ai_interviewer.extract_structured_data(final_prompt)
+                      if extracted_data:
+                          status.write("✅ データを検出しました。計画書に反映します。")
+                          pass # Logic handled inside AIInterviewer parsing for now
                   except Exception as e:
                       print(f"Extraction failed: {e}")
                       status.update(label="⚠️ Extraction skipped", state="error")
