@@ -14,6 +14,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- Custom CSS for Mobile UI ---
+st.markdown("""
+<style>
+    /* Customize Sidebar Toggle (Expanded/Collapsed Control) */
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: rgba(255, 75, 75, 0.1); /* Light highlighting */
+        border: 1px solid rgba(255, 75, 75, 0.3);
+        border-radius: 12px;
+        padding: 4px;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Add 'MENU' label via pseudo-element */
+    [data-testid="stSidebarCollapsedControl"]::after {
+        content: "MENU";
+        font-size: 9px;
+        font-weight: 800;
+        color: #ff4b4b; /* Streamlit Primary Red/Pink */
+        position: absolute;
+        bottom: 2px;
+    }
+    
+    /* Adjust icon position */
+    [data-testid="stSidebarCollapsedControl"] > svg {
+        margin-bottom: 8px; /* Make room for text */
+        width: 20px;
+        height: 20px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- Path Setup ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
