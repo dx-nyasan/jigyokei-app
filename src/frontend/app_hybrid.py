@@ -32,21 +32,19 @@ importlib.reload(src.core.draft_exporter)
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 from src.core.completion_checker import CompletionChecker
-#         
-#         # Restore History
-#         history = saved_data["history"]
-#         st.session_state.ai_interviewer.load_history(history, merge=False)
-#         st.session_state.loaded_msg_count = len(history)
-#         
-#         # Restore Plan if exists
-#         current_plan_dict = saved_data.get("current_plan")
-#         if current_plan_dict:
-#              try:
-#                 from src.api.schemas import ApplicationRoot
-#                 plan = ApplicationRoot.model_validate(current_plan_dict)
-#                 st.session_state.current_plan = plan
-#              except Exception:
-#                  pass # Ignore plan restore error
+from src.core.session_manager import SessionManager
+
+# --- Version Control ---
+APP_VERSION = "3.4.0-ux-improvement-autoresume"
+
+# Initialize Session Manager
+if "session_manager" not in st.session_state:
+    st.session_state.session_manager = SessionManager()
+
+# --- Auto Resume Logic ---
+# [DISABLED] Automatic loading of shared session file causes data leak between users in Cloud environment.
+# Note: Mobile persistence is handled via scoped 'mobile_autosave' logic below.
+
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
