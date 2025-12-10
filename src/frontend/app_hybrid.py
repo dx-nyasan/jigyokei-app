@@ -18,32 +18,49 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* Customize Sidebar Toggle (Expanded/Collapsed Control) */
+    section[data-testid="stSidebar"] > div > div > button[data-testid="stSidebarCollapsedControl"] {
+        background-color: #ffeaea !important; 
+        border: 2px solid #ff4b4b !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        width: 44px !important;
+        height: 100px !important; /* Taller for vertical text */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 999999 !important;
+    }
+    
+    /* Fallback / General Targeting */
     [data-testid="stSidebarCollapsedControl"] {
-        background-color: rgba(255, 75, 75, 0.1); 
-        border: 1px solid rgba(255, 75, 75, 0.3);
-        border-radius: 8px;
-        padding: 4px;
-        width: 40px;
-        height: 80px; /* Taller for vertical text */
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background-color: #ffeaea !important; 
+        border: 2px solid #ff4b4b !important;
+        border-radius: 8px !important;
+        width: 44px !important;
+        height: 100px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 999999 !important;
     }
     
     /* Hide the default '>>' icon */
-    [data-testid="stSidebarCollapsedControl"] > svg {
+    [data-testid="stSidebarCollapsedControl"] svg {
         display: none !important;
     }
     
     /* Add 'メニュー' label vertically */
     [data-testid="stSidebarCollapsedControl"]::after {
         content: "メニュー";
-        font-size: 14px;
-        font-weight: 800;
-        color: #ff4b4b;
+        font-family: "Hiragino Sans", "Meiryo", sans-serif;
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        color: #ff4b4b !important;
         writing-mode: vertical-rl;
         text-orientation: upright;
         letter-spacing: 2px;
+        white-space: nowrap;
+        display: block !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -61,15 +78,13 @@ importlib.reload(src.api.schemas)
 importlib.reload(src.core.completion_checker)
 importlib.reload(src.core.draft_exporter)
 
-importlib.reload(src.core.draft_exporter)
-
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 from src.core.completion_checker import CompletionChecker
 from src.core.session_manager import SessionManager
 
 # --- Version Control ---
-APP_VERSION = "3.4.0-ux-improvement-autoresume"
+APP_VERSION = "3.4.2-mobile-ui-polish"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
@@ -326,6 +341,24 @@ with st.sidebar:
                                 plan = ApplicationRoot.model_validate(clean_data)
                                 st.session_state.current_plan = plan
                                 st.toast("✅ 事業計画データを読み込みました (Direct Load)", icon="📄")
+
+                                # --- Context Injection for Multi-Disaster Support ---
+                                # Load the plan into history so the AI knows the baseline for subsequent discussions (e.g. Tsunami)
+                                context_content = f"""
+【システム通知: 既存計画データの読み込み】
+ユーザーが以下の事業計画書データをアップロードしました。
+このデータを「現在の決定事項」として認識し、今後の会話（追加の災害対策など）と統合してください。
+
+```json
+{json.dumps(clean_data, ensure_ascii=False, indent=2)}
+```
+"""
+                                st.session_state.ai_interviewer.history.append({
+                                    "role": "model", 
+                                    "content": context_content,
+                                    "persona": "AI Concierge",
+                                    "target_persona": "General" # Visible to all
+                                })
                             except Exception as val_e:
                                 st.error(f"データ構造読み込みエラー: {val_e}")
                                 # Stop execution so user sees the error
@@ -1011,10 +1044,13 @@ elif mode == "Dashboard Mode (Progress)":
         # Note: Sidebar is already rendered at top of script. We can add to it here or just leave as is.
         # Adding a dedicated "Tools" expander in main area for visibility
         with st.expander("🛠️ お役立ちツール (External Tools)"):
-            c1, c2, c3 = st.columns(3)
-            c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
-            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
-            c3.link_button("💴 BCPポータル (リスクファイナンス等)", "https://kyoujinnka.smrj.go.jp/")
+            c1, c2 = st.columns(2)
+            c1.link_button("🌍 ハザードマップ", "https://disaportal.gsi.go.jp/", use_container_width=True)
+            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/", use_container_width=True)
+            
+            c3, c4 = st.columns(2)
+            c3.link_button("💴 金融支援 (Risk Finance)", "https://www.chusho.meti.go.jp/keiei/antei/bousai/keizokuryoku.html", use_container_width=True)
+            c4.link_button("🏛️ 税制優遇 (Tax)", "https://www.chusho.meti.go.jp/keiei/antei/bousai/keizokuryoku.html#zeisei", use_container_width=True)
 
     else:
         st.info("☝️ Click the button to analyze current chat history.")
