@@ -138,6 +138,28 @@ if "context_loader" not in st.session_state:
     context_dir = os.path.join(root_dir, "data", "context")
     st.session_state.context_loader = ContextLoader(context_dir)
 
+# --- Helper: Auto-Save ---
+def perform_auto_save():
+    """
+    Save the current session state (history & plan) to local storage.
+    Used for mobile persistence and crash recovery.
+    """
+    if "session_manager" in st.session_state and "ai_interviewer" in st.session_state:
+        # Prepare plan data if exists
+        plan_data = None
+        if "current_plan" in st.session_state and st.session_state.current_plan:
+            try:
+                plan_data = st.session_state.current_plan.model_dump()
+            except:
+                pass # Fail silently on serialization
+
+        # Save to 'mobile_autosave' slot
+        st.session_state.session_manager.save_session(
+            history=st.session_state.ai_interviewer.history,
+            current_plan_dict=plan_data,
+            session_id="mobile_autosave"
+        )
+
 # --- Authentication ---
 def check_password():
     if st.session_state.get("password_correct", False):
@@ -493,21 +515,67 @@ if mode == "Chat Mode (Interview)":
                         # --- Agentic Extraction Trigger (File Upload) ---
                         if count > 0:
                             with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
-                                 status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
+                                 status.write("📝 Gemini Experimental (High Reasoning Preview) で資料を読み込んでいます...")
                                  try:
                                      all_files = st.session_state.ai_interviewer.uploaded_file_refs
                                      extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
                                      
                                      if extracted_data:
-                                         status.write("✅ 構造化データを検出しました。")
-                                         status.write("💡 抽出結果は会話コンテキストに保持されました。")
+                                         status.write("✅ 構造化データを検出しました。計画書に反映します...")
+                                         
+                                         # Merge Logic
+                                         try:
+                                             # Convert to Schema if not already (assuming dict return)
+                                             from src.api.schemas import ApplicationRoot
+                                             
+                                             # Initialize plan if None
+                                             if not st.session_state.get("current_plan"):
+                                                  st.session_state.current_plan = ApplicationRoot() # Empty Init
+                                             
+                                             # Update fields (Recursive merge or Pydantic copy?)
+                                             # Ideally we use a merge utility, but for now we re-validate the merged dict.
+                                             current_dict = st.session_state.current_plan.model_dump()
+                                             
+                                             # Simple recursive merge helper
+                                             def deep_merge(base, update):
+                                                 for k, v in update.items():
+                                                     if isinstance(v, dict) and k in base and isinstance(base[k], dict):
+                                                         deep_merge(base[k], v)
+                                                     elif v is not None: # Only overwrite if not None
+                                                         base[k] = v
+                                                 return base
+                                             
+                                             merged_dict = deep_merge(current_dict, extracted_data)
+                                             st.session_state.current_plan = ApplicationRoot.model_validate(merged_dict)
+                                             
+                                             status.write("💡 読み込んだ情報を計画書に統合しました。")
+                                             
+                                             # Add Context to History
+                                             context_msg = f"【システム通知: 自動抽出完了】\n資料から以下の情報を抽出し、計画書に反映しました。\n{json.dumps(extracted_data, ensure_ascii=False, indent=2)}"
+                                             st.session_state.ai_interviewer.history.append({
+                                                "role": "model", 
+                                                "content": context_msg,
+                                                "persona": "AI Concierge",
+                                                "target_persona": "General"
+                                             })
+                                             
+                                         except Exception as merge_e:
+                                             status.error(f"Merge Error: {merge_e}")
+
                                      else:
                                          status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
                                  except Exception as ex_e:
                                      status.error(f"Extraction Error: {ex_e}")
                         
                         time.sleep(1)
-                        perform_auto_save()
+                        # Inline Auto-Save (Fix NameError)
+                        if "session_manager" in st.session_state:
+                             p_data = st.session_state.current_plan.model_dump() if st.session_state.get("current_plan") else None
+                             st.session_state.session_manager.save_session(
+                                 history=st.session_state.ai_interviewer.history,
+                                 current_plan_dict=p_data,
+                                 session_id="mobile_autosave"
+                             )
                         st.rerun()
                     except Exception as e:
                         st.error(f"読み込みエラー: {e}")
@@ -699,7 +767,10 @@ if mode == "Chat Mode (Interview)":
                     persona=persona,
                     user_data=user_data
                 )
-                st.markdown(response)
+                # Sanitize content for display (Hide <suggestions> block implementation)
+                import re
+                display_response = re.sub(r'<suggestions>.*?</suggestions>', '', response, flags=re.DOTALL).strip()
+                st.markdown(display_response)
                 
                 # --- Auto-Save Hook ---
                 perform_auto_save()
@@ -831,7 +902,7 @@ elif mode == "Dashboard Mode (Progress)":
                         st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
                         st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
                         # Set flag to auto-start conversation on redirect
-                        st.session_state.auto_trigger_message = "現在、ダッシュボードで確認した不足項目（focus_fields）について、具体的な質問を開始してください。ユーザーに選択肢を提示し、回答しやすくしてください。"
+                        st.session_state.auto_trigger_message = "現在、ダッシュボードで確認した不足項目（focus_fields）について、具体的な質問を開始してください。ユーザーに選択肢を提示し、回答しやすくしてください。\nIMPORTANT: Output format must include <suggestions> JSON block at the end with 'options' to guide the user to the next missing item."
                         st.session_state.auto_trigger_persona = st.session_state.get("last_chat_nav", "経営者インタビュー").replace("インタビュー", "") # Rough parse
                         st.rerun()
 
@@ -1168,7 +1239,10 @@ elif mode == "Main Consensus Room (Resolution)":
             
             with st.chat_message(role, avatar=avatar):
                 st.caption(f"{msg_persona}")
-                st.markdown(msg["content"])
+                # Sanitize content (Hide <suggestions> block)
+                import re
+                display_content = re.sub(r'<suggestions>.*?</suggestions>', '', msg["content"], flags=re.DOTALL).strip()
+                st.markdown(display_content)
 
     # Show history using rendered helper
     for i in range(len(history)):

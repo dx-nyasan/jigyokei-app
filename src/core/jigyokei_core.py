@@ -48,7 +48,9 @@ class AIInterviewer:
   }
   </suggestions>
   ```
-- **options**: ユーザーがワンタップで返信できる短い選択肢（最大4つ）。「はい/いいえ」や、具体的な候補（「地震」「水害」など）。
+- **options**: ユーザーがワンタップで返信できる短い選択肢（最大4つ）。
+  - **重要**: 単なる「確認」だけでなく、「次の未入力項目への誘導」や「回答が短い場合の深掘り」を積極的に提案すること。
+  - 例: 「はい」と答えた場合 -> 「具体的には？」「次の項目に進む」
 - **hints**: ユーザーが考えやすくするための観点や、業界別の一般的な傾向。
 - **example**: 具体的な回答の例文。ユーザーがこれを参考に文章を作れるようにする。
 
@@ -422,15 +424,117 @@ class AIInterviewer:
 
         try:
             response = self.model.generate_content(prompt)
-            text = response.text
+            # レスポンスからJSONを抽出
             import re
-            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+            json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(1))
-            else:
-                return json.loads(text)
+                try:
+                    return json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    return {}
+            return {}
         except Exception as e:
             print(f"Analysis failed: {e}")
+            return {}
+
+    def extract_structured_data(self, text: str = "", file_refs: list = None) -> dict:
+        """
+        Agentic Data Extraction:
+        指定されたテキストまたはファイル（画像/PDF）から、事業計画書に必要な構造化データを抽出する。
+        Model: gemini-2.0-flash-exp (High Reasoning)
+        """
+        if not text and not file_refs:
+            return {}
+
+        try:
+            # Import Schema for Response Definition
+            from src.api.schemas import ApplicationRoot
+            import os
+            import streamlit as st
+            
+            # Initialize Extraction Agent (Gemini Experimental - High Reasoning)
+            model_name = "gemini-exp-1206"
+            
+            # Configure API (Assuming configured in init or globally)
+            if "GOOGLE_API_KEY" not in os.environ and "GOOGLE_API_KEY" in st.secrets:
+                 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+            
+            generation_config = {
+                "temperature": 0.2, # Allow slight creativity for inference
+                "response_mime_type": "application/json",
+            }
+            
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                generation_config=generation_config,
+                system_instruction="""
+                あなたは優秀な事業計画策定コンサルタントAIです。
+                提供されたテキストや画像（事業計画書のドラフト、メモ、PDF資料など）を詳細に分析し、
+                以下のJSONスキーマ（ApplicationRoot）に適合する情報を可能な限り抽出してください。
+
+                【抽出ルール】
+                1.  **事実の抽出**: 資料に明記されている内容はそのまま抽出してください。
+                2.  **推論補完（重要）**: 資料から確度の高い推測ができる場合（例: 「売上3000万」→ 年商3000万円）は積極的に補完し、空白を避けてください。
+                3.  **不完全データ**: 一部の項目しか見つからない場合でも、見つかった項目だけでJSONを構築してください。
+                4.  **フォーマット**: 必ず有効なJSON形式で出力してください。Markdownのコードブロックは不要です。
+                5.  **画像認識**: 画像内の手書き文字や表組みも可能な限り読み取ってください。
+                
+                スキーマ構造へのマッピングを最優先してください。
+                「見つかりません」と諦めるのではなく、断片的な情報からでも構造化してください。
+                
+                # Output Rules
+                1. Output MUST be a valid JSON object matching the 'ApplicationRoot' schema structure.
+                2. Extract FACTS first, then INFER reasonable defaults for mandatory business logic fields.
+                3. If information is missing for a field, use null.
+                4. For 'disaster_risks' or 'measures', try to categorize them intelligently based on context.
+                """
+            )
+
+            # Build Prompt Content
+            contents = []
+            
+            # 1. Text Context
+            if text:
+                contents.append(f"Context Text:\n{text}")
+                
+            # 2. File Context (Images/PDFs)
+            if file_refs:
+                for file_obj in file_refs:
+                    # Streamlit UploadedFile to GenAI file format handled previously? 
+                    # Assuming file_refs are already processed file handles (genai.types.File) or raw bytes?
+                    # In app_hybrid.py, 'uploaded_file_refs' seem to be raw UploadedFile objects.
+                    # We need to upload them to Gemini File API if not already done, or pass blob if small.
+                    # For simplicity in this Agentic step, we assume they are passed as parts or we handle upload here.
+                    # Optimization: Check if we have cached file handles.
+                    
+                    # Logic: If content is raw bytes (Streamlit), we pass as inline data (limited size) or upload.
+                    # For this implementation, we try inline data for images/PDFs if supported.
+                    import mimetypes
+                    mime_type = file_obj.type
+                    file_obj.seek(0)
+                    blob = file_obj.read()
+                    
+                    contents.append({
+                        "mime_type": mime_type,
+                        "data": blob
+                    })
+
+            # 3. Schema Guidance (In-Context)
+            # Injecting simplified schema to guide the model (since we can't easily pass Pydantic class object to API yet)
+            contents.append("Target Schema Structure: JSON with keys [basic_info, goals, disaster_risks, etc.]")
+
+            # Execute
+            response = model.generate_content(contents)
+            
+            # Parse
+            try:
+                data = json.loads(response.text)
+                return data
+            except:
+                return {}
+
+        except Exception as e:
+            print(f"Extraction Error: {e}")
             return {}
 
     def detect_conflicts(self) -> dict:
