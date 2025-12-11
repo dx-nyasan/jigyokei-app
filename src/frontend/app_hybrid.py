@@ -18,38 +18,57 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* Customize Sidebar Toggle (Expanded/Collapsed Control) */
-    section[data-testid="stSidebar"] > div > div > button[data-testid="stSidebarCollapsedControl"] {
-        background-color: #ffeaea !important; 
-        border: 2px solid #ff4b4b !important;
-        border-radius: 8px !important;
-        padding: 4px !important;
-        width: 44px !important;
-        height: 100px !important; /* Taller for vertical text */
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        z-index: 999999 !important;
-    }
-    
-    /* Fallback / General Targeting */
+    /* Target Desktop Collapsed Control */
     [data-testid="stSidebarCollapsedControl"] {
         background-color: #ffeaea !important; 
         border: 2px solid #ff4b4b !important;
         border-radius: 8px !important;
+        padding: 2px !important;
         width: 44px !important;
-        height: 100px !important;
+        height: auto !important;
+        min_height: 80px !important; /* Make it tall and noticeable */
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        z-index: 999999 !important;
+        z-index: 1000002 !important; /* Higher than Streamlit header overlay */
+        opacity: 1 !important;
+        visibility: visible !important;
     }
-    
-    /* Hide the default '>>' icon */
-    [data-testid="stSidebarCollapsedControl"] svg {
+
+    /* Target Mobile Header Button (Often behaves differently) */
+    @media (max-width: 768px) {
+        /* On mobile, the toggle might be in the header. 
+           We target the first button in the header if specific ID fails, 
+           NOTE: Streamlit mobile often uses stSidebarCollapsedControl even in header, 
+           but sometimes it is just a button in stHeader. */
+        
+        [data-testid="stHeader"] button[data-testid="stSidebarCollapsedControl"] {
+             background-color: #ffeaea !important;
+             border: 2px solid #ff4b4b !important;
+             width: auto !important; /* Allow width to expand for text */
+             height: auto !important;
+             min-height: 44px !important;
+             aspect-ratio: auto !important;
+             border-radius: 8px !important;
+        }
+        
+        /* Adjust text for mobile (Horizontal 'メニュー') */
+        [data-testid="stHeader"] button[data-testid="stSidebarCollapsedControl"]::after {
+            content: "メニュー" !important;
+            writing-mode: horizontal-tb !important;
+            font-size: 16px !important;
+            padding: 0 8px !important;
+            letter-spacing: 1px !important;
+        }
+    }
+
+    /* Hide the default '>>' or 'hamburger' icon */
+    [data-testid="stSidebarCollapsedControl"] svg, 
+    [data-testid="stSidebarCollapsedControl"] img {
         display: none !important;
     }
     
-    /* Add 'メニュー' label vertically */
+    /* Add 'メニュー' label (Default Vertical for Desktop Sidebar) */
     [data-testid="stSidebarCollapsedControl"]::after {
         content: "メニュー";
         font-family: "Hiragino Sans", "Meiryo", sans-serif;
@@ -62,7 +81,6 @@ st.markdown("""
         white-space: nowrap;
         display: block !important;
     }
-</style>
 """, unsafe_allow_html=True)
 
 # --- Path Setup ---
