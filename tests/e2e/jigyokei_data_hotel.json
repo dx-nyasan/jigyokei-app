@@ -1,0 +1,91 @@
+{
+  "basic_info": {
+    "applicant_type": "法人",
+    "corporate_name": "有限会社ホテルしらさぎ",
+    "corporate_name_kana": "未設定",
+    "representative_title": "代表取締役",
+    "representative_name": "熊野　徹児",
+    "address_zip": "未設定",
+    "address_pref": "和歌山県",
+    "address_city": "西牟婁郡白浜町",
+    "address_street": "椿1056-22",
+    "address_building": "未設定",
+    "capital": 3000000,
+    "employees": 25,
+    "establishment_date": "1954/04/01",
+    "industry_major": "宿泊業,飲食サービス業",
+    "industry_middle": "宿泊業",
+    "industry_minor": "未設定",
+    "corporate_number": "未設定"
+  },
+  "goals": {
+    "business_overview": "有限会社ホテルしらさぎは、白浜温泉の中でも特に歴史が古く、長年の常連客が多いことが強みです。地域の観光イベントにも積極的に協力し、地域経済に深く貢献しています。地域社会の復興に貢献する役割を担い、地域の雇用を支え、社員とその家族、協力会社各位のためにも、早期の業務再開により雇用を守っていく必要があります。",
+    "business_purpose": "人命を最優先として、社員と社員の家族の安全と生活を守ること。地域社会の安全と復興に貢献すること。重要情報をサイバー攻撃などの脅威から守り、お客様ならびに社会の信頼に応えること。早期の再開によりお客様への影響を最小限に留めること。特に、お客様と従業員の安全確保を最優先とし、その上で、地域の観光拠点として早期の事業再開と観光客受け入れ体制の確立を重視しています。",
+    "disaster_scenario": {
+      "disaster_assumption": "地震",
+      "impacts": {
+        "impact_personnel": "震度6強の地震が発生した場合、設備の転倒や落下物による負傷者が発生する可能性があります。また、公共交通機関の停止や道路の寸断により、従業員の多くが出社できない状況が数日続くことが想定されます。",
+        "impact_building": "本館の建物に構造的な損傷が生じ、宿泊棟や宴会場の一部が使用不能になる可能性があります。また、厨房の調理機器や冷蔵設備が転倒・破損し、宿泊客向けの食材や飲料の在庫も供給停止により不足する恐れがあります。",
+        "impact_funds": "地震によりホテルが休業せざるを得ない場合、宿泊費や飲食費などの売上が途絶える一方で、従業員の給与、借入金の返済、固定資産税などの固定費は発生し続けます。これにより運転資金が急速に枯渇し、復旧工事費用や破損設備の買い替え費用を捻出することが困難になる可能性があります。",
+        "impact_info": "未設定"
+      }
+    }
+  },
+  "response_procedures": [],
+  "measures": {
+    "personnel": {
+      "current_measure": "未設定",
+      "future_plan": "未設定"
+    },
+    "building": {
+      "current_measure": "未設定",
+      "future_plan": "未設定"
+    },
+    "money": {
+      "current_measure": "未設定",
+      "future_plan": "未設定"
+    },
+    "data": {
+      "current_measure": "未設定",
+      "future_plan": "未設定"
+    }
+  },
+  "equipment": {
+    "use_tax_incentive": false,
+    "items": [],
+    "compliance_checks": []
+  },
+  "cooperation_partners": [],
+  "pdca": {
+    "management_system": "未設定",
+    "training_education": "未設定",
+    "plan_review": "未設定"
+  },
+  "financial_plan": {
+    "items": []
+  },
+  "period": {
+    "start_date": "2025/07/01",
+    "end_date": "2028/06/30"
+  },
+  "applicant_info": {
+    "contact_name": "未設定",
+    "email": "未設定",
+    "phone": "未設定",
+    "closing_month": "未設定"
+  },
+  "attachments": {
+    "certification_compliance": true,
+    "no_false_statements": true,
+    "not_anti_social": true,
+    "not_cancellation_subject": true,
+    "legal_compliance": true,
+    "sme_requirements": true,
+    "registration_consistency": true,
+    "data_utilization_consent": "可",
+    "case_publication_consent": "可",
+    "confirm_email": null,
+    "fax": null,
+    "questionnaire_consent": null
+  }
+}

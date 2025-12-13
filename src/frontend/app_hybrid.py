@@ -81,6 +81,43 @@ st.markdown("""
         white-space: nowrap;
         display: block !important;
     }
+
+    /* --- Sidebar Close Button Improvement --- */
+    /* Target the close button inside the sidebar (header button) */
+    section[data-testid="stSidebar"] button[kind="header"],
+    section[data-testid="stSidebar"] [data-testid="stBaseButton-header"] {
+        visibility: visible !important;
+        opacity: 1 !important;
+        background-color: #ffeaea !important;
+        border: 2px solid #ff4b4b !important;
+        border-radius: 8px !important;
+        color: #ff4b4b !important; /* Icon color */
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-right: 10px !important; /* Spacing from edge */
+        transition: none !important; /* Remove fade effect */
+    }
+
+    /* Add "閉じる" Label */
+    section[data-testid="stSidebar"] button[kind="header"]::before,
+    section[data-testid="stSidebar"] [data-testid="stBaseButton-header"]::before {
+        content: "閉じる" !important;
+        font-size: 12px !important;
+        font-weight: bold !important;
+        color: #ff4b4b !important;
+        margin-right: 4px !important;
+        display: inline-block !important;
+    }
+    
+    /* Ensure icon is visible */
+    section[data-testid="stSidebar"] button[kind="header"] svg,
+    section[data-testid="stSidebar"] [data-testid="stBaseButton-header"] svg {
+        display: block !important;
+        font-weight: bold !important;
+    }
 """, unsafe_allow_html=True)
 
 # --- Path Setup ---
@@ -148,7 +185,7 @@ else:
              st.session_state.ai_interviewer.history = old_history
              
         st.success("✅ AI Brain Upgraded! Please reload one last time.")
-        time.sleep(1)
+        time.sleep(5)
         st.rerun()
 
 if "context_loader" not in st.session_state:
@@ -215,6 +252,63 @@ def change_mode(mode_name, persona_name=None):
         target = "Dashboard Mode (Progress)"
          
     st.session_state.app_nav_selection = target
+
+# --- Flash Message System ---
+def set_flash_message(message, icon="INFO"):
+    """Set a message to be shown after the next rerun."""
+    st.session_state.flash_toast_message = message
+    st.session_state.flash_toast_icon = icon
+
+def check_flash_message():
+    """Check and display pending flash messages."""
+    if "flash_toast_message" in st.session_state:
+        msg = st.session_state.flash_toast_message
+        icon = st.session_state.get("flash_toast_icon", "INFO")
+        
+        # Display the toast
+        st.toast(msg, icon=icon)
+        
+        # Halt execution to ensure visibility (User Requirement: 5s total)
+        time.sleep(5)
+        
+        # Clear after showing
+        del st.session_state["flash_toast_message"]
+        if "flash_toast_icon" in st.session_state:
+            del st.session_state["flash_toast_icon"]
+
+def trigger_missing_items_chat():
+    """Callback to trigger missing items chat flow securely before rerun."""
+    # We need to access result, so we'll grab it from session state or re-calculate?
+    # Actually, we can pass args to callback.
+    pass
+
+# Helper to be used in button args
+def on_click_ask_missing(missing_msgs):
+    st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
+    st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
+    st.session_state.auto_trigger_message = "不足項目の入力を行いたいです。何から始めればよいですか？"
+    st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
+    st.session_state.auto_trigger_message = "不足項目の入力を行いたいです。何から始めればよいですか？"
+    st.session_state.auto_trigger_persona = st.session_state.get("last_chat_nav", "経営者インタビュー").replace("インタビュー", "")
+
+def auto_complete_interview(json_str):
+    """Callback to parse interview data and redirect to dashboard."""
+    try:
+        data_dict = json.loads(json_str)
+        from src.api.schemas import ApplicationRoot
+        # Migrate & Validate
+        migrated = ApplicationRoot.migrate_legacy_data(data_dict)
+        plan = ApplicationRoot.model_validate(migrated)
+        st.session_state.current_plan = plan
+        
+        # Redirect
+        st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
+        
+        # Set Flash Message for next screen
+        set_flash_message("✅ 自動解析が完了しました (Auto Analysis Complete)", icon="🤖")
+        
+    except Exception as e:
+        st.error(f"Data Processing Error: {e}")
 
 with st.sidebar:
     st.header("Jigyokei Hybrid System")
@@ -412,8 +506,19 @@ with st.sidebar:
                          st.warning("⚠️ JSON形式が無効です")
 
                     st.session_state.last_loaded_file_id = file_id
-                    time.sleep(1)
-                    # Only rerun if successful (toast would persist?) - actually Streamlit recommends rerun on state change
+                    
+                    # Auto-Redirect to Dashboard if Plan Loaded
+                    if "current_plan" in st.session_state and st.session_state.current_plan:
+                        st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
+                        
+                        # Set Flash Message instead of immediate toast + sleep
+                        company_name = st.session_state.current_plan.basic_info.company_name or "未設定"
+                        set_flash_message(f"✅ 事業計画データを読み込みました (Plan: {company_name}) 🚀 ダッシュボードへ移動します...", icon="➡️")
+                        
+                    else:
+                        st.toast("DEBUG: No Plan Loaded", icon="🐛")
+                        time.sleep(2) # Keep debug visible
+                        
                     st.rerun()
 
                 except Exception as e:
@@ -465,7 +570,19 @@ with st.sidebar:
 # --- Main Area ---
 
 
+# --- Main Area ---
+
+# Check Flash Messages at Start of Render Cycle
+check_flash_message()
+
 if mode == "Chat Mode (Interview)":
+    # DEBUG: Check Trigger State
+    if "auto_trigger_message" in st.session_state:
+         st.error(f"DEBUG: Found Trigger: {st.session_state.auto_trigger_message}", icon="🐛")
+    else:
+         # st.info("DEBUG: No Trigger Found", icon="ℹ️") 
+         pass
+
     # 1. Dashboard Navigation & Header
     col_head1, col_head2 = st.columns([3, 1])
     with col_head1:
@@ -585,7 +702,9 @@ if mode == "Chat Mode (Interview)":
                                  except Exception as ex_e:
                                      status.error(f"Extraction Error: {ex_e}")
                         
-                        time.sleep(1)
+                                     status.error(f"Extraction Error: {ex_e}")
+                        
+                        time.sleep(5)
                         # Inline Auto-Save (Fix NameError)
                         if "session_manager" in st.session_state:
                              p_data = st.session_state.current_plan.model_dump() if st.session_state.get("current_plan") else None
@@ -635,9 +754,29 @@ if mode == "Chat Mode (Interview)":
                     st.caption(f"{msg_persona}")
                 
                 # Sanitize content
+                # Sanitize content
                 import re
-                display_content = re.sub(r'<suggestions>.*?</suggestions>', '', msg["content"], flags=re.DOTALL).strip()
-                st.markdown(display_content)
+                
+                # Check for <data> block (Final Output)
+                data_match = re.search(r'<data>(.*?)</data>', msg["content"], flags=re.DOTALL)
+                
+                if data_match:
+                    # Hide the raw data from display
+                    display_content = re.sub(r'<data>.*?</data>', '', msg["content"], flags=re.DOTALL).strip()
+                    st.markdown(display_content)
+                    
+                    # Show "Check Progress" button
+                    st.button(
+                        "📊 ヒアリング完了: 進捗を確認する (Check Progress)", 
+                        key=f"btn_complete_{len(msg['content'])}", 
+                        type="primary",
+                        on_click=auto_complete_interview,
+                        args=(data_match.group(1).strip(),)
+                    )
+                else:
+                    # Standard display (Hide suggestions)
+                    display_content = re.sub(r'<suggestions>.*?</suggestions>', '', msg["content"], flags=re.DOTALL).strip()
+                    st.markdown(display_content)
 
                 # Capture suggestions (only from model)
                 if role == "model":
@@ -751,7 +890,21 @@ if mode == "Chat Mode (Interview)":
     chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
     
     # Determine which prompt to use
-    final_prompt = suggested_prompt if suggested_prompt else chat_input_prompt
+    final_prompt = None
+
+    # Priority 1: Auto Trigger (from Dashboard)
+    if "auto_trigger_message" in st.session_state and st.session_state.auto_trigger_message:
+        final_prompt = st.session_state.auto_trigger_message
+        # Clear it immediately to prevent loops, but keep it for this render cycle
+        del st.session_state["auto_trigger_message"]
+    
+    # Priority 2: Suggested Prompt (Button Click)
+    elif suggested_prompt:
+        final_prompt = suggested_prompt
+    
+    # Priority 3: Chat Input
+    else:
+        final_prompt = chat_input_prompt
 
     if final_prompt:
         with st.chat_message("user", avatar="👤"):
@@ -795,7 +948,7 @@ if mode == "Chat Mode (Interview)":
                 
                 # Feedback Toast
                 st.toast("📝 会話ログを更新しました (Log Saved)", icon="✅")
-                time.sleep(1) # Wait for toast to be seen briefly
+                time.sleep(5) # Wait for toast to be seen briefly
                 st.rerun()
 elif mode == "Dashboard Mode (Progress)":
     # Navigation Header for Dashboard
@@ -812,57 +965,7 @@ elif mode == "Dashboard Mode (Progress)":
     
     from src.api.schemas import ApplicationRoot
     
-    # 解析実行ボタン
-    if st.button("解析する", type="primary", use_container_width=True):
-        st.info("🚀 Process Started: Checking Modules...")
-        
-        # スピナーを使わずに逐次実行を表示
-        status_placeholder = st.empty()
-        
-        try:
-            status_placeholder.text("⏳ Importing Schema...")
-            from src.api.schemas import ApplicationRoot
-            
-            status_placeholder.text("⏳ Calling Gemini API (This may take 10-20s)...")
-            extracted_data = st.session_state.ai_interviewer.analyze_history()
-            
-            status_placeholder.text(f"✅ API Returned. Data Type: {type(extracted_data)}")
-            
-            if extracted_data:
-                status_placeholder.text("⏳ Validating data with Pydantic...")
-                try:
-                    # Robust Migration for Legacy/Loose Formats
-                    migrated = ApplicationRoot.migrate_legacy_data(extracted_data)
-                    plan = ApplicationRoot.model_validate(migrated)
-                    
-                    st.session_state.current_plan = plan
-                    status_placeholder.success("🎉 Analysis Complete & Plan Updated!")
-                    
-                    # Auto-Save after Analysis
-                    perform_auto_save()
-                except Exception as val_e:
-                    status_placeholder.error(f"Validation Error: {val_e}")
-                    st.json(extracted_data)
-                    st.stop()
-                
-                # --- Quality Check & Logic (Pending Migration) ---
-                # issues = plan.check_quality()
-                # missing_fields = []
-                # if issues: ...
-                
-                st.session_state.ai_interviewer.set_focus_fields([]) # Clear focus for now
-                
-                time.sleep(1)
-                st.rerun()
-
-            else:
-                status_placeholder.warning("⚠️ No data extracted (Empty result received).")
-
-        except Exception as e:
-            status_placeholder.error(f"❌ Critical Error: {e}")
-            st.exception(e)
-    
-    # 解析結果の表示 (Updated for ApplicationRoot key mapping)
+    # Auto-Analysis / Display Logic (No Manual Button)
     if "current_plan" in st.session_state:
         plan: ApplicationRoot = st.session_state.current_plan
         from src.core.completion_checker import CompletionChecker
@@ -915,14 +1018,16 @@ elif mode == "Dashboard Mode (Progress)":
                         st.warning(f"**{sec_label}**: {item['msg']}", icon="🟡")
                 
                 with st.columns(2)[0]:
-                    if st.button("インタビュアーに不足項目を聞いてもらう", type="primary", key="btn_ask_missing"):
-                        missing_msgs = [m['msg'] for m in result['missing_mandatory']]
-                        st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
-                        st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
-                        # Set flag to auto-start conversation on redirect
-                        st.session_state.auto_trigger_message = "現在、ダッシュボードで確認した不足項目（focus_fields）について、具体的な質問を開始してください。ユーザーに選択肢を提示し、回答しやすくしてください。\nIMPORTANT: Output format must include <suggestions> JSON block at the end with 'options' to guide the user to the next missing item."
-                        st.session_state.auto_trigger_persona = st.session_state.get("last_chat_nav", "経営者インタビュー").replace("インタビュー", "") # Rough parse
-                        st.rerun()
+                    # Prepare args for callback
+                    missing_msgs = [m['msg'] for m in result['missing_mandatory']]
+                    
+                    st.button(
+                        "インタビュアーに不足項目を聞いてもらう", 
+                        type="primary", 
+                        key="btn_ask_missing",
+                        on_click=on_click_ask_missing,
+                        args=(missing_msgs,)
+                    )
 
         elif result['recommended_progress'] < 1.0:
             st.success("✅ 申請要件はクリアしています！ (さらに計画を強化しましょう)")
