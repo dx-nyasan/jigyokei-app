@@ -1131,7 +1131,8 @@ if mode == "Chat Mode (Interview)":
                  for idx, opt in enumerate(current_options):
                      with cols[idx]:
                          # Use strict key
-                         if st.button(opt, key=f"opt_{idx}_{len(st.session_state.ai_interviewer.history)}", use_container_width=True):
+                         # Use Markdown coloring for emphasis (Blue Bold) instead of primary button color
+                         if st.button(f":blue[**{opt}**]", key=f"opt_{idx}_{len(st.session_state.ai_interviewer.history)}", use_container_width=True):
                              st.session_state.auto_trigger_message = opt
                              st.rerun()
 
@@ -1155,7 +1156,7 @@ if mode == "Chat Mode (Interview)":
                     next_items = [sec_map.get(m['section'], m['section']) for m in res['missing_mandatory'][:3]]
                     
                     # Interactive Next Actions
-                    st.caption("📌 **次のアクション (クリックで入力を開始):**")
+                    st.caption("📌 **テーマを切り替える (クリックで入力を開始):**")
                     cols_next = st.columns(len(next_items))
                     for idx, item in enumerate(next_items):
                         with cols_next[idx]:
