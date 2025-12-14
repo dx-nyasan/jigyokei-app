@@ -769,6 +769,12 @@ with st.sidebar:
 check_flash_message()
 
 if mode == "Chat Mode (Interview)":
+    # --- Ensure Initial State for Optimization (Empty Plan + Dashboard) ---
+    if "current_plan" not in st.session_state:
+        from src.api.schemas import ApplicationRoot
+        # Initialize blank plan object (not dict) for CompletionChecker compatibility
+        st.session_state.current_plan = ApplicationRoot()
+    
     # 1. Dashboard Navigation & Header
     st.title("🤖 AI Interviewer (Chat Mode)")
 
@@ -1079,13 +1085,33 @@ if mode == "Chat Mode (Interview)":
     
     # Fallback if no dynamic options (Double check to ensure buttons always appear)
     if not options:
-        fallback_map = {
-            "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
-            "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
-            "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
-        }
-        # Default to "経営者" if persona key missing
-        options = fallback_map.get(persona, fallback_map["経営者"])
+        # --- Context-Aware Dynamic Fallback ---
+        # Analyze the last message content to provide relevant options
+        last_content = last_msg["content"] if last_msg else ""
+        
+        context_options = []
+        if "役職" in last_content:
+            context_options = ["代表取締役", "店長", "工場長", "社員"]
+        elif "名前" in last_content:
+            context_options = ["確認して入力"] # 'Same as above' is often confusing if nothing above
+        elif "避難" in last_content:
+             context_options = ["指定避難所へ徒歩で", "高台へ車で", "社屋の2階へ垂直避難", "自宅待機"]
+        elif "安否" in last_content:
+             context_options = ["安否確認システム", "LINEグループ", "電話連絡", "一斉メール"]
+        elif "被害" in last_content and ("想定" in last_content or "影響" in last_content):
+             context_options = ["浸水被害", "建物の倒壊", "停電・断水", "物流の停止"]
+        
+        if context_options:
+            options = context_options
+        else:
+            # Standard Fallback if no context detected
+            fallback_map = {
+                "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
+                "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
+                "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
+            }
+            # Default to "経営者" if persona key missing
+            options = fallback_map.get(persona, fallback_map["経営者"])
         
         # Inject standard options into current suggestion to persist them
         if not current_suggestions:
@@ -1127,7 +1153,17 @@ if mode == "Chat Mode (Interview)":
                 if res['missing_mandatory']:
                     sec_map = {"BasicInfo": "基本情報", "Goals": "事業概要", "Disaster": "災害想定", "ResponseProcedures": "初動対応", "Measures": "事前対策", "FinancialPlan": "資金計画", "PDCA": "推進体制"}
                     next_items = [sec_map.get(m['section'], m['section']) for m in res['missing_mandatory'][:3]]
-                    st.write("📌 **次のアクション:** " + "  ".join([f"`{item}`" for item in next_items]))
+                    
+                    # Interactive Next Actions
+                    st.caption("📌 **次のアクション (クリックで入力を開始):**")
+                    cols_next = st.columns(len(next_items))
+                    for idx, item in enumerate(next_items):
+                        with cols_next[idx]:
+                            # Use dynamic key based on history to avoid duplicates
+                            hist_len_act = len(st.session_state.ai_interviewer.history) if "ai_interviewer" in st.session_state else 0
+                            if st.button(f"📝 {item}", key=f"next_act_{idx}_{hist_len_act}", use_container_width=True):
+                                st.session_state.auto_trigger_message = f"{item}の入力を行いたいです。何から始めればよいですか？"
+                                st.rerun()
                 
                 # 2. Progress Bar (Second)
                 cols_prog = st.columns([3, 1, 1.5]) # Added column for button
@@ -1188,6 +1224,9 @@ if mode == "Chat Mode (Interview)":
         # The structure here is: if we have a prompt (user input or suggestion), we send it.
         
         with main_chat_container:
+            # Inject Anchor for Scroll (Target for Auto-Scroll)
+            st.markdown('<div id="latest-response"></div>', unsafe_allow_html=True)
+            
             with st.chat_message("model", avatar="🤖"):
                 with st.spinner("AI is thinking..."):
                     response = st.session_state.ai_interviewer.send_message(
@@ -1195,6 +1234,20 @@ if mode == "Chat Mode (Interview)":
                     persona=persona,
                     user_data=user_data
                 )
+                    
+                    # Scroll to Anchor using JS (Wait for render > 500ms)
+                    import streamlit.components.v1 as components
+                    js_code = """
+                        <script>
+                        setTimeout(function() {
+                            const element = window.parent.document.getElementById('latest-response');
+                            if (element) {
+                                element.scrollIntoView({behavior: 'smooth', block: 'start'});
+                            }
+                        }, 500);
+                        </script>
+                    """
+                    components.html(js_code, height=0)
                 # Sanitize content for display (Hide <suggestions> block implementation)
                 import re
                 
