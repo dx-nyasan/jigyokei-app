@@ -137,13 +137,62 @@ class DraftExporter:
             # Tuple fallback? (Dangerous but maybe debug related)
             return default
 
-        for i, proc in enumerate(plan.response_procedures, 1):
-            cat = safe_get(proc, "category")
-            act = safe_get(proc, "action_content")
-            tim = safe_get(proc, "timing")
-            write_row(row, f"{i}. カテゴリ", cat, "ResponseProcedures"); row += 1
-            write_row(row, f"   内容", act, "ResponseProcedures"); row += 1
-            write_row(row, f"   発災後の対応時期", tim, "ResponseProcedures"); row += 1
+        # Strict Order for Response Procedures
+        # 1. Safety (Evacuation), 2. Safety (Confirmation), 3. Emergency Org, 4. Damage Info
+        
+        # Helper to find item by substring of category or content keyword if needed
+        # But ideally we rely on the exact category name from AI.
+        # Fallback: Search in the list for matching items.
+        
+        rp_list = plan.response_procedures
+        
+        def find_rp(keywords):
+            for p in rp_list:
+                cat = safe_get(p, "category", "")
+                cnt = safe_get(p, "action_content", "")
+                if any(k in cat for k in keywords):
+                    return p
+            return None
+
+        # 1. 人命の安全確保 (避難) - Look for "避難" in content or "人命" in category
+        # Since we might have 2 "人命" categories, we need to distinguish by content if possible, 
+        # OR rely on the order if AI outputs correctly.
+        # Strategy: Filter all "人命" keys.
+        safety_items = [p for p in rp_list if "人命" in safe_get(p, "category", "") or "Safety" in safe_get(p, "category", "")]
+        
+        # Evacuation
+        evacuation_item = next((p for p in safety_items if "避難" in safe_get(p, "action_content", "")), None)
+        if not evacuation_item and safety_items: evacuation_item = safety_items[0] # Fallback
+        
+        # Confirmation
+        confirmation_item = next((p for p in safety_items if "安否" in safe_get(p, "action_content", "")), None)
+        if not confirmation_item and len(safety_items) > 1: confirmation_item = safety_items[1] # Fallback
+        
+        # Emergency Org
+        org_item = next((p for p in rp_list if "体制" in safe_get(p, "category", "")), None)
+        
+        # Damage Info
+        info_item = next((p for p in rp_list if "情報" in safe_get(p, "category", "") or "把握" in safe_get(p, "category", "")), None)
+
+        # Write Rows
+        # Row 1: Safety (Evacuation)
+        write_row(row, "1. 人命の安全確保 (従業員の避難方法)", safe_get(evacuation_item, "action_content"), "ResponseProcedures")
+        write_row(row, "   発災後の対応時期", safe_get(evacuation_item, "timing"), "ResponseProcedures")
+        row += 1
+        
+        # Row 2: Safety (Confirmation)
+        write_row(row, "   人命の安全確保 (従業員の安否確認)", safe_get(confirmation_item, "action_content"), "ResponseProcedures")
+        write_row(row, "   発災後の対応時期", safe_get(confirmation_item, "timing"), "ResponseProcedures")
+        row += 1
+
+        # Row 3: Emergency Org
+        write_row(row, "2. 非常時の緊急時体制の構築", safe_get(org_item, "action_content"), "ResponseProcedures")
+        write_row(row, "   発災後の対応時期", safe_get(org_item, "timing"), "ResponseProcedures")
+        row += 1
+
+        # Row 4: Damage Info
+        write_row(row, "3. 被害状況の把握・被害情報の共有", safe_get(info_item, "action_content"), "ResponseProcedures")
+        write_row(row, "   発災後の対応時期", safe_get(info_item, "timing"), "ResponseProcedures")
         row += 1
 
         # Cooperation Partners (Separated)
