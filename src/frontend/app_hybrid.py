@@ -601,23 +601,90 @@ if mode == "Chat Mode (Interview)":
         }
         options = fallback_map.get(persona, [])
 
-    # Render Options
-    if options:
-        cols = st.columns(min(len(options), 4))
-        for i, opt in enumerate(options[:4]):
-            # Use stable key based on option content and index to prevent state loss
-            if cols[i].button(opt, use_container_width=True, key=f"quick_reply_{i}_{opt}"):
-                suggested_prompt = opt
+    # --- Options Placeholder (UI Improvement from 12/14) ---
+    options_placeholder = st.empty()
+
+    def render_options_in_placeholder(placeholder, current_options):
+        with placeholder.container():
+             # Remove duplicate caption if it exists outside
+             if current_options:
+                 st.caption("👇 クイック返信 (クリックで送信)")
+                 # Ensure horizontal layout - one row
+                 cols = st.columns(len(current_options))
+                 for idx, opt in enumerate(current_options):
+                     with cols[idx]:
+                         # Use strict key
+                         # Use Markdown coloring for emphasis (Blue Bold) instead of primary button color
+                         if st.button(f":blue[**{opt}**]", key=f"opt_{idx}_{len(st.session_state.ai_interviewer.history)}", use_container_width=True):
+                             st.session_state.auto_trigger_message = opt
+                             st.rerun()
+    
+    # Render Options using new UI
+    render_options_in_placeholder(options_placeholder, options)
 
     # User Input
-    chat_input_prompt = st.chat_input(f"{persona}として回答を入力...")
-    
-    # Determine which prompt to use
-    final_prompt = suggested_prompt if suggested_prompt else chat_input_prompt
+    # prompt = st.chat_input(f"{persona}として回答を入力...") -> 12/14 uses specific key and logic below
 
-    if final_prompt:
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(final_prompt)
+    # Define Mini Dashboard Renderer (UI Improvement from 12/14)
+    dashboard_placeholder = st.empty()
+    main_chat_container = st.container()
+
+    def render_mini_dashboard_in_placeholder(placeholder):
+        # Ensure it renders something even if plan is missing (for debugging/fallback)
+        with placeholder.container():
+            if "current_plan" in st.session_state and st.session_state.current_plan:
+                from src.core.completion_checker import CompletionChecker
+                res = CompletionChecker.analyze(st.session_state.current_plan)
+                prog = res['mandatory_progress']
+                
+                # 1. Next Actions (First)
+                if res['missing_mandatory']:
+                    sec_map = {"BasicInfo": "基本情報", "Goals": "事業概要", "Disaster": "災害想定", "ResponseProcedures": "初動対応", "Measures": "事前対策", "FinancialPlan": "資金計画", "PDCA": "推進体制"}
+                    next_items = [sec_map.get(m['section'], m['section']) for m in res['missing_mandatory'][:3]]
+                    
+                    # Interactive Next Actions
+                    st.caption("📌 **テーマを切り替える (クリックで入力を開始):**")
+                    cols_next = st.columns(len(next_items))
+                    for idx, item in enumerate(next_items):
+                        with cols_next[idx]:
+                            # Use dynamic key based on history to avoid duplicates
+                            hist_len_act = len(st.session_state.ai_interviewer.history) if "ai_interviewer" in st.session_state else 0
+                            if st.button(f"📝 {item}", key=f"next_act_{idx}_{hist_len_act}", use_container_width=True):
+                                st.session_state.auto_trigger_message = f"{item}の入力を行いたいです。何から始めればよいですか？"
+                                st.rerun()
+                
+                # 2. Progress Bar (Second)
+                cols_prog = st.columns([3, 1, 1.5]) # Added column for button
+                with cols_prog[0]: st.progress(prog)
+                with cols_prog[1]: st.caption(f"**{int(prog*100)}% 完了**")
+                with cols_prog[2]:
+                    # Use dynamic key to prevent StreamlitDuplicateElementKey when re-rendering in the same run
+                    # (Initial Render + In-place Update)
+                    hist_len = len(st.session_state.ai_interviewer.history) if "ai_interviewer" in st.session_state else 0
+                    if st.button("📊 詳細を確認", key=f"btn_check_prog_dash_{hist_len}", use_container_width=True):
+                         change_mode("Dashboard Mode (Progress)")
+                         st.rerun()
+            else:
+                # Debug feedback if plan is missing
+                # st.warning("⚠ 事業計画データが見つかりません。")
+                pass 
+
+    # Render Dash Initial
+    render_mini_dashboard_in_placeholder(dashboard_placeholder)
+
+    # Input Area
+    prompt = st.chat_input(f"{persona}として回答を入力...", key="chat_input_main")
+
+    if st.session_state.get("auto_trigger_message"):
+        prompt = st.session_state.auto_trigger_message
+        st.session_state.auto_trigger_message = None
+
+    if prompt:
+        with main_chat_container:
+            with st.chat_message("user", avatar="🧑‍🏫" if persona=="商工会職員" else "👤"):
+                st.markdown(prompt)
+        
+        final_prompt = prompt
         
         # Prepare metadata for context
         user_name = st.session_state.get("user_name_input", "")
