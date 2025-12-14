@@ -1021,102 +1021,160 @@ if mode == "Chat Mode (Interview)":
             except:
                 pass
     
-    # Fallback to last valid suggestions if current parsing failed (to maintain Optimized Layout)
-    if not current_suggestions and "last_valid_suggestions" in st.session_state:
-        current_suggestions = st.session_state.last_valid_suggestions
 
-    suggested_prompt = None
-
-    # --- Render Advice in Placeholder (In-place Update) ---
+    # --- Advice Placeholder (Hints & Examples) ---
     advice_placeholder = st.empty()
 
-    def render_advice_in_placeholder(placeholder, suggestions):
-        """Renders the AI hints and example box inside a placeholder."""
-        if not suggestions:
-            placeholder.empty()
-            return
-
-        hints = suggestions.get("hints")
-        example = suggestions.get("example")
-        
-        if hints or example:
-            with placeholder.container():
-                with st.container(border=True): # Distinct box for AI assistance
-                    st.caption("💡 AIからのアドバイス")
-                    if hints:
-                        st.info(f"**ヒント**: {hints}")
-                    if example:
-                        st.success(f"**回答例**: {example}")
-                        # Improvement: Button to use the example as answer
-                        # Use stable key based on content hash AND history length to ensure uniqueness per turn
-                        import hashlib
-                        # Include length of history to differentiate "Yes" at turn 1 vs "Yes" at turn 5
-                        unique_str = f"{example}_{len(st.session_state.ai_interviewer.history)}"
-                        stable_key = hashlib.md5(unique_str.encode()).hexdigest()
-                        
-                        # Note: Buttons inside placeholders might have issues if not handled carefully during rerun?
-                        # Actually if we don't rerun, the button callback won't trigger standard rerun?
-                        # Wait, button click triggers rerun. If we don't rerun here, the button appears. 
-                        # Clicking it triggers rerun -> script runs -> placeholder re-renders.
-                        # It should work.
-                        if st.button("📋 回答例の通り回答する", key=f"use_example_{stable_key}"):
-                            # Setting session state for prompt pre-fill?
-                            # prompt = st.chat_input... can't be pre-filled easily without key manipulation.
-                            # Standard pattern: specific variable
-                            # But st.chat_input doesn't support 'value'.
-                            # Workaround: We can't easily prefill chat_input.
-                            # Solution: We treat clicking the button AS SENDING the message?
-                            # "回答例の通り回答する" -> Submit immediately. 
-                            st.session_state.auto_trigger_message = example
-                            st.rerun()
-                            # return example
+    def render_advice_in_placeholder(placeholder, current_suggestions):
+        """
+        Renders hints and examples in the given placeholder.
+        Returns the clicked example text if any (for future interactivity).
+        """
+        with placeholder.container():
+            # Extract hints/examples
+            hints = current_suggestions.get("hints")
+            example = current_suggestions.get("example")
+            
+            if hints or example:
+                # Header
+                st.caption("💡 AIからのアドバイス")
+                
+                # Hints (Blue)
+                if hints:
+                    st.info(f"**ヒント**: {hints}", icon="ℹ️")
+                
+                # Example (Green)
+                if example:
+                    st.success(f"**回答例**: {example}", icon="✅")
+                    
+                    # Example Usage Button (📋)
+                    if st.button("📋 回答例の通り回答する", key=f"btn_use_ex_{len(st.session_state.ai_interviewer.history)}", type="secondary"):
+                        return example
         return None
 
-    # Initial Render
-    clicked_example = render_advice_in_placeholder(advice_placeholder, current_suggestions)
-    if clicked_example:
-        suggested_prompt = clicked_example
-
-    # --- Next Action Suggestions (Quick Replies) ---
-    # Prioritize dynamic options
-    options = current_suggestions.get("options")
-    if not options: # Handle None or Empty list
-        options = []
-    
-    # Fallback if no dynamic options (Double check to ensure buttons always appear)
-    if not options:
-        # --- Context-Aware Dynamic Fallback ---
-        # Analyze the last message content to provide relevant options
+    # --- Helper Function for Suggestions Logic (Unified) ---
+    def calculate_context_suggestions(last_msg, current_suggestions, persona):
+        """
+        Calculates the best set of suggestions (options, hints, examples) based on:
+        1. AI-generated <suggestions> (Highest Priority)
+        2. Contextual Keywords in the message (Medium Priority)
+        3. Persisted 'Last Valid' suggestions (Fallback)
+        4. Static Defaults (Lowest Priority)
+        """
+        suggestions = {"options": [], "hints": None, "example": None}
+        
+        # 1. AI Options
+        if current_suggestions:
+            suggestions = current_suggestions.copy()
+            if not suggestions.get("options"): suggestions["options"] = []
+        
+        # 2. Context Options (Dynamic Fallback)
+        # If AI missing options OR hints OR example, fill gaps with context
         last_content = last_msg["content"] if last_msg else ""
         
-        context_options = []
+        context_data = None
+        # Expanded Context Keywords
         if "役職" in last_content:
-            context_options = ["代表取締役", "店長", "工場長", "社員"]
+            context_data = {
+                "options": ["代表取締役", "店長", "工場長", "社員"],
+                "hints": "登記上の役職または社内での役割をお答えください。",
+                "example": "代表取締役社長"
+            }
         elif "名前" in last_content:
-            context_options = ["確認して入力"] # 'Same as above' is often confusing if nothing above
+            context_data = {
+                "options": ["確認して入力"],
+                "hints": "姓と名の間にスペースを入れてください。",
+                "example": "山田　太郎"
+             }
         elif "避難" in last_content:
-             context_options = ["指定避難所へ徒歩で", "高台へ車で", "社屋の2階へ垂直避難", "自宅待機"]
+            context_data = {
+                "options": ["指定避難所へ徒歩で", "高台へ車で", "社屋の2階へ垂直避難", "自宅待機"],
+                "hints": "ハザードマップを確認し、浸水想定区域などのリスクに応じた避難先を選定してください。",
+                "example": "従業員全員で近くの高台にある公園へ徒歩で避難します。"
+            }
         elif "安否" in last_content:
-             context_options = ["安否確認システム", "LINEグループ", "電話連絡", "一斉メール"]
+            context_data = {
+                "options": ["安否確認システム", "LINEグループ", "電話連絡", "一斉メール"],
+                "hints": "災害時は電話が繋がりにくくなるため、データ通信（SNS等）の活用が推奨されます。",
+                "example": "会社支給のスマホでLINEグループを作成し、安否状況を一斉送信します。"
+            }
         elif "被害" in last_content and ("想定" in last_content or "影響" in last_content):
-             context_options = ["浸水被害", "建物の倒壊", "停電・断水", "物流の停止"]
+            context_data = {
+                "options": ["浸水被害", "建物の倒壊", "停電・断水", "物流の停止"],
+                "hints": "ハザードマップ（J-SHIS）を確認し、想定される震度や浸水深から具体的な被害をイメージしてください。",
+                "example": "震度6強の揺れにより、商品の落下や陳列棚の転倒が発生し、営業不能になると想定します。"
+            }
+        elif "型式" in last_content or "型番" in last_content:
+            context_data = {
+                "options": ["型番は不明", "担当者に確認中", "特にない"],
+                "hints": "設備銘板や取扱説明書をご確認ください。不明な場合は「不明」として先に進めます。",
+                "example": "型式: XYZ-2023-A"
+            }
+        elif "工事" in last_content or "工法" in last_content:
+            context_data = {
+                 "options": ["専門業者に依頼", "自社で対応", "未定"],
+                 "hints": "実施予定のリフォームや補強工事の具体的な内容を記載してください。",
+                 "example": "アンカーボルトによる固定工事"
+            }
+        elif "自然災害" in last_content:
+             context_data = {
+                 "options": ["地震", "水害", "風災", "雪害"],
+                 "hints": "事業所の所在地における最も重大なリスクを選択してください。",
+                 "example": "南海トラフ地震による震度6強の揺れと津波"
+             }
+        elif "事業の強み" in last_content:
+             context_data = {
+                 "options": ["地域密着", "高い技術力", "独自のネットワーク", "商品力"],
+                 "hints": "競合他社にはない、御社独自の強みやこだわりを教えてください。",
+                 "example": "創業50年の信頼と、地元農家との直接契約による新鮮な食材の調達力。"
+             }
+        elif "設備" in last_content or "資産" in last_content:
+             context_data = {
+                 "options": ["製造機械", "車両", "建物", "サーバー"],
+                 "hints": "事業継続に不可欠な機械、設備、システムなどを挙げてください。",
+                 "example": "商品の製造ラインにあるX号プレス機"
+             }
+
+        # Merge Context if AI is lacking
+        if context_data:
+            if not suggestions.get("options"):
+                suggestions["options"] = context_data["options"]
+            if not suggestions.get("hints"):
+                suggestions["hints"] = context_data["hints"]
+            if not suggestions.get("example"):
+                suggestions["example"] = context_data["example"]
+
+        # 3. Persistence & 4. Static Default (Only for Options fallback mostly)
+        if not suggestions.get("options"):
+             if "last_valid_suggestions" in st.session_state and st.session_state.last_valid_suggestions:
+                 suggestions["options"] = st.session_state.last_valid_suggestions.get("options", [])
         
-        if context_options:
-            options = context_options
-        else:
-            # Standard Fallback if no context detected
-            fallback_map = {
+        if not suggestions.get("options"):
+             fallback_map = {
                 "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
                 "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
                 "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
             }
-            # Default to "経営者" if persona key missing
-            options = fallback_map.get(persona, fallback_map["経営者"])
+             suggestions["options"] = fallback_map.get(persona, fallback_map["経営者"])
+
+        return suggestions
+
+    # Calculate Options (Initial Render)
+    # Note: render_advice_in_placeholder expects dict, render_options expects list
+    final_suggestions = calculate_context_suggestions(last_msg, current_suggestions, persona)
+    
+    # Update Advice (using synthesized hints/example if AI missed them)
+    clicked_example = render_advice_in_placeholder(advice_placeholder, final_suggestions)
+    if clicked_example:
+        st.session_state.auto_trigger_message = clicked_example
+        st.rerun()
         
-        # Inject standard options into current suggestion to persist them
-        if not current_suggestions:
-            current_suggestions = {"options": options}
-            st.session_state.last_valid_suggestions = current_suggestions
+    options = final_suggestions["options"]
+    
+    # Persist
+    if options:
+        current_suggestions = final_suggestions # Persist full dict
+        st.session_state.last_valid_suggestions = current_suggestions
 
     # --- Options Placeholder (After Advice) ---
     options_placeholder = st.empty()
@@ -1133,7 +1191,8 @@ if mode == "Chat Mode (Interview)":
                          # Use strict key
                          # Use Markdown coloring for emphasis (Blue Bold) instead of primary button color
                          if st.button(f":blue[**{opt}**]", key=f"opt_{idx}_{len(st.session_state.ai_interviewer.history)}", use_container_width=True):
-                             st.session_state.auto_trigger_message = opt
+                             # Append intent to clarifying the user's wish to switch topics
+                             st.session_state.auto_trigger_message = f"{opt}について入力したいです"
                              st.rerun()
 
     # Render Options
@@ -1262,7 +1321,10 @@ if mode == "Chat Mode (Interview)":
                             print("Applied Incremental Update")
                             st.toast("⚡ データを更新しました", icon="📝")
                     except Exception as e:
-                        print(f"Update Parse Failed: {e}")
+                        # Suppress validation errors from UI to prevent user confusion
+                        # Just log to console
+                        print(f"Update Parse/Validation Failed (Ignored): {e}")
+                        # Optionally show a simpler warning toast if critical? No, ignore.
                 
                  # Force Dashboard Update (In-place) after every response (to reflect new state/progress)
                 render_mini_dashboard_in_placeholder(dashboard_placeholder)
@@ -1291,19 +1353,9 @@ if mode == "Chat Mode (Interview)":
                         # If len hasn't changed (e.g. history update issues), rendering again crashes Streamlit.
                         new_hist_len = len(st.session_state.ai_interviewer.history)
                         if new_hist_len > current_len:
-                            render_advice_in_placeholder(advice_placeholder, new_sugg)
-                            
-                            new_opts = new_sugg.get("options", [])
-                            # Logic to fallback if options missing in update
-                            if not new_opts:
-                                fallback_map = {
-                                    "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
-                                    "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
-                                    "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
-                                }
-                                new_opts = fallback_map.get(persona, [])
-                            
-                            render_options_in_placeholder(options_placeholder, new_opts)
+                            new_suggestions = calculate_context_suggestions({"content": response, "role": "model"}, new_sugg, persona)
+                            render_advice_in_placeholder(advice_placeholder, new_suggestions)
+                            render_options_in_placeholder(options_placeholder, new_suggestions["options"])
                         else:
                             print(f"Skipping placeholder update: History length {new_hist_len} == {current_len}")
                     except: pass
