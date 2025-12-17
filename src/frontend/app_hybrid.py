@@ -614,7 +614,7 @@ if mode == "Chat Mode (Interview)":
                  for idx, opt in enumerate(current_options):
                      with cols[idx]:
                          # Use strict key
-                         # Use Markdown coloring for emphasis (Blue Bold) instead of primary button color
+                         # Use Markdown coloring for emphasis (Blue Bold)
                          if st.button(f":blue[**{opt}**]", key=f"opt_{idx}_{len(st.session_state.ai_interviewer.history)}", use_container_width=True):
                              st.session_state.auto_trigger_message = opt
                              st.rerun()
