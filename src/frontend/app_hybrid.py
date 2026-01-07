@@ -1135,6 +1135,12 @@ elif mode == "Dashboard Mode (Progress)":
                 st.subheader("事業活動の概要")
                 if plan.goals.business_overview:
                     st.info(plan.goals.business_overview)
+                    # Character count check
+                    char_count = len(plan.goals.business_overview)
+                    if char_count < 200:
+                        st.warning(f"⚠️ 事業概要が短いです（現在 {char_count} 文字）。認定申請には **200文字以上** を推奨します。")
+                    else:
+                        st.caption(f"✅ 文字数: {char_count} 文字（推奨: 200文字以上）")
                 
                 # Show specific errors
                 msgs = get_missing_msgs("Goals")
@@ -1178,12 +1184,13 @@ elif mode == "Dashboard Mode (Progress)":
 1. サプライチェーン上の役割を明記
 2. 地域経済における重要性を説明
 3. 取引先・顧客への影響を具体化
+4. **必ず200文字以上にすること**（認定申請の推奨文字数）
 
 【入力テキスト】
 {plan.goals.business_overview}
 
 【出力形式】JSON形式で出力:
-{{"refined_text": "改善後テキスト", "improvements_made": ["改善点1"], "confidence_score": 85}}
+{{"refined_text": "改善後テキスト（200文字以上）", "improvements_made": ["改善点1"], "confidence_score": 85}}
 '''
                             agent = AutoRefinementAgent()
                             model = agent._get_model()
