@@ -1,0 +1,18 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-9.0.1, pluggy-1.6.0 -- C:\Users\kitahara\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\kitahara\Desktop\script\jigyokei-app
+plugins: anyio-4.11.0, langsmith-0.4.43
+collecting ... collected 9 items
+
+tests/unit/test_jshis_integration.py::TestJShisHelper::test_get_jshis_data_shirahama PASSED [ 11%]
+tests/unit/test_jshis_integration.py::TestJShisHelper::test_get_jshis_data_unknown_address PASSED [ 22%]
+tests/unit/test_jshis_integration.py::TestJShisHelper::test_validate_disaster_scenario_pass PASSED [ 33%]
+tests/unit/test_jshis_integration.py::TestJShisHelper::test_validate_disaster_scenario_fail PASSED [ 44%]
+tests/unit/test_jshis_integration.py::TestJShisHelper::test_get_missing_requirements PASSED [ 55%]
+tests/unit/test_jshis_integration.py::TestJShisHelper::test_format_jshis_disaster_text PASSED [ 66%]
+tests/unit/test_jshis_integration.py::TestAutoRefinement::test_refinement_prompts_exist PASSED [ 77%]
+tests/unit/test_jshis_integration.py::TestAutoRefinement::test_refinement_result_model PASSED [ 88%]
+tests/unit/test_jshis_integration.py::TestManualRAG::test_rag_search PASSED [100%]
+
+============================== 9 passed in 2.37s ==============================

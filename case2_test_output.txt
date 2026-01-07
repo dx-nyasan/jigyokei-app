@@ -1,0 +1,146 @@
+﻿======================================================================
+ CASE 2 COMPREHENSIVE VERIFICATION TEST
+ Company: 有限会社ホテルしらさぎ
+ Purpose: Verify if J-SHIS integration prevents certification rejection
+======================================================================
+
+======================================================================
+ TEST 1: J-SHIS Validation
+======================================================================
+
+[Original Disaster Scenario Text]
+  '地震'
+  Length: 2 characters
+
+[J-SHIS Validation Results]
+  has_probability: FAIL
+  has_seismic_intensity: FAIL
+  has_jshis_reference: FAIL
+  has_location: FAIL
+  has_terrain: FAIL
+
+[Missing Requirements]
+  - 地震発生確率の記載（例：30年以内に震度6弱以上72.3%）
+  - 想定震度の記載（例：震度6強）
+  - J-SHIS または ハザードマップ参照の記載
+  - 事業所所在地の明記
+  - 地形区分の記載
+
+  Result: DEFICIENCY DETECTED - 5 issues found
+
+======================================================================
+ TEST 2: J-SHIS Auto-Suggestion
+======================================================================
+
+[Address]: 和歌山県西牟婁郡白浜町椿１０５６番地の２２
+
+[J-SHIS Data Found]
+  Prefecture: 和歌山県
+  City: 西牟婁郡白浜町
+  30yr Probability (6-): 65.3%
+  Terrain: 三角州・海岸低地
+  Amplification: 全国上位6%
+
+[AI Suggested Text]
+  当社は和歌山県西牟婁郡白浜町にあります。
+今後30年以内に震度6弱以上の地震が起こる確率は65.3％と非常に高く、地形区分が三角州・海岸低地であることから揺れやすさも全国上位6%に位置しています。(J-SHIS地震ハザードカルテ参照)
+また、地震により引き起こされる津波では警戒地域に含まれており、津波到達までの時間が短いことから、迅速な避難が必要です。(自治体津波ハザードマップ参照)...
+  Length: 193 characters
+
+[Validation of Suggested Text]
+  Result: SUGGESTION PASSES ALL REQUIREMENTS
+
+======================================================================
+ TEST 3: PDCA Validation (12/17 New Requirements)
+======================================================================
+
+[PDCA Data]
+  Training Month: 2
+  Review Month: 3
+  Internal Publicity: ''
+
+[Validation Results]
+  [FAIL] Internal publicity (12/17 mandatory) is missing or too short
+
+  Result: DEFICIENCY DETECTED - 1 PDCA issues
+
+======================================================================
+ TEST 4: Business Overview Length Check
+======================================================================
+
+[Business Overview]
+  Text: 有限会社ホテルしらさぎは、椿温泉の中でも特に歴史が古く、長年の常連客が多いことが強みです。地域の観光イベントにも積極的に協力し、地域経済に深く貢献しています。地域社会の復興に貢献する役割を担い、地域の...
+  Character Count: 152
+  Minimum Required: 200
+
+  Result: FAIL - Short by 48 characters
+
+======================================================================
+ TEST 5: Comparison with 中企庁 Rejection Points
+======================================================================
+
+[中企庁 Rejection Points Analysis]
+
+  1. 2.事業継続力強化の目標 - 災害想定
+     Issue: J-SHIS (地震ハザードステーション) への参照がない
+     System Detection: DETECTED
+     Prevention: J-SHIS validation check in dashboard
+
+  2. 2.事業継続力強化の目標 - 事業影響
+     Issue: 被害から事業への因果関係が不明確
+     System Detection: DETECTED
+     Prevention: Audit agent evaluation + auto-refinement
+
+  3. 5.推進体制 - 訓練
+     Issue: 年1回以上の具体的な実施月が必要
+     System Detection: DETECTED
+     Prevention: PDCA mandatory field check
+
+  4. 5.推進体制 - 見直し
+     Issue: 年1回以上の具体的な見直し月が必要
+     System Detection: DETECTED
+     Prevention: PDCA mandatory field check
+
+  5. 5.推進体制 - 社内周知 (12/17新設)
+     Issue: 社内周知方法の記載が必須
+     System Detection: DETECTED
+     Prevention: Dashboard error display for missing publicity
+
+[Summary]
+  Total Rejection Points: 5
+  Detected by System: 5/5
+  Detection Rate: 100.0%
+
+======================================================================
+ TEST 6: Audit Simulation
+======================================================================
+[Audit Content Summary]
+  Total content length: 686 characters
+
+[Simulated Audit Score]
+  Score: 65 / 100
+  Grade: B - NEARLY READY (Minor fixes needed)
+
+======================================================================
+ FINAL SUMMARY
+======================================================================
+
+[Test Results]
+  jshis_validation: FAIL
+  jshis_suggestion: PASS
+  pdca_validation: FAIL
+  overview_length: FAIL
+  rejection_detection: PASS
+
+[Audit Score]: 65/100
+
+[Conclusion]
+  The system SUCCESSFULLY DETECTED the J-SHIS deficiency that
+  caused the actual rejection from 中企庁.
+  The system SUCCESSFULLY DETECTED the PDCA deficiency (12/17).
+  The system PROVIDED a valid J-SHIS-compliant suggestion that
+  would have PREVENTED the rejection if applied.
+
+  VERDICT: If Case 2 had used this system's AI suggestions,
+  the certification rejection could have been PREVENTED.
+======================================================================
