@@ -2,12 +2,13 @@
 Auto-Refinement Agent Module
 Provides LLM-based text refinement to certification level.
 One-click improvement from draft to certification-quality text.
+Migrated to google-genai SDK (2026-01-07)
 """
 import os
 import json
 from typing import Optional
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
 
 
 # Configure Gemini API key from secrets.toml
@@ -24,11 +25,17 @@ def _load_api_key():
             return secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
     except:
         pass
-    return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
+
+# Initialize client at module level
 _api_key = _load_api_key()
+_client = None
 if _api_key:
-    genai.configure(api_key=_api_key)
+    try:
+        _client = genai.Client(api_key=_api_key)
+    except Exception as e:
+        print(f"Failed to initialize Gemini client: {e}")
 
 
 class RefinementResult(BaseModel):
@@ -149,19 +156,7 @@ class AutoRefinementAgent:
     
     def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.model_name = model_name
-        self._model = None
-    
-    def _get_model(self):
-        """Lazy initialization of Gemini model."""
-        if self._model is None:
-            self._model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json",
-                    temperature=0.3  # Moderate creativity for refinement
-                )
-            )
-        return self._model
+        self.client = _client
     
     def refine(self, section_type: str, input_text: str) -> RefinementResult:
         """
@@ -191,11 +186,26 @@ class AutoRefinementAgent:
                 confidence_score=0
             )
         
-        model = self._get_model()
+        if not self.client:
+            return RefinementResult(
+                original_text=input_text,
+                refined_text=input_text,
+                improvements_made=["APIキーが設定されていません"],
+                confidence_score=0
+            )
+        
         prompt = REFINEMENT_PROMPTS[section_type].format(input_text=input_text)
         
         try:
-            response = model.generate_content(prompt)
+            # New google-genai API pattern
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3  # Moderate creativity for refinement
+                }
+            )
             result_data = json.loads(response.text)
             
             return RefinementResult(

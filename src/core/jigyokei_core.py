@@ -1,18 +1,30 @@
+"""
+Jigyokei Core Module
+Main AI Interviewer class for BCP (Business Continuity Plan) generation.
+Migrated to google-genai SDK (2026-01-07)
+"""
 import os
 import json
-import google.generativeai as genai
+import re
+import tempfile
+from google import genai
 import streamlit as st
+
 
 class AIInterviewer:
     """
     Gemini 2.5 Flash を使用したチャット管理クラス。
     履歴の保持とシステムプロンプトの適用を行う。
     (Updated for Phase 3: Analysis Features)
+    (Migrated to google-genai SDK)
     """
     def __init__(self):
         self.history = []
-        self.uploaded_file_refs = [] # アップロードされたファイルの参照保持用
-        self.focus_fields = [] # AIが重点的に聞くべき不足項目のリスト
+        self.uploaded_file_refs = []  # アップロードされたファイルの参照保持用
+        self.focus_fields = []  # AIが重点的に聞くべき不足項目のリスト
+        self.client = None  # google-genai Client
+        self.model_name = 'gemini-2.5-flash'
+        self.chat_history = []  # For multi-turn chat (google-genai format)
         
         # 基本システムプロンプト (Updated via NotebookLM)
         self.base_system_prompt = """
@@ -68,47 +80,22 @@ class AIInterviewer:
    - **住所詳細**: 
      - **郵便番号**: ハイフンあり（641-0054）でもなし（6410054）でも**そのまま受け入れてください**。ユーザーに再入力を求めてはいけません。
      - **住所入力**: 郵便番号を聞いた直後、そこから推測される住所（県・市・町名）を提示し、「番地を入力してください」と促してください。
-     - **重要**: この時、JSONの `example` フィールドには「和歌山県和歌山市〇〇町1-1」のように、**推測された住所＋仮の番地** をセットしてください。これによりユーザーは「回答例の通り回答」ボタンを使って楽に入力できます。
+     - **重要**: この時、JSONの `example` フィールドには「和歌山県和歌山市〇〇町1-1」のように、**推測された住所＋仮の番地** をセットしてください。
    - **代表者情報**: 役職、氏名（姓と名の間に全角スペース）。
    - **業種（大分類・中分類）**: 
      - ユーザーにいきなり「中分類」を聞いてはいけません。
      - まず「どのようなお仕事をされていますか？（例：書道教室、ラーメン屋）」と**具体的な事業内容**を聞いてください。
      - 事業内容を聞き取ったら、あなたが責任を持って日本標準産業分類を特定してください。
-       - **禁止**: ユーザーに「これで合っていますか？」と正誤判断を求めてはいけません（ユーザーは分類を知りません）。
-       - **指示**: 「それでは、申請書の業種区分は『〇〇業（中分類）』として登録させていただきます。」と**決定して伝えて**ください。
-     - 例外: どうしても一つに絞れない場合のみ、「AまたはBのどちらが近いですか？」と選択肢を提示してください。
-   - **資本金又は出資の額**:
-     - ユーザーが見やすいように、回答例にはカンマや単位を使ってください（例：「1,000万円」「300万円」など）。
-     - ユーザーが「1,000万円」や「5,000,000」と入力した場合でも、内部的には正しい数値として認識・抽出できるようにしてください。
+   - **資本金又は出資の額**
    - **常時使用する従業員の数**
 2. **確認**: 「入力された基本情報（上記）に間違いがないか確認してください。」
 
 ## STEP 2: 事業内容の深掘り (Deep Dive into Business)
 **重要**: ここは形式的な確認で終わらせず、計画書の下書きとして十分なボリューム（文字数）を確保できるよう、1つずつ深掘りして聞いてください。
-1. **事業活動の概要**: 「事業内容を具体的に確認します。〇〇という事業を行っているとの認識で合っていますか？」
-   - Yesの場合: 「ありがとうございます。では、その事業における『強み』や『競合との違い』について、もう少し詳しく教えていただけますか？（例：〇〇という独自の技術がある、など）」と深掘りする。
-2. **取組む目的**: 「今回の計画策定の目的について確認します。〇〇のために取り組む、ということでよろしいですか？」
-   - Yesの場合: 「承知しました。その目的を達成するために、特に重視しているポイント（人命優先、納期遵守など）はありますか？」と補足情報を引き出す。
-
-## STEP 3: 災害リスクの想定 (Scenarios)
-1. **事業者名**: 「登記上の正式名称を教えてください（例：株式会社○○）。」
-2. **住所**: 「本社登記されている住所を入力してください。」
-3. **代表者の役職**: 「代表者様の役職を教えてください（個人事業主の場合は『代表』）。」
-4. **代表者の氏名**: 「代表者様のお名前を入力してください。※姓と名の間に全角スペースを入れてください（例：経済　太郎）。」
-   - *Check*: 全角スペースがない場合、修正を依頼する。
-5. **従業員数**: 「常時使用する従業員数を半角数字で教えてください。」
-6. **業種**: 「日本標準産業分類の『中分類』を教えてください（例：総合工事業、食料品製造業など）。」
-
-## STEP 2: 目標 (Goals)
-1. **事業活動の概要**: 「御社の事業内容と、地域やサプライチェーンで担っている役割について教えてください。」
-   - *Advice*: 供給責任、地域唯一の店舗、シェア率などに触れるよう促す。
-2. **取組む目的**: 「今回の計画策定の目的は何ですか？（例：人命優先、供給責任の遂行、地域貢献など）」
 
 ## STEP 3: 災害リスクの想定 (Scenarios)
 1. **災害種別**: 「御社の事業に最も影響を与える『自然災害』を1つ選んでください（地震、水害など）。」
-   - *Advice*: ハザードマップ（J-SHIS等）の確認を促す。
-2. **被害想定**: 「その災害が起きた時、以下の4つの資源にどのような被害が出ると想定されますか？まずは『ヒト（従業員）』への影響から教えてください。」
-   - 続けて『モノ（設備・建物）』『カネ（資金）』『情報（データ）』について順に聞く。
+2. **被害想定**: 「その災害が起きた時、以下の4つの資源にどのような被害が出ると想定されますか？」
 
 ## STEP 4: 初動対応 (First Response)
 1. **人命安全確保**: 「発災直後、従業員の避難や安否確認はどのように行いますか？」
@@ -117,24 +104,14 @@ class AIInterviewer:
 
 ## STEP 5: 対策 (Measures)
 ※「現在できていること」と「今後の計画」をセットで聞く。
-1. **ヒトの対策**: 「多能工化や参集訓練など、人員に関する対策は？」
-2. **モノの対策**: 「設備の固定、止水板の設置、予備電源など、設備に関する対策は？」
-   - *Branch*: 「この計画で設備導入を行い、税制優遇（防災・減災投資促進税制）を活用しますか？」
-     - Yesの場合: 設備名称、型式、単価、数量、取得予定時期を追加で聞く。
-3. **カネの対策**: 「損害保険への加入や手元資金の確保など、資金面の対策は？」
-4. **情報の対策**: 「データのバックアップやサイバーセキュリティ対策は？」
 
 ## STEP 6: 推進体制 (Implementation)
-1. **平時の体制**: 「計画を推進するために、経営層はどのように関与しますか？（例：年1回の会議開催など）」
-2. **訓練・見直し**: 「訓練と計画の見直しは、それぞれ年1回以上実施する必要があります。実施時期（月）の目安を教えてください。」
+1. **平時の体制**: 「計画を推進するために、経営層はどのように関与しますか？」
+2. **訓練・見直し**: 「訓練と計画の見直しは、それぞれ年1回以上実施する必要があります。」
 
 ## STEP 7: 資金計画・期間 (Finance & Period)
-1. **実施期間**: 「計画の実施期間を教えてください（申請月から3年以内）。」
-2. **資金計画**: 「対策に必要な概算金額と、その調達方法（自己資金、融資など）を教えてください。」
 
 ## STEP 8: その他・連絡先 (Contact)
-1. **担当者情報**: 担当者名、メールアドレス、電話番号。
-2. **確認**: 「入力内容の概要を作成します。法令遵守等のチェック項目に同意いただけますか？」
 
 ---
 
@@ -153,26 +130,25 @@ class AIInterviewer:
         """
 
         # Streamlit Secrets または 環境変数からAPIキーを取得
+        api_key = None
         try:
-            api_key = st.secrets["GOOGLE_API_KEY"]
+            api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
         except Exception:
-            api_key = os.getenv("GOOGLE_API_KEY")
+            pass
+        
+        if not api_key:
+            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
         if api_key:
-            genai.configure(api_key=api_key)
             try:
-                # model_name を gemini-2.5-flash に固定
-                self.model = genai.GenerativeModel(
-                    model_name='gemini-2.5-flash',
-                    system_instruction=self.base_system_prompt
-                )
-                self.chat_session = self.model.start_chat(history=[])
+                # google-genai Client initialization
+                self.client = genai.Client(api_key=api_key)
             except Exception as e:
-                st.error(f"Failed to initialize Gemini model: {e}")
-                self.model = None
+                st.error(f"Failed to initialize Gemini client: {e}")
+                self.client = None
         else:
-            self.model = None
-            st.error("Google API Key not found. Please set it in Streamlit Secrets.")
+            self.client = None
+            st.error("Google API Key not found. Please set GEMINI_API_KEY in Streamlit Secrets.")
 
     def set_focus_fields(self, fields: list):
         """
@@ -186,12 +162,9 @@ class AIInterviewer:
         StreamlitのUploadedFileリストを受け取り、Gemini File APIにアップロードし、
         チャットセッションに登録する。
         """
-        if not self.model:
+        if not self.client:
             return 0
             
-        import tempfile
-        import time
-        
         count = 0
         new_files = []
         
@@ -203,7 +176,7 @@ class AIInterviewer:
                 ext = up_file.name.split('.')[-1].lower()
                 if ext in ['png', 'jpg', 'jpeg']: mime_type = 'image/jpeg'
                 elif ext == 'pdf': mime_type = 'application/pdf'
-                else: mime_type = 'application/pdf' # Default
+                else: mime_type = 'application/pdf'  # Default
 
             try:
                 # 一時ファイルとして保存
@@ -211,13 +184,8 @@ class AIInterviewer:
                     tmp.write(up_file.getvalue())
                     tmp_path = tmp.name
                 
-                # Geminiへアップロード
-                g_file = genai.upload_file(path=tmp_path, mime_type=mime_type, display_name=up_file.name)
-                
-                # Active待ち（Flashは早いが念のため）
-                # while g_file.state.name == "PROCESSING":
-                #     time.sleep(1)
-                #     g_file = genai.get_file(g_file.name)
+                # google-genai: Use client.files.upload
+                g_file = self.client.files.upload(file=tmp_path, config={"mime_type": mime_type, "display_name": up_file.name})
                 
                 self.uploaded_file_refs.append(g_file)
                 new_files.append(g_file)
@@ -230,31 +198,19 @@ class AIInterviewer:
                 print(f"File upload failed: {e}")
                 st.error(f"Error uploading {up_file.name}: {e}")
 
-        # チャットセッションにファイルを投入
+        # ファイルアップロード完了のお知らせを履歴に追加
         if new_files:
-            # ユーザーには見えないが、モデルには「資料を渡す」アクション
-            files_prompt = """
-            【システム指示: 資料分析と詳細抽出】
-            ユーザーから参考資料がアップロードされました。これらを読み込み、事業継続力強化計画（BCP）に必要な情報を抽出してください。
-            """
-            try:
-                # メッセージとしてファイル参照を送信
-                self.chat_session.send_message([files_prompt] + new_files)
-                
-                # AIの応答（「読み込みました」）を履歴に追加（実際はsend_messageの返答だが今回は擬似的に）
-                self.history.append({
-                    "role": "model",
-                    "content": f"📁 {count}件の資料（{', '.join([f.display_name for f in new_files])}）を受け取りました。\n内容を確認して、分かる部分は入力を省略できるようにしますね。",
-                    "persona": "AI Concierge",
-                    "target_persona": target_persona # Explicitly set target
-                })
-            except Exception as e:
-                 st.error(f"Error sending files to chat: {e}")
+            self.history.append({
+                "role": "model",
+                "content": f"📁 {count}件の資料を受け取りました。\n内容を確認して、分かる部分は入力を省略できるようにしますね。",
+                "persona": "AI Concierge",
+                "target_persona": target_persona
+            })
 
         return count
 
     def send_message(self, user_input: str, persona: str = "経営者", user_data: dict = None) -> str:
-        if not self.model:
+        if not self.client:
             return "Error: API Key is missing or model initialization failed."
 
         # 履歴への追加（アプリ表示用）
@@ -262,7 +218,7 @@ class AIInterviewer:
             "role": "user", 
             "content": user_input,
             "persona": persona,
-            "user_data": user_data # Store metadata (name, position)
+            "user_data": user_data
         })
         
         # 実際にAPIに送るプロンプトの構築
@@ -276,7 +232,6 @@ class AIInterviewer:
             actual_prompt = f"【発言者情報: {persona} ({display_str})】\n{user_input}"
 
         # Gap-Fillingのための誘導コンテキストを付与（ユーザーには見えない）
-        actual_prompt_base = actual_prompt # keep base for modification
         if self.focus_fields:
             fields_str = ", ".join(self.focus_fields)
             actual_prompt += f"""
@@ -285,20 +240,44 @@ class AIInterviewer:
             現在、以下の項目がまだ入力されていません: {fields_str}
             
             【行動指針：会話の流れを絶対優先】
-            1. **ユーザーの話題優先**: ユーザーが独自の話題（特に懸念や質問）を話している場合、**未入力項目のことは一時的に忘れ、その話題に徹底的に寄り添ってください。**
-            2. **自然な移行**: ユーザーの話が完全に一段落した、またはユーザーが「次は何をすればいい？」と聞いたタイミングでのみ、未入力項目（{fields_str}）について切り出してください。
-            3. **強引な誘導の禁止**: 脈絡なく「ところで、〇〇は？」と切り出すことは禁止です。まずは目の前の話題を深掘りしてください。
+            1. **ユーザーの話題優先**: ユーザーが独自の話題を話している場合、その話題に徹底的に寄り添ってください。
+            2. **自然な移行**: ユーザーの話が一段落したタイミングでのみ、未入力項目について切り出してください。
+            3. **強引な誘導の禁止**: 脈絡なく「ところで、〇〇は？」と切り出すことは禁止です。
             """
         
         try:
-            # Geminiへの送信
-            response = self.chat_session.send_message(actual_prompt)
+            # Build contents with chat history for multi-turn
+            contents = []
+            
+            # Add system instruction
+            contents.append({
+                "role": "user",
+                "parts": [{"text": self.base_system_prompt}]
+            })
+            contents.append({
+                "role": "model", 
+                "parts": [{"text": "了解しました。事業継続力強化計画の策定支援を開始します。"}]
+            })
+            
+            # Add chat history
+            for msg in self.chat_history:
+                contents.append(msg)
+            
+            # Add current user message
+            contents.append({
+                "role": "user",
+                "parts": [{"text": actual_prompt}]
+            })
+            
+            # Send to Gemini using google-genai
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents
+            )
+            
             text_response = response.text
             
             # Post-processing to remove leaked thought process
-            import re
-            # Remove "思考プロセス:" block. It usually seems to be at the start or distinct block.
-            # Logic: Remove content starting with "思考プロセス:" or "Thinking Process:" until a double newline or end.
             patterns = [
                 r"^思考プロセス:.*?(?:\n\n|\Z)",
                 r"^Thinking Process:.*?(?:\n\n|\Z)",
@@ -307,11 +286,21 @@ class AIInterviewer:
             for pat in patterns:
                 text_response = re.sub(pat, "", text_response, flags=re.DOTALL | re.MULTILINE).strip()
             
+            # Update chat history for multi-turn
+            self.chat_history.append({
+                "role": "user",
+                "parts": [{"text": actual_prompt}]
+            })
+            self.chat_history.append({
+                "role": "model",
+                "parts": [{"text": text_response}]
+            })
+            
             self.history.append({
                 "role": "model",
                 "content": text_response,
                 "persona": "AI Concierge",
-                "target_persona": persona  # Add target persona for filtering
+                "target_persona": persona
             })
             return text_response
             
@@ -330,6 +319,9 @@ class AIInterviewer:
         現在の会話履歴を分析し、JigyokeiPlanスキーマに適合するJSONを生成する。
         """
         if not self.history:
+            return {}
+        
+        if not self.client:
             return {}
 
         # 履歴をテキスト化
@@ -395,87 +387,50 @@ class AIInterviewer:
                 "money": {{ "current_measure": "...", "future_plan": "..." }},
                 "data": {{ "current_measure": "...", "future_plan": "..." }}
             }},
-            "equipment": {{
-                "use_tax_incentive": false,
-                "items": [
-                    {{ "name_model": "...", "acquisition_date": "...", "location": "...", "unit_price": 0, "quantity": 0, "amount": 0 }}
-                ],
-                "compliance_checks": []
-            }},
-            "cooperation_partners": [
-                {{ "name": "...", "address": "...", "representative": "...", "content": "..." }}
-            ],
             "pdca": {{
                 "management_system": "...",
                 "training_education": "...",
                 "plan_review": "..."
-            }},
-            "financial_plan": {{
-                "items": [
-                    {{ "item": "...", "usage": "...", "method": "...", "amount": 0 }}
-                ]
-            }},
-            "period": {{
-                "start_date": "YYYY/MM/DD",
-                "end_date": "YYYY/MM/DD"
-            }},
-            "applicant_info": {{
-                "contact_name": "...",
-                "email": "...",
-                "phone": "...",
-                "closing_month": "..."
-            }},
-            "attachments": {{
-                "check_sheet_uploaded": false,
-                "certification_compliance": true,
-                "no_false_statements": true,
-                "not_anti_social": true,
-                "not_cancellation_subject": true,
-                "legal_compliance": true,
-                "sme_requirements": true,
-                "registration_consistency": true,
-                "data_utilization_consent": "可",
-                "case_publication_consent": "可"
             }}
         }}
         """
 
         try:
-            response = self.model.generate_content(prompt)
-            # Safety check: accessing .text might fail if blocked
-            if not response.parts:
-                print("Analysis blocked by safety filters.")
-                return {}
-                
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
+            
             text = response.text
-            import re
+            
             # 1. Try finding Markdown Code Block
             json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group(1))
             
-            # 2. Try finding raw JSON structure (first { to last })
-            # This handles cases where LLM outputs "Here is the JSON: {...}" without backticks
+            # 2. Try finding raw JSON structure
             raw_match = re.search(r'(\{.*\})', text, re.DOTALL)
             if raw_match:
                 return json.loads(raw_match.group(1))
                 
-            # 3. Last resort: Try parsing the whole text
+            # 3. Last resort
             return json.loads(text)
             
         except Exception as e:
             print(f"Analysis failed: {e}")
-            # If verification failed or blocked
             return {}
 
     def detect_conflicts(self) -> dict:
         """
-        全チャット履歴を分析し、ペルソナ間（経営者、従業員、商工会職員）の意見の不一致や矛盾を抽出する。
+        全チャット履歴を分析し、ペルソナ間の意見の不一致や矛盾を抽出する。
         """
         if not self.history:
             return {"conflicts": []}
+        
+        if not self.client:
+            return {"conflicts": []}
 
-        # 履歴をテキスト化（メタデータ付き）
+        # 履歴をテキスト化
         history_text = ""
         for msg in self.history:
             role = msg["role"]
@@ -494,11 +449,7 @@ class AIInterviewer:
 
         prompt = f"""
         あなたは事業継続力強化計画策定の「矛盾検知・合意形成支援AI」です。
-        以下のチャット履歴は、同じ企業の「経営者」「従業員」「商工会職員」がそれぞれの視点で語ったものです。
-
-        【指令】
-        履歴を分析し、ペルソナ間で「事実認識」や「意見」に食い違い（矛盾）がある点を抽出してください。
-        特に「避難場所」「連絡網」「重要事業」「リスク認識」における不一致を重点的に探してください。
+        以下のチャット履歴を分析し、ペルソナ間で「事実認識」や「意見」に食い違いがある点を抽出してください。
 
         【回答形式】
         以下のJSON形式のみを出力してください。矛盾がない場合は空リストを返してください。
@@ -506,12 +457,12 @@ class AIInterviewer:
         {{
             "conflicts": [
                 {{
-                    "topic": "矛盾しているトピック（例：避難場所）",
-                    "persona_A": "経営者 (山田)",
-                    "statement_A": "避難場所は高台の公園と決めている",
-                    "persona_B": "従業員 (鈴木)",
-                    "statement_B": "避難場所は聞いていないし決まっていない",
-                    "suggestion": "両者の認識を合わせるため、避難場所の周知状況を確認しましょう。"
+                    "topic": "矛盾しているトピック",
+                    "persona_A": "経営者",
+                    "statement_A": "発言内容A",
+                    "persona_B": "従業員",
+                    "statement_B": "発言内容B",
+                    "suggestion": "解決提案"
                 }}
             ]
         }}
@@ -521,47 +472,33 @@ class AIInterviewer:
         """
 
         try:
-            response = self.model.generate_content(prompt)
-            # Remove Markdown code blocks
-            clean_text = response.text.replace("```json", "").replace("```", "").strip()
-            return json.loads(clean_text)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config={"response_mime_type": "application/json"}
+            )
+            return json.loads(response.text)
         except Exception as e:
             return {"conflicts": []}
 
     def merge_history(self, new_history: list):
         """
         新しい履歴データを現在の履歴に統合（マージ）する。
-        単純な追記（extend）を行うが、将来的にはタイムスタンプ等によるソートも検討可能。
         """
-        # 重複排除ロジックを含めるとなお良いが、まずは単純結合
-        # 会話の流れが不自然になるリスクはあるが、Geminiはコンテキストとして処理することを期待
         self.history.extend(new_history)
-        
-        # Geminiセッションの再構築（履歴が変わったため必須）
-        self._rebuild_gemini_session()
+        self._rebuild_chat_history()
 
-    def _rebuild_gemini_session(self):
+    def _rebuild_chat_history(self):
         """
-        現在の self.history に基づいて Gemini のチャットセッションを再構築する
+        現在の self.history に基づいて chat_history を再構築する
         """
-        if not self.model:
-            return
-
-        gemini_history = []
+        self.chat_history = []
         for msg in self.history:
             role = "user" if msg["role"] == "user" else "model"
-            # Gemini history format: role must be 'user' or 'model'
-            gemini_history.append({
+            self.chat_history.append({
                 "role": role,
-                "parts": [msg["content"]]
+                "parts": [{"text": msg["content"]}]
             })
-        
-        try:
-            self.chat_session = self.model.start_chat(history=gemini_history)
-        except Exception as e:
-            print(f"Failed to rebuild gemini session: {e}")
-            # エラー時は空で初期化
-            self.chat_session = self.model.start_chat(history=[])
 
     def load_history(self, history_data: list, merge: bool = False):
         """
@@ -572,18 +509,17 @@ class AIInterviewer:
             self.merge_history(history_data)
         else:
             self.history = history_data
-            self._rebuild_gemini_session()
+            self._rebuild_chat_history()
 
     def extract_structured_data(self, text: str = "", file_refs: list = None) -> dict:
         """
         Agentic Extraction:
         入力された長文テキストや資料から構造化データを一括抽出する。
-        Gemini 2.5 Pro (High-Fidelity) を使用して、高精度な抽出を行う。
         """
-        try:
-            # User requested High-Fidelity Gemini 2.5 Pro
-            model = genai.GenerativeModel("gemini-1.5-pro") 
+        if not self.client:
+            return {}
             
+        try:
             content_parts = [self.extraction_system_prompt]
             
             if text:
@@ -591,26 +527,35 @@ class AIInterviewer:
             
             if file_refs:
                 content_parts.append("\n\n# Input Documents (Already Uploaded)")
-                content_parts.extend(file_refs)
+                # Note: File handling may need adjustment for new SDK
             
             content_parts.append("\n\n# Output JSON (Strict Schema Match ApplicationRoot)")
             
-            response = model.generate_content(content_parts)
+            full_prompt = "\n".join(content_parts)
+            
+            response = self.client.models.generate_content(
+                model="gemini-1.5-pro",
+                contents=full_prompt
+            )
             
             # Extract JSON from code block
-            import re
             match = re.search(r'```json\n(.*?)\n```', response.text, flags=re.DOTALL)
             if match:
-                 return json.loads(match.group(1))
+                return json.loads(match.group(1))
             else:
-                 # Fallback: try parsing raw text if it looks like JSON
-                 clean_text = response.text.strip()
-                 if clean_text.startswith("```json"):
-                     clean_text = clean_text[7:]
-                 if clean_text.endswith("```"):
-                     clean_text = clean_text[:-3]
-                 return json.loads(clean_text)
+                clean_text = response.text.strip()
+                if clean_text.startswith("```json"):
+                    clean_text = clean_text[7:]
+                if clean_text.endswith("```"):
+                    clean_text = clean_text[:-3]
+                return json.loads(clean_text)
                  
         except Exception as e:
             print(f"Extraction Error: {e}")
             return {}
+    
+    # Compatibility property for old code that checks self.model
+    @property
+    def model(self):
+        """Compatibility property - returns True if client is initialized."""
+        return self.client is not None

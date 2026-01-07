@@ -1169,7 +1169,6 @@ elif mode == "Dashboard Mode (Progress)":
                     with st.spinner("AIが事業概要を改善中..."):
                         try:
                             from src.core.auto_refinement import AutoRefinementAgent
-                            import google.generativeai as genai
                             
                             # Custom prompt for business overview
                             prompt = f'''事業継続力強化計画の「事業概要」を認定レベルに改善してください。
@@ -1186,13 +1185,19 @@ elif mode == "Dashboard Mode (Progress)":
 {{"refined_text": "改善後テキスト", "improvements_made": ["改善点1"], "confidence_score": 85}}
 '''
                             agent = AutoRefinementAgent()
-                            model = agent._get_model()
-                            response = model.generate_content(prompt)
-                            import json
-                            result_data = json.loads(response.text)
-                            
-                            st.session_state["_refined_overview"] = result_data
-                            st.success(f"✅ 改善完了 (信頼度: {result_data.get('confidence_score', 50)}%)")
+                            if agent.client:
+                                response = agent.client.models.generate_content(
+                                    model=agent.model_name,
+                                    contents=prompt,
+                                    config={"response_mime_type": "application/json"}
+                                )
+                                import json
+                                result_data = json.loads(response.text)
+                                
+                                st.session_state["_refined_overview"] = result_data
+                                st.success(f"✅ 改善完了 (信頼度: {result_data.get('confidence_score', 50)}%)")
+                            else:
+                                st.error("APIキーが設定されていません")
                         except Exception as e:
                             st.error(f"改善エラー: {e}")
                 
