@@ -5,6 +5,37 @@ import json
 import time
 import importlib
 import streamlit.components.v1 as components
+import requests
+import re
+
+# --- Helper: Zip Code Address Fetcher ---
+def fetch_address_from_zip(zip_code):
+    """
+    Fetch address from ZipCloud API.
+    Returns a dict with {pref, city, town} or None.
+    """
+    if not zip_code: return None
+    
+    # Normalize: Remove hyphens, half-width
+    clean_zip = zip_code.replace("-", "").strip()
+    if not clean_zip.isdigit() or len(clean_zip) != 7:
+        return None
+
+    try:
+        url = f"https://zipcloud.ibsnet.co.jp/api/search?zipcode={clean_zip}"
+        res = requests.get(url, timeout=3)
+        data = res.json()
+        
+        if data["status"] == 200 and data["results"]:
+            result = data["results"][0]
+            return {
+                "pref": result["address1"],  # 都道府県
+                "city": result["address2"],  # 市区町村
+                "town": result["address3"]   # 町域
+            }
+        return None
+    except Exception:
+        return None
 
 # --- Page Config (Must be the first Streamlit command) ---
 st.set_page_config(
@@ -14,116 +45,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Check Reset Status ---
-if "action" in st.query_params and st.query_params["action"] == "reset":
-    st.toast("🗑️ データをリセットしました (Reset Complete)", icon="✅")
-    st.query_params.clear()
-
-# --- Custom CSS for Mobile UI ---
-st.markdown("""
-<style>
-    /* Customize Sidebar Toggle (Expanded/Collapsed Control) */
-    /* Target Desktop Collapsed Control */
-    [data-testid="stSidebarCollapsedControl"] {
-        background-color: #ffeaea !important; 
-        border: 2px solid #ff4b4b !important;
-        border-radius: 8px !important;
-        padding: 2px !important;
-        width: 44px !important;
-        height: auto !important;
-        min_height: 80px !important; /* Make it tall and noticeable */
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        z-index: 1000002 !important; /* Higher than Streamlit header overlay */
-        opacity: 1 !important;
-        visibility: visible !important;
-    }
-
-    /* Target Mobile Header Button (Often behaves differently) */
-    @media (max-width: 768px) {
-        /* On mobile, the toggle might be in the header. 
-           We target the first button in the header if specific ID fails, 
-           NOTE: Streamlit mobile often uses stSidebarCollapsedControl even in header, 
-           but sometimes it is just a button in stHeader. */
-        
-        [data-testid="stHeader"] button[data-testid="stSidebarCollapsedControl"] {
-             background-color: #ffeaea !important;
-             border: 2px solid #ff4b4b !important;
-             width: auto !important; /* Allow width to expand for text */
-             height: auto !important;
-             min-height: 44px !important;
-             aspect-ratio: auto !important;
-             border-radius: 8px !important;
-        }
-        
-        /* Adjust text for mobile (Horizontal 'メニュー') */
-        [data-testid="stHeader"] button[data-testid="stSidebarCollapsedControl"]::after {
-            content: "メニュー" !important;
-            writing-mode: horizontal-tb !important;
-            font-size: 16px !important;
-            padding: 0 8px !important;
-            letter-spacing: 1px !important;
-        }
-    }
-
-    /* Hide the default '>>' or 'hamburger' icon */
-    [data-testid="stSidebarCollapsedControl"] svg, 
-    [data-testid="stSidebarCollapsedControl"] img {
-        display: none !important;
-    }
-    
-    /* Add 'メニュー' label (Default Vertical for Desktop Sidebar) */
-    [data-testid="stSidebarCollapsedControl"]::after {
-        content: "メニュー";
-        font-family: "Hiragino Sans", "Meiryo", sans-serif;
-        font-size: 14px !important;
-        font-weight: 900 !important;
-        color: #ff4b4b !important;
-        writing-mode: vertical-rl;
-        text-orientation: upright;
-        letter-spacing: 2px;
-        white-space: nowrap;
-        display: block !important;
-    }
-
-    /* --- Sidebar Close Button Improvement --- */
-    /* Target the close button inside the sidebar (header button) */
-    section[data-testid="stSidebar"] button[kind="header"],
-    section[data-testid="stSidebar"] [data-testid="stBaseButton-header"] {
-        visibility: visible !important;
-        opacity: 1 !important;
-        background-color: #ffeaea !important;
-        border: 2px solid #ff4b4b !important;
-        border-radius: 8px !important;
-        color: #ff4b4b !important; /* Icon color */
-        min-width: 44px !important;
-        min-height: 44px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin-right: 10px !important; /* Spacing from edge */
-        transition: none !important; /* Remove fade effect */
-    }
-
-    /* Add "閉じる" Label */
-    section[data-testid="stSidebar"] button[kind="header"]::before,
-    section[data-testid="stSidebar"] [data-testid="stBaseButton-header"]::before {
-        content: "閉じる" !important;
-        font-size: 12px !important;
-        font-weight: bold !important;
-        color: #ff4b4b !important;
-        margin-right: 4px !important;
-        display: inline-block !important;
-    }
-    
-    /* Ensure icon is visible */
-    section[data-testid="stSidebar"] button[kind="header"] svg,
-    section[data-testid="stSidebar"] [data-testid="stBaseButton-header"] svg {
-        display: block !important;
-        font-weight: bold !important;
-    }
-""", unsafe_allow_html=True)
+# --- Reset Toast Logic ---
+if "reset_msg" in st.query_params and "reset_toast_shown" not in st.session_state:
+    st.toast("✅ データをリセットしました (All Data Cleared)", icon="🗑️")
+    st.session_state["reset_toast_shown"] = True
+    # Do not clear param to avoid rerun, use session flag to prevent duplicates
 
 # --- Path Setup ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -138,13 +64,16 @@ importlib.reload(src.api.schemas)
 importlib.reload(src.core.completion_checker)
 importlib.reload(src.core.draft_exporter)
 
+importlib.reload(src.core.draft_exporter)
+
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 from src.core.completion_checker import CompletionChecker
+from src.core.draft_exporter import DraftExporter
 from src.core.session_manager import SessionManager
 
 # --- Version Control ---
-APP_VERSION = "3.4.2-mobile-ui-polish"
+APP_VERSION = "3.4.0-ux-improvement-autoresume"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
@@ -152,8 +81,28 @@ if "session_manager" not in st.session_state:
 
 # --- Auto Resume Logic ---
 # [DISABLED] Automatic loading of shared session file causes data leak between users in Cloud environment.
-# Note: Mobile persistence is handled via scoped 'mobile_autosave' logic below.
-
+# if "ai_interviewer" not in st.session_state and "last_resume_check" not in st.session_state:
+#     st.session_state.last_resume_check = True
+#     saved_data = st.session_state.session_manager.load_session()
+#     if saved_data and saved_data.get("history"):
+#         st.toast("🔄 前回の中断箇所から復元しました (Session Auto-Resumed)", icon="📂")
+#         # Initialize interviewer with history immediately
+#         st.session_state.ai_interviewer = AIInterviewer()
+#         
+#         # Restore History
+#         history = saved_data["history"]
+#         st.session_state.ai_interviewer.load_history(history, merge=False)
+#         st.session_state.loaded_msg_count = len(history)
+#         
+#         # Restore Plan if exists
+#         current_plan_dict = saved_data.get("current_plan")
+#         if current_plan_dict:
+#              try:
+#                 from src.api.schemas import ApplicationRoot
+#                 plan = ApplicationRoot.model_validate(current_plan_dict)
+#                 st.session_state.current_plan = plan
+#              except Exception:
+#                  pass # Ignore plan restore error
 
 if "app_version" not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.session_state.clear()
@@ -164,16 +113,8 @@ if "app_version" not in st.session_state or st.session_state.app_version != APP_
 with st.sidebar:
     with st.expander("🔧 System Menu", expanded=False):
         if st.button("🗑️ Reset All Data", key="btn_hard_reset", type="primary", help="警告: すべてのデータを削除して初期化します"):
-            # 1. Clear persistence (Disk)
-            if "session_manager" in st.session_state:
-                st.session_state.session_manager.clear_session()
-            
-            # 2. Clear Session State (Memory)
             st.session_state.clear()
-            
-            # 3. Notification & Rerun
-            # We set a query param to show the toast after reload
-            st.query_params["action"] = "reset"
+            st.query_params["reset_msg"] = "true"
             st.rerun()
 
 # --- Initialize Managers (Standard) ---
@@ -198,185 +139,13 @@ else:
              st.session_state.ai_interviewer.history = old_history
              
         st.success("✅ AI Brain Upgraded! Please reload one last time.")
-        time.sleep(5)
+        time.sleep(1)
         st.rerun()
 
 if "context_loader" not in st.session_state:
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     context_dir = os.path.join(root_dir, "data", "context")
     st.session_state.context_loader = ContextLoader(context_dir)
-
-# --- Helper: Auto-Save ---
-def perform_auto_save():
-    """
-    Save the current session state (history & plan) to local storage.
-    Used for mobile persistence and crash recovery.
-    """
-    if "session_manager" in st.session_state and "ai_interviewer" in st.session_state:
-        # Prepare plan data if exists
-        plan_data = None
-        if "current_plan" in st.session_state and st.session_state.current_plan:
-            try:
-                plan_data = st.session_state.current_plan.model_dump()
-            except:
-                pass # Fail silently on serialization
-
-        # Save to 'mobile_autosave' slot
-        st.session_state.session_manager.save_session(
-            history=st.session_state.ai_interviewer.history,
-            current_plan_dict=plan_data,
-            session_id="mobile_autosave"
-        )
-
-# --- Incremental Update Logic (Smart Mapper & Deep Merge) ---
-class SmartUpdateMapper:
-    """
-    Translates simplified AI update JSON into strict Pydantic Schema structure.
-    Allows AI to use simple keys like 'human_safety' instead of complex list objects.
-    """
-    @staticmethod
-    def map_response_procedures(simple_dict):
-        """Maps flat keys to ResponseProcedures list items."""
-        mapped_items = []
-        
-        # Mapping Rules: Simple Key -> (Category, Action Content)
-        # Note: We append to existing likely, or overwrite specific categories?
-        # Strategy: We construct objects. Merging logic handles the rest? 
-        # No, replacing list items by category is hard with deep_merge.
-        # Strategy: Return a LIST of dicts that matches the structure. 
-        # But deep_update on lists usually appends or overwrites index. 
-        # HACK: We will load current plan, find the matching item, and update its content.
-        
-        # Actually, let's just return the logic for `apply_incremental_update` to handle.
-        # This mapper will return a "Standardized Dict" that matches the Schema structure
-        # as much as possible, or return specific instructions.
-        pass
-
-def deep_update(base_dict, update_dict):
-    """Recursively update dict."""
-    import collections.abc
-    for k, v in update_dict.items():
-        if isinstance(v, collections.abc.Mapping):
-            base_dict[k] = deep_update(base_dict.get(k, {}), v)
-        else:
-            base_dict[k] = v
-    return base_dict
-
-def apply_incremental_update(update_json):
-    """
-    Apply a partial JSON update with Smart Mapping.
-    """
-    try:
-        if "current_plan" not in st.session_state or not st.session_state.current_plan:
-             from src.api.schemas import ApplicationRoot
-             st.session_state.current_plan = ApplicationRoot()
-        
-        plan = st.session_state.current_plan
-        
-        # --- SMART MAPPING LOGIC (Manual Handling for Complex Lists) ---
-        
-        # 1. Response Procedures (List handling)
-        if "response_procedures" in update_json:
-            rp_data = update_json["response_procedures"]
-            # Map simplified keys to specific list items
-            # We assume the plan already has the 4 fixed items (initialized or empty)
-            # If not, we create them? Schema defaults to empty list. 
-            # Better to find by category or create.
-            
-            # Helper to find or create
-            def update_proc(category, content):
-                # Find existing
-                found = False
-                if not plan.response_procedures: plan.response_procedures = []
-                for p in plan.response_procedures:
-                    if p.category == category:
-                        p.action_content = content
-                        found = True
-                        break
-                if not found:
-                    from src.api.schemas import FirstResponse
-                    plan.response_procedures.append(FirstResponse(category=category, action_content=content, timing="発災直後"))
-
-            if isinstance(rp_data, dict):
-                if "human_safety" in rp_data:
-                    # Split into Evacuation and Confirmation? AI prompt said "human_safety" as one?
-                    # Wait, prompt example showed output splitting? 
-                    # Actually prompt example in previous turn showed: 
-                    # "human_safety": "..." (Combined?)
-                    # If combined, we might put same content in both or ask AI to split?
-                    # Let's put in 'Evacuation' for now or split if clear.
-                    txt = rp_data["human_safety"]
-                    update_proc("1. 人命の安全確保", txt) 
-                    # ideally we want specific keys. Prompt update will enforce 'evacuation' and 'safety_check' keys next.
-                    
-                if "evacuation" in rp_data: update_proc("1. 人命の安全確保", rp_data["evacuation"]) # Specific
-                if "safety_check" in rp_data: update_proc("1. 人命の安全確保", rp_data["safety_check"]) # Specific (needs differentiating? Category name is same)
-                # Actually Schema allows duplicate Category names. 
-                # To distinguish: We check content or rely on order? 
-                # Let's just update the *first* match for 'Evacuation' and *second* for 'Safety Check' if strictly ordered?
-                # Risky. 
-                # SAFER STRATEGY: Update Prompt to use EXACT keys matching Schema is best, 
-                # BUT user wants "Simple".
-                # Let's map "emergency_structure" -> "2. 非常時の緊急時体制の構築"
-                if "emergency_structure" in rp_data: update_proc("2. 非常時の緊急時体制の構築", rp_data["emergency_structure"])
-                if "damage_assessment" in rp_data: update_proc("3. 被害状況の把握・被害情報の共有", rp_data["damage_assessment"])
-            
-            # Remove from update_json so deep_update doesn't overwrite the whole list with a dict
-            del update_json["response_procedures"]
-
-        # 2. Financial Plan (List handling)
-        if "finance_plan" in update_json:
-            fp_data = update_json["finance_plan"] # { estimated_amount, source, details }
-            # Construct a single item for now
-            if not plan.financial_plan.items: plan.financial_plan.items = []
-            
-            # Create a "summary" item
-            from src.api.schemas import FinancialPlanItem
-            item_content = fp_data.get("details", "資金対策")
-            amount = fp_data.get("estimated_amount", 0)
-            method = fp_data.get("source", "")
-            
-            # Upsert logic: if item exists, update it, else append
-            if plan.financial_plan.items:
-                plan.financial_plan.items[0].item = item_content
-                plan.financial_plan.items[0].amount = amount
-                plan.financial_plan.items[0].method = method
-            else:
-                plan.financial_plan.items.append(FinancialPlanItem(item=item_content, amount=amount, method=method))
-            
-            del update_json["finance_plan"]
-            
-        # 3. PDCA (Implementation System)
-        if "implementation_system" in update_json:
-            pdca = update_json["implementation_system"]
-            if "training_review" in pdca:
-                plan.pdca.training_education = pdca["training_review"]
-                plan.pdca.plan_review = pdca["training_review"] # Map to both for robust
-            
-            del update_json["implementation_system"]
-            
-        # 4. Contact Info
-        if "contact_info" in update_json:
-            ci = update_json["contact_info"]
-            plan.applicant_info.contact_name = ci.get("name")
-            plan.applicant_info.email = ci.get("email")
-            plan.applicant_info.phone = ci.get("phone")
-            del update_json["contact_info"]
-
-        # --- Revert to Dict and Validate ---
-        # Apply remaining simple updates (basic_info, measures etc.)
-        current_dump = plan.model_dump()
-        merged = deep_update(current_dump, update_json)
-        
-        # Save back
-        from src.api.schemas import ApplicationRoot
-        st.session_state.current_plan = ApplicationRoot(**merged)
-        return True
-
-    except Exception as e:
-        print(f"Smart Update Failed: {e}")
-        st.toast(f"⚠️ 更新エラー: {e}", icon="🐛") # Debug info
-        return False
 
 # --- Authentication ---
 def check_password():
@@ -415,68 +184,6 @@ def change_mode(mode_name, persona_name=None):
         target = "Dashboard Mode (Progress)"
          
     st.session_state.app_nav_selection = target
-
-# --- Flash Message System ---
-def set_flash_message(message, icon="INFO"):
-    """Set a message to be shown after the next rerun."""
-    st.session_state.flash_toast_message = message
-    st.session_state.flash_toast_icon = icon
-
-def check_flash_message():
-    """Check and display pending flash messages."""
-    if "flash_toast_message" in st.session_state:
-        msg_str = st.session_state.flash_toast_message
-        icon = st.session_state.get("flash_toast_icon", "INFO")
-        
-        # Support split messages for "Separate Parallel Display"
-        msgs = msg_str.split("|||")
-        
-        for m in msgs:
-            if m.strip():
-                st.toast(m.strip(), icon=icon)
-                time.sleep(1) # Stagger slightly
-        
-        # Halt execution to ensure visibility (User Requirement: 5s total)
-        time.sleep(4)
-        
-        # Clear after showing
-        del st.session_state["flash_toast_message"]
-        if "flash_toast_icon" in st.session_state:
-            del st.session_state["flash_toast_icon"]
-
-def trigger_missing_items_chat():
-    """Callback to trigger missing items chat flow securely before rerun."""
-    # We need to access result, so we'll grab it from session state or re-calculate?
-    # Actually, we can pass args to callback.
-    pass
-
-# Helper to be used in button args
-def on_click_ask_missing(missing_msgs):
-    st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
-    st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
-    st.session_state.auto_trigger_message = "不足項目の入力を行いたいです。何から始めればよいですか？"
-    st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
-    st.session_state.auto_trigger_message = "不足項目の入力を行いたいです。何から始めればよいですか？"
-    st.session_state.auto_trigger_persona = st.session_state.get("last_chat_nav", "経営者インタビュー").replace("インタビュー", "")
-
-def auto_complete_interview(json_str):
-    """Callback to parse interview data and redirect to dashboard."""
-    try:
-        data_dict = json.loads(json_str)
-        from src.api.schemas import ApplicationRoot
-        # Migrate & Validate
-        migrated = ApplicationRoot.migrate_legacy_data(data_dict)
-        plan = ApplicationRoot.model_validate(migrated)
-        st.session_state.current_plan = plan
-        
-        # Redirect
-        st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
-        
-        # Set Flash Message for next screen
-        set_flash_message("✅ 自動解析が完了しました (Auto Analysis Complete)", icon="🤖")
-        
-    except Exception as e:
-        st.error(f"Data Processing Error: {e}")
 
 with st.sidebar:
     st.header("Jigyokei Hybrid System")
@@ -643,24 +350,6 @@ with st.sidebar:
                                 plan = ApplicationRoot.model_validate(clean_data)
                                 st.session_state.current_plan = plan
                                 st.toast("✅ 事業計画データを読み込みました (Direct Load)", icon="📄")
-
-                                # --- Context Injection for Multi-Disaster Support ---
-                                # Load the plan into history so the AI knows the baseline for subsequent discussions (e.g. Tsunami)
-                                context_content = f"""
-【システム通知: 既存計画データの読み込み】
-ユーザーが以下の事業計画書データをアップロードしました。
-このデータを「現在の決定事項」として認識し、今後の会話（追加の災害対策など）と統合してください。
-
-```json
-{json.dumps(clean_data, ensure_ascii=False, indent=2)}
-```
-"""
-                                st.session_state.ai_interviewer.history.append({
-                                    "role": "model", 
-                                    "content": context_content,
-                                    "persona": "AI Concierge",
-                                    "target_persona": "General" # Visible to all
-                                })
                             except Exception as val_e:
                                 st.error(f"データ構造読み込みエラー: {val_e}")
                                 # Stop execution so user sees the error
@@ -674,21 +363,8 @@ with st.sidebar:
                          st.warning("⚠️ JSON形式が無効です")
 
                     st.session_state.last_loaded_file_id = file_id
-                    
-                    # Auto-Redirect to Dashboard if Plan Loaded
-                    if "current_plan" in st.session_state and st.session_state.current_plan:
-                        st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
-                        
-                        # Set Flash Message instead of immediate toast + sleep
-                        company_name = st.session_state.current_plan.basic_info.corporate_name or "未設定"
-                        # Multi-line flash message via split toast
-                        msg = f"✅ 事業計画データを読み込みました (Plan: {company_name})|||🚀 ダッシュボードへ移動します"
-                        set_flash_message(msg, icon="➡️")
-                        
-                    else:
-                        st.toast("DEBUG: No Plan Loaded", icon="🐛")
-                        time.sleep(2) # Keep debug visible
-                        
+                    time.sleep(1)
+                    # Only rerun if successful (toast would persist?) - actually Streamlit recommends rerun on state change
                     st.rerun()
 
                 except Exception as e:
@@ -735,48 +411,22 @@ with st.sidebar:
             # BUT 'persona' depends on 'nav' which IS available (st.session_state.app_nav_selection).
             # Let's verify 'nav' logic.
              
-             # --- Sidebar: Recommended Actions (Mirrors Dashboard) ---
-    with st.sidebar:
-        st.divider()
-        st.subheader("💡 推奨アクション (Recommended)")
-        
-        # 1. From Consensus Chat Suggestions
-        if "_consensus_suggestions" in st.session_state:
-            sugg = st.session_state._consensus_suggestions
-            if "options" in sugg and sugg["options"]:
-                st.caption("🤖 AIからの提案:")
-                for opt in sugg["options"]:
-                    st.info(f"👉 {opt}")
-        
-        # 2. From Missing Items (Static Analysis)
-        if "current_plan" in st.session_state and st.session_state.current_plan:
-             from src.core.completion_checker import CompletionChecker
-             # Fix: Use static method directly
-             result = CompletionChecker.analyze(st.session_state.current_plan)
-             if result["missing_mandatory"]:
-                 st.caption("⚠️ 未定の必須項目:")
-                 for m in result["missing_mandatory"][:3]: # Show top 3
-                     st.warning(f"📌 {m['section']}")
-        else:
-            st.caption("ℹ️ 計画データ未読み込み")
-
-    # --- Main Area ---
-
+             
 
 # --- Main Area ---
 
-# Check Flash Messages at Start of Render Cycle
-check_flash_message()
 
 if mode == "Chat Mode (Interview)":
-    # --- Ensure Initial State for Optimization (Empty Plan + Dashboard) ---
-    if "current_plan" not in st.session_state:
-        from src.api.schemas import ApplicationRoot
-        # Initialize blank plan object (not dict) for CompletionChecker compatibility
-        st.session_state.current_plan = ApplicationRoot()
-    
     # 1. Dashboard Navigation & Header
-    st.title("🤖 AI Interviewer (Chat Mode)")
+    col_head1, col_head2 = st.columns([3, 1])
+    with col_head1:
+        st.title("🤖 AI Interviewer (Chat Mode)")
+    with col_head2:
+        st.button(
+            "📊 進捗度を確認する",
+            on_click=change_mode,
+            args=("Dashboard Mode (Progress)",)
+        )
 
     # User Metadata Inputs (Main Panel) - Always visible at top
     with st.container(border=True):
@@ -808,98 +458,43 @@ if mode == "Chat Mode (Interview)":
             upload_label, 
             type=["pdf", "png", "jpg", "jpeg"], 
             accept_multiple_files=True,
-            key=f"uploader_{persona}" # Remove timestamp to keep uploader stable
+            key=f"uploader_{persona}_{int(time.time())}" # Add timestamp to reset key slightly if needed
         )
         
-        # --- Auto-Process Logic ---
-        if "processed_file_ids" not in st.session_state:
-            st.session_state.processed_file_ids = set()
-
-        if uploaded_refs:
-            new_files_to_process = []
-            for file in uploaded_refs:
-                # Create a simple unique ID for the file instance
-                file_id = f"{file.name}_{file.size}"
-                if file_id not in st.session_state.processed_file_ids:
-                    new_files_to_process.append(file)
-                    st.session_state.processed_file_ids.add(file_id)
-            
-                if new_files_to_process:
-                # Automatically process new files
-                 with st.spinner("資料を解析中... (Auto-Processing)"):
-                    try:
-                        count = st.session_state.ai_interviewer.process_files(new_files_to_process, target_persona=persona)
-                        st.success(f"{count}件の新しい資料を読み込みました！")
-                        
-                        # --- Agentic Extraction Trigger (File Upload) ---
-                        if count > 0:
-                            with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
-                                 status.write("📝 Gemini Experimental (High Reasoning Preview) で資料を読み込んでいます...")
-                                 try:
-                                     all_files = st.session_state.ai_interviewer.uploaded_file_refs
-                                     extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
-                                     
-                                     if extracted_data:
-                                         status.write("✅ 構造化データを検出しました。計画書に反映します...")
-                                         
-                                         # Merge Logic
-                                         try:
-                                             # Convert to Schema if not already (assuming dict return)
-                                             from src.api.schemas import ApplicationRoot
-                                             
-                                             # Initialize plan if None
-                                             if not st.session_state.get("current_plan"):
-                                                  st.session_state.current_plan = ApplicationRoot() # Empty Init
-                                             
-                                             # Update fields (Recursive merge or Pydantic copy?)
-                                             # Ideally we use a merge utility, but for now we re-validate the merged dict.
-                                             current_dict = st.session_state.current_plan.model_dump()
-                                             
-                                             # Simple recursive merge helper
-                                             def deep_merge(base, update):
-                                                 for k, v in update.items():
-                                                     if isinstance(v, dict) and k in base and isinstance(base[k], dict):
-                                                         deep_merge(base[k], v)
-                                                     elif v is not None: # Only overwrite if not None
-                                                         base[k] = v
-                                                 return base
-                                             
-                                             merged_dict = deep_merge(current_dict, extracted_data)
-                                             st.session_state.current_plan = ApplicationRoot.model_validate(merged_dict)
-                                             
-                                             status.write("💡 読み込んだ情報を計画書に統合しました。")
-                                             
-                                             # Add Context to History
-                                             context_msg = f"【システム通知: 自動抽出完了】\n資料から以下の情報を抽出し、計画書に反映しました。\n{json.dumps(extracted_data, ensure_ascii=False, indent=2)}"
-                                             st.session_state.ai_interviewer.history.append({
-                                                "role": "model", 
-                                                "content": context_msg,
-                                                "persona": "AI Concierge",
-                                                "target_persona": "General"
-                                             })
-                                             
-                                         except Exception as merge_e:
-                                             status.error(f"Merge Error: {merge_e}")
-
-                                     else:
-                                         status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
-                                 except Exception as ex_e:
-                                     status.error(f"Extraction Error: {ex_e}")
-                        
-                                     status.error(f"Extraction Error: {ex_e}")
-                        
-                        time.sleep(5)
-                        # Inline Auto-Save (Fix NameError)
-                        if "session_manager" in st.session_state:
-                             p_data = st.session_state.current_plan.model_dump() if st.session_state.get("current_plan") else None
-                             st.session_state.session_manager.save_session(
-                                 history=st.session_state.ai_interviewer.history,
-                                 current_plan_dict=p_data,
-                                 session_id="mobile_autosave"
-                             )
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"読み込みエラー: {e}")
+        if uploaded_refs and st.button("🚀 資料を読み込む (Process Files)"):
+             with st.spinner("資料を解析中..."):
+                try:
+                    count = st.session_state.ai_interviewer.process_files(uploaded_refs, target_persona=persona)
+                    st.success(f"{count}件の資料を読み込みました！")
+                    
+                    # --- Agentic Extraction Trigger (File Upload) ---
+                    # 資料をアップロードした直後に詳細抽出をかける
+                    if count > 0:
+                        with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
+                             status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
+                             try:
+                                 # 最新のアップロードファイル参照を取得して渡す
+                                 # process_filesで追加された self.uploaded_file_refs を使うが、
+                                 # extract_structured_data は引数で渡す仕様にしたので、
+                                 # ここでは直近追加されたファイルだけ渡すか、全量渡すか。全量が安全。
+                                 all_files = st.session_state.ai_interviewer.uploaded_file_refs
+                                 
+                                 extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
+                                 
+                                 if extracted_data:
+                                     status.write("✅ 構造化データを検出しました。")
+                                     # Simplified Merge - In future use robust merge
+                                     # For now, relying on Chat Context + Dashboard Analysis on demand
+                                     status.write("💡 抽出結果は会話コンテキストに保持されました。")
+                                 else:
+                                     status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
+                             except Exception as ex_e:
+                                 status.error(f"Extraction Error: {ex_e}")
+                    
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"読み込みエラー: {e}")
 
     # 3. Chat Interface
     st.divider()
@@ -911,6 +506,20 @@ if mode == "Chat Mode (Interview)":
             "まずは上の「資料アップロード」から資料を読み込ませるか、"
             "下の入力欄から会話を始めてください。"
         )
+    
+    # Helper to sanitize content (Shared between history and stream)
+    def sanitize_content(text: str) -> str:
+        if not text: return ""
+        import re
+        # 1. Remove <suggestions> tags (Robust regex)
+        text = re.sub(r'<\s*suggestions\s*>.*?<\s*/\s*suggestions\s*>', '', text, flags=re.DOTALL)
+        # 2. Remove HTML comments (Schema definitions)
+        text = re.sub(r'<!--.*?-->', '', text, flags=re.DOTALL)
+        # 3. Remove raw JSON blocks that look like extraction data
+        text = re.sub(r'\{[^{}]*("parameter"|"company_name"|"business_overview")[^{}]*\}', '', text, flags=re.DOTALL)
+        # 4. Remove data_for_application xml block
+        text = re.sub(r'<\s*data_for_application\s*>.*?<\s*/\s*data_for_application\s*>', '', text, flags=re.DOTALL)
+        return text.strip()
     
     # Helper to render a single message
     def render_message(msg, current_persona):
@@ -938,30 +547,8 @@ if mode == "Chat Mode (Interview)":
                     st.caption(f"{msg_persona}")
                 
                 # Sanitize content
-                # Sanitize content
-                import re
-                
-                # Check for <data> block (Final Output)
-                data_match = re.search(r'<data>(.*?)</data>', msg["content"], flags=re.DOTALL)
-                
-                if data_match:
-                    # Hide the raw data from display
-                    display_content = re.sub(r'<data>.*?</data>', '', msg["content"], flags=re.DOTALL).strip()
-                    st.markdown(display_content)
-                    
-                    # Show "Check Progress" button
-                    st.button(
-                        "📊 ヒアリング完了: 進捗を確認する (Check Progress)", 
-                        key=f"btn_complete_{len(msg['content'])}", 
-                        type="primary",
-                        on_click=auto_complete_interview,
-                        args=(data_match.group(1).strip(),)
-                    )
-                else:
-                    # Standard display (Hide suggestions and updates)
-                    display_content = re.sub(r'<suggestions>.*?</suggestions>', '', msg["content"], flags=re.DOTALL)
-                    display_content = re.sub(r'<update>.*?</update>', '', display_content, flags=re.DOTALL).strip()
-                    st.markdown(display_content)
+                display_content = sanitize_content(msg["content"])
+                st.markdown(display_content)
 
                 # Capture suggestions (only from model)
                 if role == "model":
@@ -977,18 +564,30 @@ if mode == "Chat Mode (Interview)":
         del st.session_state["_temp_suggestions"]
 
     # --- Auto-Scroll Logic ---
-    # [DISABLED] User requested to prevent auto-scrolling to verify AI response content comfortably.
-    # The previous JS injection has been removed.
+    # Check if a new message has been added
+    current_len = len(st.session_state.ai_interviewer.history)
+    last_len = st.session_state.get("last_history_len", 0)
+
+    if current_len > last_len:
+        # Inject JavaScript to scroll to the top of the last message
+        js = """
+        <script>
+            var elements = window.parent.document.querySelectorAll('.stChatMessage');
+            if (elements.length > 0) {
+                var last = elements[elements.length - 1];
+                last.scrollIntoView({behavior: "smooth", block: "start"});
+            }
+        </script>
+        """
+        components.html(js, height=0)
+        st.session_state["last_history_len"] = current_len
     
     # Ensure baseline is set if it's the first run or reset
-    current_len = len(st.session_state.ai_interviewer.history)
     if "last_history_len" not in st.session_state:
         st.session_state["last_history_len"] = current_len
 
     history = st.session_state.ai_interviewer.history
     loaded_count = st.session_state.get("loaded_msg_count", 0)
-
-
 
     # 1. Past History (Collapsible)
     if loaded_count > 0:
@@ -997,13 +596,9 @@ if mode == "Chat Mode (Interview)":
                 if i < len(history):
                      render_message(history[i], persona)
 
-    # 2. Main Chat Area Container (To ensure new messages appear above the dashboard)
-    main_chat_container = st.container()
-    
-    with main_chat_container:
-        # New Session History
-        for i in range(loaded_count, len(history)):
-            render_message(history[i], persona)
+    # 2. New Session History
+    for i in range(loaded_count, len(history)):
+        render_message(history[i], persona)
 
     # --- Rendering Contextual Support (Hints & Examples) ---
     # Retrieve suggestions from LAST message if it was from model
@@ -1016,167 +611,48 @@ if mode == "Chat Mode (Interview)":
         if match:
             try:
                 current_suggestions = json.loads(match.group(1))
-                # Persist valid suggestions
-                st.session_state.last_valid_suggestions = current_suggestions
             except:
                 pass
-    
 
-    # --- Advice Placeholder (Hints & Examples) ---
-    advice_placeholder = st.empty()
+    suggested_prompt = None
 
-    def render_advice_in_placeholder(placeholder, current_suggestions):
-        """
-        Renders hints and examples in the given placeholder.
-        Returns the clicked example text if any (for future interactivity).
-        """
-        with placeholder.container():
-            # Extract hints/examples
-            hints = current_suggestions.get("hints")
-            example = current_suggestions.get("example")
-            
-            if hints or example:
-                # Header
+    if current_suggestions:
+        hints = current_suggestions.get("hints")
+        example = current_suggestions.get("example")
+        
+        if hints or example:
+            with st.container(border=True): # Distinct box for AI assistance
                 st.caption("💡 AIからのアドバイス")
-                
-                # Hints (Blue)
                 if hints:
-                    st.info(f"**ヒント**: {hints}", icon="ℹ️")
-                
-                # Example (Green)
+                    st.info(f"**ヒント**: {hints}")
                 if example:
-                    st.success(f"**回答例**: {example}", icon="✅")
-                    
-                    # Example Usage Button (📋)
-                    if st.button("📋 回答例の通り回答する", key=f"btn_use_ex_{len(st.session_state.ai_interviewer.history)}", type="secondary"):
-                        return example
-        return None
+                    st.success(f"**回答例**: {example}")
+                    # Improvement: Button to use the example as answer
+                    # Use stable key based on content hash AND history length to ensure uniqueness per turn
+                    import hashlib
+                    # Include length of history to differentiate "Yes" at turn 1 vs "Yes" at turn 5
+                    unique_str = f"{example}_{len(st.session_state.ai_interviewer.history)}"
+                    stable_key = hashlib.md5(unique_str.encode()).hexdigest()
+                    if st.button("📋 回答例の通り回答する", key=f"use_example_{stable_key}"):
+                        st.session_state.auto_trigger_message = example
+                        st.rerun()
 
-    # --- Helper Function for Suggestions Logic (Unified) ---
-    def calculate_context_suggestions(last_msg, current_suggestions, persona):
-        """
-        Calculates the best set of suggestions (options, hints, examples) based on:
-        1. AI-generated <suggestions> (Highest Priority)
-        2. Contextual Keywords in the message (Medium Priority)
-        3. Persisted 'Last Valid' suggestions (Fallback)
-        4. Static Defaults (Lowest Priority)
-        """
-        suggestions = {"options": [], "hints": None, "example": None}
-        
-        # 1. AI Options
-        if current_suggestions:
-            suggestions = current_suggestions.copy()
-            if not suggestions.get("options"): suggestions["options"] = []
-        
-        # 2. Context Options (Dynamic Fallback)
-        # If AI missing options OR hints OR example, fill gaps with context
-        last_content = last_msg["content"] if last_msg else ""
-        
-        context_data = None
-        # Expanded Context Keywords
-        if "役職" in last_content:
-            context_data = {
-                "options": ["代表取締役", "店長", "工場長", "社員"],
-                "hints": "登記上の役職または社内での役割をお答えください。",
-                "example": "代表取締役社長"
-            }
-        elif "名前" in last_content:
-            context_data = {
-                "options": ["確認して入力"],
-                "hints": "姓と名の間にスペースを入れてください。",
-                "example": "山田　太郎"
-             }
-        elif "避難" in last_content:
-            context_data = {
-                "options": ["指定避難所へ徒歩で", "高台へ車で", "社屋の2階へ垂直避難", "自宅待機"],
-                "hints": "ハザードマップを確認し、浸水想定区域などのリスクに応じた避難先を選定してください。",
-                "example": "従業員全員で近くの高台にある公園へ徒歩で避難します。"
-            }
-        elif "安否" in last_content:
-            context_data = {
-                "options": ["安否確認システム", "LINEグループ", "電話連絡", "一斉メール"],
-                "hints": "災害時は電話が繋がりにくくなるため、データ通信（SNS等）の活用が推奨されます。",
-                "example": "会社支給のスマホでLINEグループを作成し、安否状況を一斉送信します。"
-            }
-        elif "被害" in last_content and ("想定" in last_content or "影響" in last_content):
-            context_data = {
-                "options": ["浸水被害", "建物の倒壊", "停電・断水", "物流の停止"],
-                "hints": "ハザードマップ（J-SHIS）を確認し、想定される震度や浸水深から具体的な被害をイメージしてください。",
-                "example": "震度6強の揺れにより、商品の落下や陳列棚の転倒が発生し、営業不能になると想定します。"
-            }
-        elif "型式" in last_content or "型番" in last_content:
-            context_data = {
-                "options": ["型番は不明", "担当者に確認中", "特にない"],
-                "hints": "設備銘板や取扱説明書をご確認ください。不明な場合は「不明」として先に進めます。",
-                "example": "型式: XYZ-2023-A"
-            }
-        elif "工事" in last_content or "工法" in last_content:
-            context_data = {
-                 "options": ["専門業者に依頼", "自社で対応", "未定"],
-                 "hints": "実施予定のリフォームや補強工事の具体的な内容を記載してください。",
-                 "example": "アンカーボルトによる固定工事"
-            }
-        elif "自然災害" in last_content:
-             context_data = {
-                 "options": ["地震", "水害", "風災", "雪害"],
-                 "hints": "事業所の所在地における最も重大なリスクを選択してください。",
-                 "example": "南海トラフ地震による震度6強の揺れと津波"
-             }
-        elif "事業の強み" in last_content:
-             context_data = {
-                 "options": ["地域密着", "高い技術力", "独自のネットワーク", "商品力"],
-                 "hints": "競合他社にはない、御社独自の強みやこだわりを教えてください。",
-                 "example": "創業50年の信頼と、地元農家との直接契約による新鮮な食材の調達力。"
-             }
-        elif "設備" in last_content or "資産" in last_content:
-             context_data = {
-                 "options": ["製造機械", "車両", "建物", "サーバー"],
-                 "hints": "事業継続に不可欠な機械、設備、システムなどを挙げてください。",
-                 "example": "商品の製造ラインにあるX号プレス機"
-             }
-
-        # Merge Context if AI is lacking
-        if context_data:
-            if not suggestions.get("options"):
-                suggestions["options"] = context_data["options"]
-            if not suggestions.get("hints"):
-                suggestions["hints"] = context_data["hints"]
-            if not suggestions.get("example"):
-                suggestions["example"] = context_data["example"]
-
-        # 3. Persistence & 4. Static Default (Only for Options fallback mostly)
-        if not suggestions.get("options"):
-             if "last_valid_suggestions" in st.session_state and st.session_state.last_valid_suggestions:
-                 suggestions["options"] = st.session_state.last_valid_suggestions.get("options", [])
-        
-        if not suggestions.get("options"):
-             fallback_map = {
-                "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
-                "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
-                "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
-            }
-             suggestions["options"] = fallback_map.get(persona, fallback_map["経営者"])
-
-        return suggestions
-
-    # Calculate Options (Initial Render)
-    # Note: render_advice_in_placeholder expects dict, render_options expects list
-    final_suggestions = calculate_context_suggestions(last_msg, current_suggestions, persona)
+    # --- Next Action Suggestions (Quick Replies) ---
+    # st.caption("👇 クイック返信 (クリックで送信)") -> Removed duplicate
     
-    # Update Advice (using synthesized hints/example if AI missed them)
-    clicked_example = render_advice_in_placeholder(advice_placeholder, final_suggestions)
-    if clicked_example:
-        st.session_state.auto_trigger_message = clicked_example
-        st.rerun()
-        
-    options = final_suggestions["options"]
+    # Prioritize dynamic options
+    options = current_suggestions.get("options", [])
     
-    # Persist
-    if options:
-        current_suggestions = final_suggestions # Persist full dict
-        st.session_state.last_valid_suggestions = current_suggestions
+    # Fallback if no dynamic options
+    if not options:
+        fallback_map = {
+            "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
+            "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
+            "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
+        }
+        options = fallback_map.get(persona, [])
 
-    # --- Options Placeholder (After Advice) ---
+    # --- Options Placeholder (UI Improvement from 12/14) ---
     options_placeholder = st.empty()
 
     def render_options_in_placeholder(placeholder, current_options):
@@ -1189,17 +665,20 @@ if mode == "Chat Mode (Interview)":
                  for idx, opt in enumerate(current_options):
                      with cols[idx]:
                          # Use strict key
-                         # Use Markdown coloring for emphasis (Blue Bold) instead of primary button color
+                         # Use Markdown coloring for emphasis (Blue Bold)
                          if st.button(f":blue[**{opt}**]", key=f"opt_{idx}_{len(st.session_state.ai_interviewer.history)}", use_container_width=True):
-                             # Append intent to clarifying the user's wish to switch topics
-                             st.session_state.auto_trigger_message = f"{opt}について入力したいです"
+                             st.session_state.auto_trigger_message = opt
                              st.rerun()
-
-    # Render Options
+    
+    # Render Options using new UI
     render_options_in_placeholder(options_placeholder, options)
 
-    # --- Mini Progress Dashboard (Placeholder) - MOVED TO BOTTOM ---
+    # User Input
+    # prompt = st.chat_input(f"{persona}として回答を入力...") -> 12/14 uses specific key and logic below
+
+    # Define Mini Dashboard Renderer (UI Improvement from 12/14)
     dashboard_placeholder = st.empty()
+    main_chat_container = st.container()
 
     def render_mini_dashboard_in_placeholder(placeholder):
         # Ensure it renders something even if plan is missing (for debugging/fallback)
@@ -1245,10 +724,6 @@ if mode == "Chat Mode (Interview)":
     render_mini_dashboard_in_placeholder(dashboard_placeholder)
 
     # Input Area
-
-
-
-    # Input Area
     prompt = st.chat_input(f"{persona}として回答を入力...", key="chat_input_main")
 
     if st.session_state.get("auto_trigger_message"):
@@ -1275,95 +750,56 @@ if mode == "Chat Mode (Interview)":
                       extracted_data = st.session_state.ai_interviewer.extract_structured_data(final_prompt)
                       if extracted_data:
                           status.write("✅ データを検出しました。計画書に反映します。")
-                          pass # Logic handled inside AIInterviewer parsing for now
+                          # Merge Logic (Simplified: Update session state plan)
+                          # Merge Logic: Use Helper
+                          from src.api.schemas import ApplicationRoot
+                          from src.core.merge_helper import deep_merge_plan
+                          
+                          # Load existing or create new
+                          current_obj = st.session_state.get("current_plan")
+                          if not current_obj:
+                              current_obj = ApplicationRoot()
+                          
+                          # Perform Deep Merge
+                          updated_plan = deep_merge_plan(current_obj, extracted_data)
+                          st.session_state.current_plan = updated_plan
+                          st.toast("✅ 抽出された情報を計画書に反映しました", icon="📝")
+                          
+                          # Debug Log (Optional, visible in console)
+                          print(f"[SmartExtraction] Merged: {extracted_data.keys()}")
+                          
                   except Exception as e:
                       print(f"Extraction failed: {e}")
                       status.update(label="⚠️ Extraction skipped", state="error")
-        
-        # Determine who responds: Model or just UI update (Wait, logic flow check)
-        # The structure here is: if we have a prompt (user input or suggestion), we send it.
-        
-        with main_chat_container:
-            # Inject Anchor for Scroll (Target for Auto-Scroll)
-            st.markdown('<div id="latest-response"></div>', unsafe_allow_html=True)
-            
-            with st.chat_message("model", avatar="🤖"):
-                with st.spinner("AI is thinking..."):
-                    response = st.session_state.ai_interviewer.send_message(
+
+        with st.chat_message("model", avatar="🤖"):
+            with st.spinner("AI is thinking..."):
+                response = st.session_state.ai_interviewer.send_message(
                     final_prompt, 
                     persona=persona,
                     user_data=user_data
                 )
-                    
-                    # Scroll to Anchor using JS (Wait for render > 500ms)
-                    import streamlit.components.v1 as components
-                    js_code = """
-                        <script>
-                        setTimeout(function() {
-                            const element = window.parent.document.getElementById('latest-response');
-                            if (element) {
-                                element.scrollIntoView({behavior: 'smooth', block: 'start'});
-                            }
-                        }, 500);
-                        </script>
-                    """
-                    components.html(js_code, height=0)
-                # Sanitize content for display (Hide <suggestions> block implementation)
-                import re
+                st.markdown(sanitize_content(response))
                 
-                # Extract and Apply <update> Incremental Data
-                update_match = re.search(r'<update>(.*?)</update>', response, flags=re.DOTALL)
-                if update_match:
-                    try:
-                        update_json_str = update_match.group(1).strip()
-                        update_data = json.loads(update_json_str)
-                        if apply_incremental_update(update_data):
-                            print("Applied Incremental Update")
-                            st.toast("⚡ データを更新しました", icon="📝")
-                    except Exception as e:
-                        # Suppress validation errors from UI to prevent user confusion
-                        # Just log to console
-                        print(f"Update Parse/Validation Failed (Ignored): {e}")
-                        # Optionally show a simpler warning toast if critical? No, ignore.
+                # --- Auto-Save Session ---
+                current_plan_dict = None
+                if "current_plan" in st.session_state and st.session_state.current_plan:
+                    current_plan_dict = st.session_state.current_plan.model_dump(mode='json')
                 
-                 # Force Dashboard Update (In-place) after every response (to reflect new state/progress)
-                render_mini_dashboard_in_placeholder(dashboard_placeholder)
+                st.session_state.session_manager.save_session(
+                    history=st.session_state.ai_interviewer.history,
+                    current_plan_dict=current_plan_dict
+                )
                 
-                # Strip tags for display
-                display_response = re.sub(r'<suggestions>.*?</suggestions>', '', response, flags=re.DOTALL)
-                display_response = re.sub(r'<update>.*?</update>', '', display_response, flags=re.DOTALL).strip()
-                
-                st.markdown(display_response)
-
-                # --- Auto-Save Hook ---
-                perform_auto_save()
-                
-                # Update Options & Advice if suggestions found
-                # Typically options update requires rerun because button keys must be unique or handled.
-                # But we used length-based key. History length increased by 2 (User+AI).
-                # So keys will be unique.
-                # We DO NOT RERUN to prevent scroll.
-                match_sugg = re.search(r'<suggestions>(.*?)</suggestions>', response, flags=re.DOTALL)
-                if match_sugg:
-                    try:
-                        new_sugg = json.loads(match_sugg.group(1))
-                        
-                        # Update Advice & Options ONLY if history length changed (to avoid duplicate key error with Initial Render)
-                        # The keys for buttons depend on history length. 
-                        # If len hasn't changed (e.g. history update issues), rendering again crashes Streamlit.
-                        new_hist_len = len(st.session_state.ai_interviewer.history)
-                        if new_hist_len > current_len:
-                            new_suggestions = calculate_context_suggestions({"content": response, "role": "model"}, new_sugg, persona)
-                            render_advice_in_placeholder(advice_placeholder, new_suggestions)
-                            render_options_in_placeholder(options_placeholder, new_suggestions["options"])
-                        else:
-                            print(f"Skipping placeholder update: History length {new_hist_len} == {current_len}")
-                    except: pass
+                # Feedback Toast
+                st.toast("📝 会話ログを更新しました (Conversation Log Updated)", icon="✅")
+                time.sleep(1) # Wait for toast to be seen briefly
+                st.rerun()
 elif mode == "Dashboard Mode (Progress)":
     # Navigation Header for Dashboard
     col_dash_head1, col_dash_head2 = st.columns([3, 1])
     with col_dash_head1:
-        st.title("📊 進捗ダッシュボード")
+        st.title("📊 Progress Dashboard")
     with col_dash_head2:
         # 3-Way Back Navigation
         st.button("⬅️ 経営者インタビュー", on_click=change_mode, args=("Chat Mode (Interview)", "経営者"), use_container_width=True)
@@ -1374,7 +810,59 @@ elif mode == "Dashboard Mode (Progress)":
     
     from src.api.schemas import ApplicationRoot
     
-    # Auto-Analysis / Display Logic (No Manual Button)
+    # Auto-Analyze Logic (User Request: Remove button, auto-run)
+    # Check if we need to analyze (e.g. if history changed since last time)
+    history_len = len(st.session_state.ai_interviewer.history)
+    last_analyzed = st.session_state.get("_last_dashboard_analysis_len", 0)
+    
+    # Run analysis if there are new messages OR if it's the first load (and we have history)
+    # Also ensuring we don't run it if history is empty (nothing to analyze)
+    should_analyze = history_len > 0 and (history_len > last_analyzed)
+
+    if should_analyze:
+        with st.status("🚀 Auto-Analyzing Chat History...", expanded=True) as status:
+            try:
+                status.write("⏳ Calling Gemini API for Deep Analysis...")
+                extracted_data = st.session_state.ai_interviewer.analyze_history()
+                
+                status.write(f"✅ Data Type: {type(extracted_data)}")
+                
+                if extracted_data:
+                    status.write("⏳ Merging data into Plan...")
+                    from src.core.merge_helper import deep_merge_plan
+                    
+                    # Safe Merge (Prevent Data Loss)
+                    if "current_plan" not in st.session_state:
+                         from src.api.schemas import ApplicationRoot
+                         st.session_state.current_plan = ApplicationRoot()
+                    
+                    # Perform Deep Merge
+                    st.session_state.current_plan = deep_merge_plan(st.session_state.current_plan, extracted_data)
+                    
+                    # Update timestamp/flag
+                    st.session_state["_last_dashboard_analysis_len"] = history_len
+                    
+                    status.update(label="🎉 Analysis Complete & Plan Updated!", state="complete", expanded=False)
+                    time.sleep(1) # Brief pause to show success
+                    st.rerun()
+
+                else:
+                    status.update(label="⚠️ No data extracted.", state="complete", expanded=False)
+            
+            except Exception as e:
+                status.update(label=f"❌ Analysis Error: {e}", state="error")
+                st.error(f"Details: {e}")
+    else:
+        if history_len > 0:
+            st.caption(f"✅ Analysis up to date (History: {history_len} msgs)")
+    
+    
+    # 解析結果の表示 (Updated for ApplicationRoot key mapping)
+    # Ensure plan exists so we can edit it even if analysis hasn't run
+    if "current_plan" not in st.session_state:
+        from src.api.schemas import ApplicationRoot
+        st.session_state.current_plan = ApplicationRoot()
+        
     if "current_plan" in st.session_state:
         plan: ApplicationRoot = st.session_state.current_plan
         from src.core.completion_checker import CompletionChecker
@@ -1384,14 +872,14 @@ elif mode == "Dashboard Mode (Progress)":
         
         # --- 1. Status Banner & Header ---
         st.divider()
-        st.subheader("📊 事業計画書 完成度診断")
+        st.subheader("📊 Plan Progress Dashboard")
         
         col_m1, col_m2 = st.columns([1, 4])
         with col_m1:
-            st.metric(label="認定可能性スコア", value=f"{result['total_score']} / 100", help="100点で電子申請の認定要件を満たします")
+            st.metric(label="認定可能性スコア (Score)", value=f"{result['total_score']} / 100", help="100点で電子申請の認定要件を満たします")
             
         with col_m2:
-            st.caption("認定に向けた必須項目の入力状況")
+            st.caption("認定に向けた必須項目の入力状況 (Mandatory Requirements)")
             st.progress(result['mandatory_progress'])
             st.caption(f"必須項目の達成率: {int(result['mandatory_progress']*100)}% 完了")
             
@@ -1415,28 +903,30 @@ elif mode == "Dashboard Mode (Progress)":
                 warning_items = [m for m in result['missing_mandatory'] if m.get('severity') == 'warning']
                 
                 if critical_items:
-                    st.markdown("### 🔴 **未入力 (必須)**")
+                    st.markdown("### 🔴 **Critical (未入力)**")
                     for item in critical_items:
                         sec_label = section_map.get(item['section'], item['section'])
                         st.error(f"**{sec_label}**: {item['msg']}", icon="🔴")
                 
                 if warning_items:
-                    st.markdown("### 🟡 **入力不足 (要確認)**")
+                    st.markdown("### 🟡 **Warning (入力不足)**")
                     for item in warning_items:
                         sec_label = section_map.get(item['section'], item['section'])
                         st.warning(f"**{sec_label}**: {item['msg']}", icon="🟡")
                 
                 with st.columns(2)[0]:
-                    # Prepare args for callback
-                    missing_msgs = [m['msg'] for m in result['missing_mandatory']]
-                    
-                    st.button(
-                        "インタビュアーに不足項目を聞いてもらう", 
-                        type="primary", 
-                        key="btn_ask_missing",
-                        on_click=on_click_ask_missing,
-                        args=(missing_msgs,)
-                    )
+                    if st.button("インタビュアーに不足項目を聞いてもらう", type="primary", key="btn_ask_missing"):
+                        missing_msgs = [m['msg'] for m in result['missing_mandatory']]
+                        st.session_state.ai_interviewer.set_focus_fields(missing_msgs)
+                        st.session_state.app_nav_selection = st.session_state.get("last_chat_nav", "経営者インタビュー")
+                        # Set flag to auto-start conversation on redirect
+                        st.session_state.auto_trigger_message = (
+                            "現在、ダッシュボードで確認した不足項目（focus_fields）について、リストの上から順に一つずつヒアリングしてください。"
+                            "基本情報（設立日や法人番号など）が未入力の場合は、最優先で確認してください。"
+                            "なお、ユーザーが答えられない場合は「後で確認する」という選択肢も必ず提示し、柔軟にスキップできるようにしてください。"
+                        )
+                        st.session_state.auto_trigger_persona = st.session_state.get("last_chat_nav", "経営者インタビュー").replace("インタビュー", "") # Rough parse
+                        st.rerun()
 
         elif result['recommended_progress'] < 1.0:
             st.success("✅ 申請要件はクリアしています！ (さらに計画を強化しましょう)")
@@ -1481,6 +971,49 @@ elif mode == "Dashboard Mode (Progress)":
                 use_container_width=True
             )
 
+        # --- Audit Section (Explicit Button) ---
+        with col_exp1:
+            st.subheader("🔍 認定品質監査 (AI審査官)")
+            st.caption("⚠️ 本スコアは参考値であり、認定を保証するものではありません。最終的な認定可否は審査機関の判断によります。")
+            
+            if st.button("🚀 監査を実行する", key="btn_run_audit", type="primary", use_container_width=True):
+                with st.spinner("AI審査官が申請書を評価中..."):
+                    try:
+                        from src.core.audit_agent import AuditAgent
+                        
+                        agent = AuditAgent()
+                        app_text = agent.format_application_for_audit(plan)
+                        audit_result = agent.audit(app_text)
+                        
+                        st.session_state["_last_audit_result"] = audit_result
+                        
+                    except Exception as e:
+                        st.error(f"監査エラー: {e}")
+            
+            # Display cached audit result
+            if "_last_audit_result" in st.session_state:
+                audit_result = st.session_state["_last_audit_result"]
+                
+                # Score display
+                score_color = "red" if audit_result.total_score < 50 else "orange" if audit_result.total_score < 70 else "green"
+                st.markdown(f"### 監査スコア: :{score_color}[**{audit_result.total_score}点 / 100点**]")
+                
+                # Section breakdown
+                if audit_result.sections:
+                    with st.expander("📊 セクション別評価", expanded=True):
+                        for sec in audit_result.sections:
+                            col_s1, col_s2 = st.columns([3, 1])
+                            with col_s1:
+                                st.write(f"**{sec.name}**: {sec.reason}")
+                            with col_s2:
+                                st.metric(label="", value=f"{sec.score}点")
+                
+                # Improvements
+                if audit_result.improvements:
+                    with st.expander("💡 改善提案", expanded=True):
+                        for i, imp in enumerate(audit_result.improvements, 1):
+                            st.warning(f"{i}. {imp}")
+
         # --- 3. Section Breakdown (Application Form Style: 6 Tabs) ---
         st.divider()
         
@@ -1499,7 +1032,7 @@ elif mode == "Dashboard Mode (Progress)":
         
         if "BasicInfo" in missing_sections: tabs_labels["BasicInfo"] += " ⚠️"
         if "Goals" in missing_sections: tabs_labels["Goals"] += " ⚠️"
-        if "Goals" in missing_sections: tabs_labels["Disaster"] += " ⚠️"  # Disaster is part of Goals
+        if "Disaster" in missing_sections: tabs_labels["Disaster"] += " ⚠️"  # Changed to specific Disaster section check
         if "ResponseProcedures" in missing_sections: tabs_labels["Response"] += " ⚠️"
         if "Measures" in missing_sections: tabs_labels["Measures"] += " ⚠️"
         if "FinancialPlan" in missing_sections or "PDCA" in missing_sections: tabs_labels["Finance"] += " ⚠️"
@@ -1513,28 +1046,87 @@ elif mode == "Dashboard Mode (Progress)":
             tabs_labels["Finance"]
         ])
         
-        # TAB 1: Basic Info
+        # TAB 1: Basic Info (Editable)
         with tab1:
-            st.caption("📋 様式第1 基本情報")
+            st.caption("📋 様式第1 基本情報 (編集可能)")
             if plan.basic_info:
                 bi = plan.basic_info
-                full_address = f"{bi.address_pref or ''}{bi.address_city or ''}{bi.address_street or ''}{bi.address_building or ''}"
                 
-                display_data = {
-                    "会社名": bi.corporate_name,
-                    "代表者": f"{bi.representative_title or ''} {bi.representative_name or ''}".strip(),
-                    "資本金": f"{bi.capital:,}円" if bi.capital else "-",
-                    "従業員数": f"{bi.employees}名" if bi.employees else "-",
-                    "郵便番号": bi.address_zip,
-                    "住所": full_address,
-                    "業種": f"{bi.industry_major or ''} / {bi.industry_middle or ''}".strip(" /"),
-                    "法人番号": bi.corporate_number or "-"
-                }
-                st.table([{"項目": k, "内容": v} for k, v in display_data.items() if v and v != "-"])
+                # --- Auto-Address Logic ---
+                def on_zip_change():
+                    # Get value directly from session state key
+                    z_val = st.session_state.get("bi_input_zip", "")
+                    addr = fetch_address_from_zip(z_val)
+                    if addr:
+                        plan.basic_info.address_zip = z_val # Update model
+                        plan.basic_info.address_pref = addr["pref"]
+                        plan.basic_info.address_city = addr["city"]
+                        plan.basic_info.address_street = addr["town"]
+                        
+                        # Explicitly update widget state to reflect changes
+                        st.session_state["bi_input_pref"] = addr["pref"]
+                        st.session_state["bi_input_city"] = addr["city"]
+                        st.session_state["bi_input_street"] = addr["town"]
+                        
+                        st.toast(f"住所を自動入力しました: {addr['pref']}{addr['city']}{addr['town']}", icon="✅")
+                    else:
+                        plan.basic_info.address_zip = z_val # Update model even if not found
+                        
+                # --------------------------
+
+                with st.container(border=True):
+                    st.caption("企業概要")
+                    c1, c2 = st.columns(2)
+                    bi.corporate_name = c1.text_input("企業名", value=bi.corporate_name or "", key="bi_input_corp")
+                    bi.corporate_number = c2.text_input("法人番号", value=bi.corporate_number or "", key="bi_input_num")
+                    
+                    c3, c4 = st.columns(2)
+                    bi.representative_title = c3.text_input("役職", value=bi.representative_title or "", placeholder="代表取締役", key="bi_input_pos")
+                    bi.representative_name = c4.text_input("代表者名", value=bi.representative_name or "", key="bi_input_rep")
+
+                    st.divider()
+                    st.caption("所在地 (郵便番号から自動入力)")
+                    
+                    z_col, p_col = st.columns([1, 2])
+                    # Zip Code Input with Callback
+                    z_col.text_input("郵便番号 (7桁)", value=bi.address_zip or "", key="bi_input_zip", on_change=on_zip_change, help="ハイフンあり・なし両対応。入力後にEnterで住所を自動補完します。")
+                    
+                    bi.address_pref = p_col.text_input("都道府県", value=bi.address_pref or "", key="bi_input_pref")
+                    
+                    c5, c6 = st.columns(2)
+                    bi.address_city = c5.text_input("市区町村", value=bi.address_city or "", key="bi_input_city")
+                    bi.address_street = c6.text_input("町域・番地", value=bi.address_street or "", key="bi_input_street")
+                    
+                    bi.address_building = st.text_input("ビル名・階数", value=bi.address_building or "", key="bi_input_bld")
+                
+                with st.expander("その他の詳細情報 (資本金・従業員数など)"):
+                    c7, c8 = st.columns(2)
+                    # For integers, use number_input or text_input with conversion
+                    cap_input = c7.text_input("資本金 (円)", value=str(bi.capital) if bi.capital else "", key="bi_input_cap")
+                    if cap_input.isdigit(): bi.capital = int(cap_input)
+                    
+                    emp_input = c8.text_input("従業員数 (名)", value=str(bi.employees) if bi.employees else "", key="bi_input_emp")
+                    if emp_input.isdigit(): bi.employees = int(emp_input)
+                    
+                    c9, c10 = st.columns(2)
+                    bi.establishment_date = c9.text_input("設立年月日", value=bi.establishment_date or "", placeholder="YYYY-MM-DD", key="bi_input_est")
+                    
+                    ind_major = c10.text_input("大分類 (業種)", value=bi.industry_major or "", key="bi_input_ind_maj")
+                    bi.industry_major = ind_major
+
+                with st.expander("📌 認定レベルの記載例 (基本情報)"):
+                    st.success("**法人番号の例**:\n13桁の法人番号（国税庁指定）を正確に記載します。法人番号公表サイトで確認できます。")
+                    st.info("**業種の例**:\n日本標準産業分類に基づく大分類コードを記載（例：08 設備工事業、56 宿泊業）")
+                    st.warning("**ポイント**: 資本金・従業員数は正確に記載。決算書類と一致させること。")
+
             else:
                 with st.container(border=True):
-                    st.warning("⚠️ 基本情報が未入力です。")
+                    st.warning("⚠️ 基本情報オブジェクトが初期化されていません。")
         
+        # Helper to get missing messages for a section
+        def get_missing_msgs(section_id):
+            return [m['msg'] for m in result['missing_mandatory'] if m['section'] == section_id]
+
         # TAB 2: Overview & Goals
         with tab2:
             st.caption("📋 様式第2 事業活動の概要・取組目的")
@@ -1543,16 +1135,84 @@ elif mode == "Dashboard Mode (Progress)":
                 st.subheader("事業活動の概要")
                 if plan.goals.business_overview:
                     st.info(plan.goals.business_overview)
-                else:
-                    st.error("🚨 事業活動の概要が未入力です。")
-                    st.caption("自社の事業内容、サプライチェーン上の役割、地域経済への貢献を具体的に記述してください。")
-            
+                
+                # Show specific errors
+                msgs = get_missing_msgs("Goals")
+                # Filter for "概要" related
+                overview_errs = [m for m in msgs if "概要" in m]
+                for err in overview_errs:
+                     st.warning(f"⚠️ {err}")
+                
+                if not plan.goals.business_overview and not overview_errs:
+                     st.error("🚨 事業活動の概要が未入力です。")
+
             with st.container(border=True):
                 st.subheader("取組目的")
                 if plan.goals.business_purpose:
                     st.info(plan.goals.business_purpose)
-                else:
-                    st.warning("⚠️ 取組目的が未入力です。")
+                
+                # Filter for "目的" related
+                purpose_errs = [m for m in msgs if "目的" in m]
+                for err in purpose_errs:
+                    st.warning(f"⚠️ {err}")
+                
+                if not plan.goals.business_purpose and not purpose_errs:
+                     st.warning("⚠️ 取組目的が未入力です。")
+
+            with st.expander("📌 認定レベルの記載例 (事業概要・目的)"):
+                st.success("**事業概要の例**:\n当社は地域で唯一の〇〇製造業者であり、サプライチェーンにおいて不可欠な部品供給を担っている。")
+                st.info("**取組目的の例**:\n従業員の安全確保を最優先とし、被災時も早期に供給責任を果たすことで、取引先の操業停止を防ぐ。")
+            
+            # Auto-refinement for Business Overview (Tab 2 doesn't have a specific prompt, use general)
+            if plan.goals.business_overview and len(plan.goals.business_overview) > 10:
+                if st.button("✨ 事業概要を認定レベルに自動改善", key="btn_refine_overview", type="secondary"):
+                    with st.spinner("AIが事業概要を改善中..."):
+                        try:
+                            from src.core.auto_refinement import AutoRefinementAgent
+                            import google.generativeai as genai
+                            
+                            # Custom prompt for business overview
+                            prompt = f'''事業継続力強化計画の「事業概要」を認定レベルに改善してください。
+
+【改善ポイント】
+1. サプライチェーン上の役割を明記
+2. 地域経済における重要性を説明
+3. 取引先・顧客への影響を具体化
+
+【入力テキスト】
+{plan.goals.business_overview}
+
+【出力形式】JSON形式で出力:
+{{"refined_text": "改善後テキスト", "improvements_made": ["改善点1"], "confidence_score": 85}}
+'''
+                            agent = AutoRefinementAgent()
+                            model = agent._get_model()
+                            response = model.generate_content(prompt)
+                            import json
+                            result_data = json.loads(response.text)
+                            
+                            st.session_state["_refined_overview"] = result_data
+                            st.success(f"✅ 改善完了 (信頼度: {result_data.get('confidence_score', 50)}%)")
+                        except Exception as e:
+                            st.error(f"改善エラー: {e}")
+                
+                if "_refined_overview" in st.session_state:
+                    refined = st.session_state["_refined_overview"]
+                    with st.container(border=True):
+                        st.markdown("### 📝 改善後のテキスト")
+                        st.info(refined.get("refined_text", ""))
+                        st.caption("**改善点:**")
+                        for imp in refined.get("improvements_made", []):
+                            st.caption(f"  • {imp}")
+                        
+                        col_apply, col_cancel = st.columns(2)
+                        if col_apply.button("✅ この内容を適用", key="btn_apply_overview"):
+                            plan.goals.business_overview = refined.get("refined_text", plan.goals.business_overview)
+                            del st.session_state["_refined_overview"]
+                            st.rerun()
+                        if col_cancel.button("❌ キャンセル", key="btn_cancel_overview"):
+                            del st.session_state["_refined_overview"]
+                            st.rerun()
         
         # TAB 3: Disaster Scenario
         with tab3:
@@ -1560,15 +1220,57 @@ elif mode == "Dashboard Mode (Progress)":
             
             with st.container(border=True):
                 st.subheader("想定する自然災害等")
-                if plan.goals.disaster_scenario.disaster_assumption:
+                if plan.goals.disaster_scenario.disaster_assumption and plan.goals.disaster_scenario.disaster_assumption != "未設定":
                     st.info(plan.goals.disaster_scenario.disaster_assumption)
-                else:
-                    st.error("🚨 災害想定が未入力です。")
-                    st.caption("ハザードマップを参照し、「震度○○」「浸水深○○m」など具体的な数値を記載してください。")
+                
+                # Specific errors
+                msgs = get_missing_msgs("Disaster")
+                for err in msgs:
+                    st.error(f"🚨 {err}")
             
             # New Impact Structure Display
             st.subheader("自然災害等の発生が事業活動に与える影響")
             imp = plan.goals.disaster_scenario.impacts
+            
+            with st.expander("📌 認定レベルの記載例 (想定・影響)"):
+                st.success("**災害想定の例**:\n今後30年以内に震度6弱以上の地震が発生する確率が72.3％（J-SHIS地図参照）")
+                st.info("**事業影響の例**:\n本館建物の損壊により、宿泊客等の受入が不可能となり、全ての営業が停止することが想定される。")
+            
+            # Auto-refinement button for Disaster Assumption
+            if plan.goals.disaster_scenario.disaster_assumption and len(plan.goals.disaster_scenario.disaster_assumption) > 10:
+                if st.button("✨ 災害想定を認定レベルに自動改善", key="btn_refine_disaster", type="secondary"):
+                    with st.spinner("AIが災害想定を改善中..."):
+                        try:
+                            from src.core.auto_refinement import refine_text
+                            result = refine_text("disaster_assumption", plan.goals.disaster_scenario.disaster_assumption)
+                            if result.confidence_score > 0:
+                                st.session_state["_refined_disaster"] = result
+                                st.success(f"✅ 改善完了 (信頼度: {result.confidence_score}%)")
+                            else:
+                                st.error(result.improvements_made[0] if result.improvements_made else "改善に失敗しました")
+                        except Exception as e:
+                            st.error(f"改善エラー: {e}")
+                
+                # Show refined result if available
+                if "_refined_disaster" in st.session_state:
+                    refined = st.session_state["_refined_disaster"]
+                    with st.container(border=True):
+                        st.markdown("### 📝 改善後のテキスト")
+                        st.info(refined.refined_text)
+                        st.caption("**改善点:**")
+                        for imp in refined.improvements_made:
+                            st.caption(f"  • {imp}")
+                        
+                        col_apply, col_cancel = st.columns(2)
+                        if col_apply.button("✅ この内容を適用", key="btn_apply_disaster"):
+                            plan.goals.disaster_scenario.disaster_assumption = refined.refined_text
+                            del st.session_state["_refined_disaster"]
+                            st.rerun()
+                        if col_cancel.button("❌ キャンセル", key="btn_cancel_disaster"):
+                            del st.session_state["_refined_disaster"]
+                            st.rerun()
+
+
             impact_data = {
                 "人員": imp.impact_personnel,
                 "建物・設備": imp.impact_building,
@@ -1587,10 +1289,53 @@ elif mode == "Dashboard Mode (Progress)":
             st.caption(f"📋 様式第4 初動対応手順等: {len(plan.response_procedures)}件登録済")
             if plan.response_procedures:
                 st.table([m.model_dump() for m in plan.response_procedures])
-            else:
-                with st.container(border=True):
-                    st.error("🚨 初動対応が未登録です。")
-                    st.caption("災害発生直後に誰が何をするか（例：安否確認、避難誘導）を決めてください。")
+            
+            # Specific errors
+            msgs = get_missing_msgs("ResponseProcedures")
+            for err in msgs:
+                st.error(f"🚨 {err}")
+            
+            with st.expander("📌 認定レベルの記載例 (初動対応)"):
+                st.success("""**初動対応3項目の例**:
+1. **人命の安全確保**: 従業員の避難誘導、安否確認システムによる全員確認
+2. **非常時の緊急時体制の構築**: 代表取締役を本部長とした災害対策本部の設置
+3. **被害状況の把握・被害情報の共有**: 施設・設備の目視確認、取引先・自治体への報告""")
+                st.warning("""**事前対策の欄（preparation_content）が必須**:
+12/17改修により、各初動対応項目に「事前対策の内容」を記載することが必須になりました。
+例：「避難場所・避難経路を予め確認し、年1回避難訓練を実施する」""")
+                st.info("""**発災直後と事前対策を明確に分離**:
+- 発災直後：「揺れがおさまった後、全員で避難」
+- 事前対策：「避難場所の周知、定期訓練の実施」""")
+            
+            # Auto-refinement for Response Procedures
+            if plan.response_procedures:
+                response_text = "\n".join([f"{p.category}: {p.action_content}" for p in plan.response_procedures if p.action_content])
+                if len(response_text) > 10:
+                    if st.button("✨ 初動対応を認定レベルに自動改善", key="btn_refine_response", type="secondary"):
+                        with st.spinner("AIが初動対応を改善中..."):
+                            try:
+                                from src.core.auto_refinement import refine_text
+                                result = refine_text("response_procedures", response_text)
+                                if result.confidence_score > 0:
+                                    st.session_state["_refined_response"] = result
+                                    st.success(f"✅ 改善完了 (信頼度: {result.confidence_score}%)")
+                                else:
+                                    st.error(result.improvements_made[0] if result.improvements_made else "改善に失敗しました")
+                            except Exception as e:
+                                st.error(f"改善エラー: {e}")
+                    
+                    if "_refined_response" in st.session_state:
+                        refined = st.session_state["_refined_response"]
+                        with st.container(border=True):
+                            st.markdown("### 📝 改善後のテキスト")
+                            st.info(refined.refined_text)
+                            st.caption("**改善点:**")
+                            for imp in refined.improvements_made:
+                                st.caption(f"  • {imp}")
+                            
+                            if st.button("❌ 閉じる", key="btn_cancel_response"):
+                                del st.session_state["_refined_response"]
+                                st.rerun()
         
         # TAB 5: Measures (A/B/C/D)
         with tab5:
@@ -1614,6 +1359,60 @@ elif mode == "Dashboard Mode (Progress)":
             show_measure("B: 建物・設備の保全 (モノ)", measures.building)
             show_measure("C: 資金調達手段の確保 (カネ)", measures.money)
             show_measure("D: 情報の保護 (情報)", measures.data)
+            
+            # Specific errors
+            msgs = get_missing_msgs("Measures")
+            for err in msgs:
+                st.error(f"🚨 {err}")
+            
+            with st.expander("📌 認定レベルの記載例 (事前対策)"):
+                st.success("""**A: 人員体制の整備（ヒト）の例**:
+- 現在の取組：多能工化を進め、代替要員を確保している
+- 今後の計画：外部研修への参加、スキルマップの整備""")
+                st.info("""**B: 建物・設備の保全（モノ）の例**:
+- 現在の取組：キャビネットの転倒防止器具を設置済み
+- 今後の計画：バックアップ電源（UPS）の導入""")
+                st.warning("""**C: 資金調達手段の確保（カネ）の例**:
+- 現在の取組：火災保険・地震保険に加入済
+- 今後の計画：当座の運転資金として〇ヶ月分を確保""")
+                st.info("""**D: 情報の保護（情報）の例**:
+- 現在の取組：クラウドバックアップを週次で実施
+- 今後の計画：顧客データの外部保管体制構築""")
+            
+            # Auto-refinement for Measures
+            measures_text = f"""
+人員: {measures.personnel.current_measure or ''} / {measures.personnel.future_plan or ''}
+建物: {measures.building.current_measure or ''} / {measures.building.future_plan or ''}
+資金: {measures.money.current_measure or ''} / {measures.money.future_plan or ''}
+情報: {measures.data.current_measure or ''} / {measures.data.future_plan or ''}
+"""
+            if len(measures_text.strip()) > 20:
+                if st.button("✨ 事前対策を認定レベルに自動改善", key="btn_refine_measures", type="secondary"):
+                    with st.spinner("AIが事前対策を改善中..."):
+                        try:
+                            from src.core.auto_refinement import refine_text
+                            result = refine_text("measures", measures_text)
+                            if result.confidence_score > 0:
+                                st.session_state["_refined_measures"] = result
+                                st.success(f"✅ 改善完了 (信頼度: {result.confidence_score}%)")
+                            else:
+                                st.error(result.improvements_made[0] if result.improvements_made else "改善に失敗しました")
+                        except Exception as e:
+                            st.error(f"改善エラー: {e}")
+                
+                if "_refined_measures" in st.session_state:
+                    refined = st.session_state["_refined_measures"]
+                    with st.container(border=True):
+                        st.markdown("### 📝 改善後のテキスト")
+                        st.info(refined.refined_text)
+                        st.caption("**改善点:**")
+                        for imp in refined.improvements_made:
+                            st.caption(f"  • {imp}")
+                        
+                        if st.button("❌ 閉じる", key="btn_cancel_measures"):
+                            del st.session_state["_refined_measures"]
+                            st.rerun()
+
 
         
         # TAB 6: Finance & PDCA
@@ -1624,9 +1423,11 @@ elif mode == "Dashboard Mode (Progress)":
                 st.subheader("💰 資金計画")
                 if plan.financial_plan.items:
                     st.table([i.model_dump() for i in plan.financial_plan.items])
-                else:
-                    st.warning("⚠️ 資金計画が未入力です。")
-                    st.caption("復旧にかかる費用の目安と、その調達方法（保険、自己資金、借入など）を検討してください。")
+                
+                # Specific errors
+                msgs = get_missing_msgs("FinancialPlan")
+                for err in msgs:
+                    st.error(f"🚨 {err}")
             
             with st.container(border=True):
                 st.subheader("🛠️ 設備リスト (税制優遇) (任意)")
@@ -1636,24 +1437,77 @@ elif mode == "Dashboard Mode (Progress)":
                     st.info("設備リストなし (任意)")
             
             with st.container(border=True):
-                st.subheader("🔄 推進体制・訓練")
-                pdca_data = {
-                    "管理体制": plan.pdca.management_system or "-",
-                    "訓練・教育": plan.pdca.training_education or "-"
-                }
-                st.table([{"項目": k, "内容": v} for k, v in pdca_data.items()])
+                st.subheader("🔄 推進体制・訓練 (12/17対応)")
+                
+                # Management System
+                plan.pdca.management_system = st.text_area("平時の推進体制", value=plan.pdca.management_system or "", placeholder="例：代表取締役の指揮の下で、担当者が年1回の会議を開催する...", key="pdca_input_mgmt")
+                
+                # Training & Month
+                c1, c2 = st.columns([3, 1])
+                plan.pdca.training_education = c1.text_area("訓練・教育の実施計画", value=plan.pdca.training_education or "", placeholder="例：全従業員を対象とした安否確認訓練及び避難訓練...", key="pdca_input_train")
+                plan.pdca.training_month = c2.number_input("実施月 (1-12)", min_value=1, max_value=12, value=plan.pdca.training_month or 1, key="pdca_input_train_month")
+                
+                # Review & Month
+                c3, c4 = st.columns([3, 1])
+                plan.pdca.plan_review = c3.text_area("計画の見直し計画", value=plan.pdca.plan_review or "", placeholder="例：訓練結果を踏まえ、毎年1回計画を見直す...", key="pdca_input_review")
+                plan.pdca.review_month = c4.number_input("見直し月 (1-12)", min_value=1, max_value=12, value=plan.pdca.review_month or 1, key="pdca_input_review_month")
+                
+                # Internal Publicity (12/17 New Field)
+                plan.pdca.internal_publicity = st.text_area("取組の社内周知 (12/17新設)", value=plan.pdca.internal_publicity or "", placeholder="例：計画書を社内ポータルに掲示し、朝礼で周知を行う...", key="pdca_input_pub")
+                
+                with st.expander("📌 認定レベルの記載例 (お作法)"):
+                    st.success("**教育及び訓練の例**:\n毎年◯月に**教育及び訓練**を実施し、防災知識の向上と初動対応の習熟を図る。")
+                    st.info("**社内周知の例**:\n策定した計画を全従業員に配付するとともに、掲示板への提示や朝礼での説明を通じて周知を徹底する。")
+
+                # Specific errors
+                msgs = get_missing_msgs("PDCA")
+                for err in msgs:
+                    st.error(f"🚨 {err}")
+                
+                # Auto-refinement for PDCA
+                pdca_text = f"{plan.pdca.training_education or ''} {plan.pdca.internal_publicity or ''}"
+                if len(pdca_text.strip()) > 10:
+                    if st.button("✨ PDCA体制を認定レベルに自動改善", key="btn_refine_pdca", type="secondary"):
+                        with st.spinner("AIがPDCA体制を改善中..."):
+                            try:
+                                from src.core.auto_refinement import refine_text
+                                result = refine_text("pdca", pdca_text)
+                                if result.confidence_score > 0:
+                                    st.session_state["_refined_pdca"] = result
+                                    st.success(f"✅ 改善完了 (信頼度: {result.confidence_score}%)")
+                                else:
+                                    st.error(result.improvements_made[0] if result.improvements_made else "改善に失敗しました")
+                            except Exception as e:
+                                st.error(f"改善エラー: {e}")
+                    
+                    # Show refined result
+                    if "_refined_pdca" in st.session_state:
+                        refined = st.session_state["_refined_pdca"]
+                        with st.container(border=True):
+                            st.markdown("### 📝 改善後のテキスト")
+                            st.info(refined.refined_text)
+                            st.caption("**改善点:**")
+                            for imp in refined.improvements_made:
+                                st.caption(f"  • {imp}")
+                            
+                            col_apply, col_cancel = st.columns(2)
+                            if col_apply.button("✅ この内容を適用", key="btn_apply_pdca"):
+                                plan.pdca.training_education = refined.refined_text
+                                del st.session_state["_refined_pdca"]
+                                st.rerun()
+                            if col_cancel.button("❌ キャンセル", key="btn_cancel_pdca"):
+                                del st.session_state["_refined_pdca"]
+                                st.rerun()
+
 
         # --- 4. Sidebar Tools (Injected here dynamically or rely on static layout) ---
         # Note: Sidebar is already rendered at top of script. We can add to it here or just leave as is.
         # Adding a dedicated "Tools" expander in main area for visibility
         with st.expander("🛠️ お役立ちツール (External Tools)"):
-            c1, c2 = st.columns(2)
-            c1.link_button("🌍 ハザードマップ", "https://disaportal.gsi.go.jp/", use_container_width=True)
-            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/", use_container_width=True)
-            
-            c3, c4 = st.columns(2)
-            c3.link_button("💴 金融支援 (Risk Finance)", "https://www.chusho.meti.go.jp/keiei/antei/bousai/keizokuryoku.html", use_container_width=True)
-            c4.link_button("🏛️ 税制優遇 (Tax)", "https://www.chusho.meti.go.jp/keiei/antei/bousai/keizokuryoku.html#zeisei", use_container_width=True)
+            c1, c2, c3 = st.columns(3)
+            c1.link_button("🌍 ハザードマップポータル", "https://disaportal.gsi.go.jp/")
+            c2.link_button("📉 J-SHIS 地震予測", "https://www.j-shis.bosai.go.jp/")
+            c3.link_button("💴 BCPポータル (リスクファイナンス等)", "https://kyoujinnka.smrj.go.jp/")
 
     else:
         st.info("☝️ Click the button to analyze current chat history.")
@@ -1665,55 +1519,6 @@ elif mode == "Dashboard Mode (Progress)":
 elif mode == "Main Consensus Room (Resolution)":
     st.title("⚖️ Consensus Room (全体合意)")
     st.caption("各ペルソナの意見を調整し、最終的な方針を決定します。")
-
-    # --- File Upload for Consensus (New) ---
-    with st.expander("📂 資料の追加アップロード (Upload Documents)", expanded=False):
-        uploaded_refs_consensus = st.file_uploader(
-            "全体合意用資料をアップロード (PDF/画像)", 
-            type=["pdf", "png", "jpg", "jpeg"], 
-            accept_multiple_files=True,
-            key="uploader_consensus"
-        )
-        
-        # --- Auto-Process Logic (Consensus) ---
-        if "processed_file_ids" not in st.session_state:
-            st.session_state.processed_file_ids = set()
-
-        if uploaded_refs_consensus:
-            new_files_to_process = []
-            for file in uploaded_refs_consensus:
-                file_id = f"{file.name}_{file.size}"
-                if file_id not in st.session_state.processed_file_ids:
-                    new_files_to_process.append(file)
-                    st.session_state.processed_file_ids.add(file_id)
-            
-            if new_files_to_process:
-                 with st.spinner("資料を解析中... (Processing for Consensus)"):
-                    try:
-                        # Process files as "総合調整役" (Coordinator)
-                        count = st.session_state.ai_interviewer.process_files(new_files_to_process, target_persona="総合調整役")
-                        st.success(f"{count}件の資料を全体合意用に読み込みました！")
-                        
-                        # Agentic Extraction Trigger (Optional but good for consistency)
-                        if count > 0:
-                             with st.status("🤖 AI Agent Working: 資料を詳細分析中...", expanded=True) as status:
-                                 status.write("📝 Gemini 1.5 Pro (High Reasoning) で資料を読み込んでいます...")
-                                 try:
-                                     all_files = st.session_state.ai_interviewer.uploaded_file_refs
-                                     extracted_data = st.session_state.ai_interviewer.extract_structured_data(text="", file_refs=all_files)
-                                     if extracted_data:
-                                         status.write("✅ 構造化データを検出しました。")
-                                     else:
-                                         status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
-                                 except Exception as ex_e:
-                                     status.error(f"Extraction Error: {ex_e}")
-
-                        time.sleep(1)
-                        perform_auto_save()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"読み込みエラー: {e}")
-
     
     # Conflict Detection
     with st.expander("🧐 矛盾・未合意事項の検知 (Conflict Detection)", expanded=True):
@@ -1746,156 +1551,26 @@ elif mode == "Main Consensus Room (Resolution)":
     # Chat History
     history = st.session_state.ai_interviewer.history
     
-    # Helper for rendering messages in Consensus Mode (Duplicate of Chat Mode helper to avoid scope issues)
-    def render_message_consensus(msg, current_persona):
-        if not isinstance(msg, dict): return
-        role = msg["role"]
-        msg_persona = msg.get("persona", "Unknown")
-        target_persona = msg.get("target_persona")
-        
-        # In Consensus, we generally want to see everything, OR filter by "General" context.
-        # However, to be safe and match user expectation: show messages relevant to '総合調整役' or public.
-        # Let's show everything for now as it is a "Consensus" room.
-        # But if we want to be strict: 
-        visible = True # Default to visible in Consensus
-        # Apply filter if needed:
-        # if role == "model" and target_persona and target_persona != "総合調整役": visible = False
-        
-        if visible:
-            avatar = "🤖" if role == "model" else "👤"
-            if msg_persona == "経営者": avatar = "👨‍💼"
-            elif msg_persona == "従業員": avatar = "👷"
-            elif msg_persona == "商工会職員": avatar = "🧑‍🏫"
-            elif msg_persona == "AI Concierge": avatar = "🤖"
-            elif msg_persona == "総合調整役": avatar = "⚖️"
-            
-            with st.chat_message(role, avatar=avatar):
-                st.caption(f"{msg_persona}")
-                
-                # Sanitize content
-                import re
-                content = msg["content"]
-                
-                # 1. Hide <suggestions> block
-                content = re.sub(r'<suggestions>.*?</suggestions>', '', content, flags=re.DOTALL).strip()
-                
-                # 2. Hide Raw JSON System Notification
-                if "【システム通知: 既存計画データの読み込み】" in content:
-                    import json
-                    try:
-                         json_match = re.search(r'```json\n(.*?)\n```', content, flags=re.DOTALL)
-                         if json_match:
-                             data = json.loads(json_match.group(1))
-                             c_name = data.get("basic_info", {}).get("corporate_name", "Unknown")
-                             st.success(f"✅ 既存の事業計画データを読み込みました (対象企業: {c_name})")
-                             with st.expander("詳細データを確認 (View Raw Data)"):
-                                 st.json(data)
-                             return
-                    except:
-                        pass
-
-                # 3. Final Confirmation Block (<verify>)
-                verify_match = re.search(r'<verify>(.*?)</verify>', content, flags=re.DOTALL)
-                if verify_match:
-                    # Render the verification block in a specific colored container
-                    verify_text = verify_match.group(1).strip()
-                    # Remove the verify block from main content to avoid double rendering
-                    main_text = re.sub(r'<verify>.*?</verify>', '', content, flags=re.DOTALL).strip()
-                    
-                    if main_text:
-                        st.markdown(main_text)
-                    
-                    # Render Verification Card
-                    with st.container(border=True):
-                        st.info("📋 **以下の内容で登録します。確認をお願いします**")
-                        st.markdown(verify_text) # Markdown inside supports bold etc.
-                        
-                else:
-                    # Normal render
-                    st.markdown(content)
-
-    # Move Recommended Actions to Main Area (Expander at Top)
-    with st.expander("💡 推奨アクション (Recommended Actions)", expanded=True):
-        # 1. From Consensus Chat Suggestions
-        if "_consensus_suggestions" in st.session_state:
-            sugg = st.session_state._consensus_suggestions
-            if "options" in sugg and sugg["options"]:
-                st.caption("🤖 AIからの提案:")
-                cols = st.columns(len(sugg["options"]))
-                for i, opt in enumerate(sugg["options"]):
-                    cols[i].info(f"👉 {opt}")
-        
-        # 2. From Missing Items (Static Analysis)
-        if "current_plan" in st.session_state and st.session_state.current_plan:
-             from src.core.completion_checker import CompletionChecker
-             result = CompletionChecker.analyze(st.session_state.current_plan)
-             if result["missing_mandatory"]:
-                 st.caption("⚠️ 未定の必須項目:")
-                 for m in result["missing_mandatory"][:3]: 
-                     st.warning(f"📌 {m['section']}")
-        else:
-            st.caption("ℹ️ 計画データ未読み込み")
-
     # Show history using rendered helper
     for i in range(len(history)):
-         render_message_consensus(history[i], "総合調整役") 
+         render_message(history[i], "総合調整役") 
     
     # Input
-    
-    # --- Mini Progress Dashboard (Placeholder) ---
-    dashboard_placeholder = st.empty()
-
-    def render_consensus_dashboard(placeholder):
-        if "current_plan" in st.session_state and st.session_state.current_plan:
-             # Logic is same, but inside container
-             with placeholder.container():
-                from src.core.completion_checker import CompletionChecker
-                res = CompletionChecker.analyze(st.session_state.current_plan)
-                prog = res['mandatory_progress']
-                
-                cols_prog = st.columns([3, 1])
-                with cols_prog[0]: st.progress(prog)
-                with cols_prog[1]: st.caption(f"**{int(prog*100)}% 完了**")
-                
-                if res['missing_mandatory']:
-                    sec_map = {"BasicInfo": "基本情報", "Goals": "事業概要", "Disaster": "災害想定", "ResponseProcedures": "初動対応", "Measures": "事前対策", "FinancialPlan": "資金計画", "PDCA": "推進体制"}
-                    next_items = [sec_map.get(m['section'], m['section']) for m in res['missing_mandatory'][:3]]
-                    st.write("📌 **次のアクション:** " + "  ".join([f"`{item}`" for item in next_items]))
-
-    render_consensus_dashboard(dashboard_placeholder)
-
     if prompt := st.chat_input("全体方針を入力してください (例: 避難場所は高台の公園とします)"):
          with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
-
-         # Send Message
-         user_data = {"name": "Consensus", "position": "Manager"}
+         
+         # Metadata
+         user_name = st.session_state.get("user_name_input", "")
+         user_position = st.session_state.get("user_position_input", "")
+         user_data = {"name": user_name, "position": user_position}
+         
          with st.chat_message("model", avatar="🤖"):
-             with st.spinner("調整中..."):
+            with st.spinner("AI Facilitator is recording..."):
                 response = st.session_state.ai_interviewer.send_message(
                     prompt, 
-                    persona="全体合意",
+                    persona="総合調整役",
                     user_data=user_data
                 )
-                
-                # --- Incremental Plan Analysis (Consensus) ---
-                import re
-                update_match = re.search(r'<update>(.*?)</update>', response, flags=re.DOTALL)
-                
-                if update_match:
-                    try:
-                        update_json_str = update_match.group(1).strip()
-                        update_data = json.loads(update_json_str)
-                        if apply_incremental_update(update_data):
-                            # Update dashboard in-place
-                            render_consensus_dashboard(dashboard_placeholder)
-                            st.toast("⚡ 全体方針を反映しました", icon="✅")
-                    except Exception as e:
-                        print(f"Update Parse Failed: {e}")
-                
-                # Strip and display
-                display_response = re.sub(r'<update>.*?</update>', '', response, flags=re.DOTALL).strip()
-                st.markdown(display_response)
-
-                perform_auto_save()
-                # NO RERUN
+                st.markdown(response)
+                st.rerun()

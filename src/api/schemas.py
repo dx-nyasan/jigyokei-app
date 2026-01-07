@@ -18,17 +18,11 @@ class BasicInfo(BaseModel):
     address_building: Optional[str] = Field(None, description="マンション名等")
     capital: Optional[int] = Field(None, description="資本金又は出資の額")
     employees: Optional[int] = Field(None, description="常時使用する従業員の数")
-    establishment_date: Optional[str] = Field(None, description="設立年月日")
+    establishment_date: Optional[str] = Field(None, description="設立年月日 (YYYY/MM/DD)")
     industry_major: Optional[str] = Field(None, description="業種（大分類）")
     industry_middle: Optional[str] = Field(None, description="業種（中分類）")
     industry_minor: Optional[str] = Field(None, description="業種（小分類）")
     corporate_number: Optional[str] = Field(None, description="法人番号")
-
-    # NotebookLM Feedback: Add missing fields
-    corporate_name_kana: Optional[str] = Field(None, description="事業者の氏名又は名称（フリガナ）")
-    establishment_date: Optional[str] = Field(None, description="設立年月日 (YYYY/MM/DD)")
-    industry_major: Optional[str] = Field(None, description="業種（大分類）")
-    industry_middle: Optional[str] = Field(None, description="業種（中分類）")
 
     @field_validator('representative_name')
     @classmethod
@@ -121,7 +115,10 @@ class PDCA(BaseModel):
     """Section 5: PDCA"""
     management_system: Optional[str] = Field(None, description="平時の推進体制の整備")
     training_education: Optional[str] = Field(None, description="訓練・教育の実施")
+    training_month: Optional[int] = Field(None, ge=1, le=12, description="教育・訓練の実施月 (1-12)")
     plan_review: Optional[str] = Field(None, description="計画の見直し")
+    review_month: Optional[int] = Field(None, ge=1, le=12, description="計画見直しの実施月 (1-12)")
+    internal_publicity: Optional[str] = Field(None, description="取組の社内周知 (12/17新設)")
 
 class FinancialPlanItem(BaseModel):
     """Section 5: Financial Plan Item"""
