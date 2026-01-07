@@ -1006,7 +1006,7 @@ elif mode == "Dashboard Mode (Progress)":
                             with col_s1:
                                 st.write(f"**{sec.name}**: {sec.reason}")
                             with col_s2:
-                                st.metric(label="", value=f"{sec.score}点")
+                                st.metric(label="スコア", value=f"{sec.score}点", label_visibility="collapsed")
                 
                 # Improvements
                 if audit_result.improvements:
