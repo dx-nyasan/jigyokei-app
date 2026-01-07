@@ -172,6 +172,7 @@ class AutoRefinementAgent:
     def refine(self, section_type: str, input_text: str) -> RefinementResult:
         """
         Refine input text to certification level.
+        Uses ManualRAG to fetch relevant examples from certification manual.
         
         Args:
             section_type: One of "disaster_assumption", "business_impact", 
@@ -197,8 +198,43 @@ class AutoRefinementAgent:
                 confidence_score=0
             )
         
+        # === ManualRAG Integration ===
+        # Fetch relevant examples from vector store
+        rag_examples = ""
+        try:
+            from src.core.manual_rag import get_rag
+            rag = get_rag()
+            
+            # Search for relevant examples based on section type
+            search_query = {
+                "disaster_assumption": "災害想定 地震 震度 確率 J-SHIS",
+                "business_impact": "事業影響 被害想定 復旧期間",
+                "response_procedures": "初動対応 発災後 避難 安否確認",
+                "measures": "事前対策 ヒト モノ カネ 情報",
+                "pdca": "教育訓練 計画見直し 社内周知"
+            }.get(section_type, section_type)
+            
+            results = rag.search(search_query, top_k=3)
+            
+            if results:
+                rag_examples = "\n\n【マニュアル記載例（動的取得）】\n"
+                for i, result in enumerate(results, 1):
+                    # Truncate long examples
+                    example_text = result.text[:500] if len(result.text) > 500 else result.text
+                    rag_examples += f"記載例{i}:\n{example_text}\n\n"
+                    
+        except Exception as e:
+            # Fall back to prompt-embedded examples if RAG fails
+            rag_examples = f"\n\n/* RAG参照に失敗: {str(e)} - プロンプト埋め込み例を使用 */\n"
+        
         model = self._get_model()
-        prompt = REFINEMENT_PROMPTS[section_type].format(input_text=input_text)
+        base_prompt = REFINEMENT_PROMPTS[section_type].format(input_text=input_text)
+        
+        # Inject RAG examples before output format section
+        if rag_examples and "【出力形式】" in base_prompt:
+            prompt = base_prompt.replace("【出力形式】", f"{rag_examples}【出力形式】")
+        else:
+            prompt = base_prompt + rag_examples
         
         try:
             response = model.generate_content(prompt)
