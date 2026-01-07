@@ -2,14 +2,12 @@
 Audit Agent Module
 Provides LLM-based audit functionality for certification applications.
 Uses explicit button trigger to minimize API calls.
-Migrated to google-genai SDK (2026-01-07)
 """
 import json
 import os
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
-from google import genai
-
+import google.generativeai as genai
 
 # Configure Gemini API key from secrets.toml
 def _load_api_key():
@@ -25,17 +23,12 @@ def _load_api_key():
             return secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
     except:
         pass
-    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
-
-# Initialize client at module level
 _api_key = _load_api_key()
-_client = None
 if _api_key:
-    try:
-        _client = genai.Client(api_key=_api_key)
-    except Exception as e:
-        print(f"Failed to initialize Gemini client: {e}")
+    genai.configure(api_key=_api_key)
+
 
 
 class SectionAuditResult(BaseModel):
@@ -112,7 +105,19 @@ class AuditAgent:
     
     def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.model_name = model_name
-        self.client = _client
+        self._model = None
+    
+    def _get_model(self):
+        """Lazy initialization of Gemini model."""
+        if self._model is None:
+            self._model = genai.GenerativeModel(
+                model_name=self.model_name,
+                generation_config=genai.GenerationConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1  # Low temperature for consistent evaluation
+                )
+            )
+        return self._model
     
     def audit(self, application_text: str) -> AuditResult:
         """
@@ -124,13 +129,7 @@ class AuditAgent:
         Returns:
             AuditResult with scores, reasons, and improvement suggestions
         """
-        if not self.client:
-            return AuditResult(
-                total_score=0,
-                sections=[],
-                improvements=["APIキーが設定されていません"],
-                raw_response=None
-            )
+        model = self._get_model()
         
         prompt = f"""以下の事業継続力強化計画申請書を評価してください。
 
@@ -139,17 +138,9 @@ class AuditAgent:
 
 【評価を開始してください】"""
         
-        full_prompt = AUDIT_SYSTEM_PROMPT + "\n\n" + prompt
-        
         try:
-            # New google-genai API pattern
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=full_prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.1  # Low temperature for consistent evaluation
-                }
+            response = model.generate_content(
+                [{"role": "user", "parts": [{"text": AUDIT_SYSTEM_PROMPT + "\n\n" + prompt}]}]
             )
             
             raw_text = response.text
@@ -229,12 +220,12 @@ class AuditAgent:
                 lines.append(f"情報への影響: {ds.impacts.impact_info or '未入力'}")
                 lines.append("")
         
-        # Response Procedures (Fixed field names: category, action_content)
+        # Response Procedures
         lines.append("【初動対応】")
         if plan.response_procedures:
             for i, proc in enumerate(plan.response_procedures, 1):
-                lines.append(f"{i}. 項目: {proc.category or '未入力'}")
-                lines.append(f"   取組内容: {proc.action_content or '未入力'}")
+                lines.append(f"{i}. 項目: {proc.item or '未入力'}")
+                lines.append(f"   取組内容: {proc.content or '未入力'}")
                 lines.append(f"   事前対策: {proc.preparation_content or '未入力'}")
         else:
             lines.append("未入力")

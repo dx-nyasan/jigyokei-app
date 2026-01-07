@@ -1,15 +1,9 @@
-"""
-Data Converter Module
-Converts chat history to structured data using Gemini API.
-Migrated to google-genai SDK (2026-01-07)
-"""
 import os
 import json
-from google import genai
+import google.generativeai as genai
 import streamlit as st
 from typing import List, Dict, Any, Optional
 from src.api.schemas import ApplicationRoot
-
 
 class DataConverter:
     """
@@ -20,30 +14,28 @@ class DataConverter:
         # Streamlit Secrets または 環境変数からAPIキーを取得
         api_key = None
         try:
-            api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+            api_key = st.secrets["GOOGLE_API_KEY"]
         except Exception:
-            pass
-        
-        if not api_key:
-            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            api_key = os.getenv("GOOGLE_API_KEY")
 
         if api_key:
-            try:
-                # google-genai Client initialization
-                self.client = genai.Client(api_key=api_key)
-                self.model_name = 'gemini-1.5-flash'
-            except Exception as e:
-                self.client = None
-                st.error(f"Failed to initialize Gemini client: {e}")
+            genai.configure(api_key=api_key)
+            # JSONモードを強制するために model_config を設定
+            self.model = genai.GenerativeModel(
+                'gemini-1.5-flash',
+                generation_config={"response_mime_type": "application/json"}
+            )
+            # アドバイス用（テキストモード）のモデル
+            self.text_model = genai.GenerativeModel('gemini-1.5-flash')
         else:
-            self.client = None
-            st.error("Google API Key not found. Please set GEMINI_API_KEY in Streamlit Secrets.")
+            self.model = None
+            st.error("Google API Key not found. Please set it in Streamlit Secrets.")
 
     def convert_chat_to_structured_data(self, chat_history_path: str = None, chat_history_data: List[Dict] = None) -> Dict[str, Any]:
         """
         チャット履歴（リストまたはファイル）を受け取り、ApplicationRootスキーマに合わせたJSONを返す。
         """
-        if not self.client:
+        if not self.model:
             return {}
 
         # 履歴データの準備
@@ -81,14 +73,7 @@ class DataConverter:
         """
 
         try:
-            # New google-genai API pattern
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json"
-                }
-            )
+            response = self.model.generate_content(prompt)
             return json.loads(response.text)
         except Exception as e:
             st.error(f"Data Conversion Failed: {e}")
@@ -98,7 +83,7 @@ class DataConverter:
         """
         現在の入力内容と専門資料（Context）に基づき、アドバイスを生成する。
         """
-        if not self.client:
+        if not self.text_model:
             return "API Key missing."
 
         data_str = json.dumps(current_data, ensure_ascii=False)
@@ -122,11 +107,7 @@ class DataConverter:
         """
         
         try:
-            # New google-genai API pattern
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt
-            )
+            response = self.text_model.generate_content(prompt)
             return response.text
         except Exception as e:
             return f"Error generating advice: {e}"
