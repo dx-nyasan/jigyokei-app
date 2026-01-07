@@ -1,0 +1,126 @@
+{
+    "version": "1.0.0",
+    "last_updated": "2026-01-06",
+    "source_manual": "tebiki_tandoku.pdf",
+    "sections": {
+        "basic_info": {
+            "name": "基本情報",
+            "required_keywords": [
+                "事業者名",
+                "法人番号",
+                "代表者",
+                "資本金",
+                "従業員数"
+            ],
+            "scoring_weight": 5,
+            "example_chunk_ids": [
+                "manual_ch01_01"
+            ],
+            "validation_notes": "すべての項目が正確に入力されていること"
+        },
+        "business_overview": {
+            "name": "事業活動の概要",
+            "required_keywords": [
+                "サプライチェーン",
+                "シェア",
+                "地域",
+                "役割",
+                "供給",
+                "責任"
+            ],
+            "scoring_weight": 10,
+            "example_chunk_ids": [
+                "manual_ch02_01",
+                "manual_ch02_02"
+            ],
+            "validation_notes": "事業の社会的重要性・サプライチェーン上の役割が明記されていること"
+        },
+        "disaster_assumption": {
+            "name": "自然災害等の想定",
+            "required_keywords": [
+                "震度",
+                "確率",
+                "ハザードマップ",
+                "J-SHIS",
+                "浸水",
+                "津波"
+            ],
+            "scoring_weight": 20,
+            "example_chunk_ids": [
+                "manual_ch03_01",
+                "manual_ch03_02",
+                "manual_ch03_03"
+            ],
+            "validation_notes": "定量的な根拠（震度◯以上の確率◯％）と出典（J-SHIS等）が明記されていること"
+        },
+        "business_impact": {
+            "name": "事業活動に与える影響",
+            "required_keywords": [
+                "停止",
+                "休業",
+                "復旧",
+                "日間",
+                "週間",
+                "操業"
+            ],
+            "scoring_weight": 20,
+            "example_chunk_ids": [
+                "manual_ch03_04",
+                "manual_ch03_05"
+            ],
+            "validation_notes": "物理的被害から事業停止への因果関係が明確であること"
+        },
+        "response_procedures": {
+            "name": "初動対応の取組内容",
+            "required_keywords": [
+                "安否確認",
+                "避難",
+                "連絡",
+                "役割分担",
+                "事前対策"
+            ],
+            "scoring_weight": 15,
+            "example_chunk_ids": [
+                "manual_ch04_01",
+                "manual_ch04_02"
+            ],
+            "validation_notes": "発災後◯時間以内の行動と事前準備内容が具体的であること"
+        },
+        "measures": {
+            "name": "事前対策の取組内容",
+            "required_keywords": [
+                "ヒト",
+                "モノ",
+                "カネ",
+                "情報",
+                "現在の取組",
+                "今後の計画"
+            ],
+            "scoring_weight": 15,
+            "example_chunk_ids": [
+                "manual_ch05_01",
+                "manual_ch05_02",
+                "manual_ch05_03"
+            ],
+            "validation_notes": "4カテゴリ（ヒト・モノ・カネ・情報）について現在と今後の取組が記載されていること"
+        },
+        "pdca": {
+            "name": "平時の推進体制",
+            "required_keywords": [
+                "教育及び訓練",
+                "実施月",
+                "代表",
+                "経営",
+                "見直し",
+                "社内周知"
+            ],
+            "scoring_weight": 15,
+            "example_chunk_ids": [
+                "manual_ch06_01",
+                "manual_ch06_02"
+            ],
+            "validation_notes": "「教育及び訓練」の両方が含まれ、実施月と社内周知方法が明記されていること（12/17改修対応）"
+        }
+    },
+    "disclaimer": "本スコアは参考値であり、認定を保証するものではありません。最終的な認定可否は審査機関の判断によります。"
+}

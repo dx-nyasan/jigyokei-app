@@ -31,13 +31,44 @@ class CompletionChecker:
 
         # --- 1. Mandatory Progress (Start Rate) ---
         # Checks if sections are "touched" or minimal requirements met.
+        # Validate Basic Info Detailed
+        basic_ok = True
+        basic_missing_list = []
+        
+        if plan.basic_info:
+            bi = plan.basic_info
+            # Check list: (field_value, field_name_jp)
+            checks = [
+                (bi.corporate_name, "事業者名"),
+                (bi.representative_name, "代表者名"),
+                (bi.establishment_date, "設立年月日"),
+                (bi.address_zip, "郵便番号"),
+                (bi.address_city, "住所（市区町村）"),
+                (bi.industry_middle, "業種"),
+                (bi.capital, "資本金"),
+                (bi.employees, "従業員数")
+            ]
+            for val, name in checks:
+                # Check for empty or "Check Later"
+                if not val or str(val).strip() == "" or "後で確認" in str(val) or str(val) == "-":
+                    basic_ok = False
+                    basic_missing_list.append(f"{name}が未入力（または確認待ち）です")
+        else:
+            basic_ok = False
+            basic_missing_list.append("基本情報が全体的に未入力です")
+
         mandatory_checks = {
-            "BasicInfo": bool(plan.basic_info.corporate_name and plan.basic_info.representative_name),
-            "Goals": bool(plan.goals.disaster_scenario.disaster_assumption and plan.goals.disaster_scenario.disaster_assumption != "未設定"),
+            "BasicInfo": basic_ok,
+            "BusinessOverview": bool(plan.goals.business_overview and plan.goals.business_purpose),
+            "DisasterScenario": bool(plan.goals.disaster_scenario.disaster_assumption and plan.goals.disaster_scenario.disaster_assumption != "未設定"),
             "ResponseProcedures": bool(len(plan.response_procedures) >= 2), # Stricter: Need multiple items
             "Measures": bool(measures_count >= 2), # Updated: Check count of filled categories
             "FinancialPlan": bool(len(plan.financial_plan.items) > 0),
-            "PDCA": bool(plan.pdca.training_education and plan.pdca.training_education != "未設定")
+            "PDCA": bool(
+                plan.pdca.training_education and plan.pdca.training_education != "未設定" and
+                plan.pdca.training_month and plan.pdca.review_month and
+                plan.pdca.internal_publicity and plan.pdca.internal_publicity != "未設定"
+            )
         }
         
         mandatory_passed_count = sum(mandatory_checks.values())
@@ -45,72 +76,118 @@ class CompletionChecker:
         mandatory_progress = mandatory_passed_count / mandatory_total
 
 
-        # Helper function for severity classification
-        def classify_severity(value, field_name: str) -> str:
-            """Classify field severity: 'critical' or 'warning'"""
-            # Critical: None, empty string, empty list/dict
-            if value is None:
-                return "critical"
-            if isinstance(value, str) and (not value or value.strip() == ""):
-                return "critical"
-            if isinstance(value, (list, dict)) and len(value) == 0:
-                return "critical"
+        # Helper function for severity classification AND reason
+        def analyze_field_quality(value, field_type: str) -> tuple[str, str]:
+            """Returns (severity, message)"""
+            s_val = str(value).strip() if value else ""
             
-            # Warning: Minimal/placeholder content
-            if isinstance(value, str):
-                minimal_phrases = ["なし", "未設定", "-", "N/A", "該当なし"]
-                if value.strip() in minimal_phrases or len(value.strip()) < 10:
-                    return "warning"
+            # 1. Critical: Empty
+            if not s_val or s_val in ["-", "未設定", "N/A"]:
+                return "critical", "未入力（または未設定）です"
             
-            # Otherwise, consider it complete
-            return "complete"
+            # 2. Warning check base on type
+            if field_type == "text_description":
+                # Too short?
+                if len(s_val) < 20: 
+                    return "warning", f"記述内容が短すぎます（現在{len(s_val)}文字）。具体的に記述してください。"
+                return "complete", ""
+
+            if field_type == "list":
+                if len(value) == 0: return "critical", "登録されていません"
+                if len(value) < 2: return "warning", "複数項目の登録が推奨されます" # Optional warning
+                return "complete", ""
+
+            return "complete", ""
 
         # Build detailed missing list for UI (WITH SEVERITY)
         missing_mandatory = []
-        if not mandatory_checks["BasicInfo"]:
-            severity = classify_severity(plan.basic_info.corporate_name if plan.basic_info else None, "corporate_name")
-            missing_mandatory.append({
-                "section": "BasicInfo",
-                "msg": "基本情報（企業名・代表者名）が未入力です",
-                "severity": severity
-            })
-        if not mandatory_checks["Goals"]:
-            severity = classify_severity(plan.goals.business_overview, "business_overview")
-            missing_mandatory.append({
-                "section": "Goals",
-                "msg": "災害想定が選択されていません",
-                "severity": severity
-            })
-        if not mandatory_checks["ResponseProcedures"]:
-            severity = "critical" if not plan.response_procedures else "warning"
-            missing_mandatory.append({
-                "section": "ResponseProcedures",
-                "msg": "初動対応が登録されていません",
-                "severity": severity
-            })
-        if not mandatory_checks["Measures"]:
-            severity = "critical" if measures_count == 0 else "warning"
-            missing_mandatory.append({
-                "section": "Measures",
-                "msg": "事前対策が登録されていません",
-                "severity": severity
-            })
-        if not mandatory_checks["FinancialPlan"]:
-            severity = "critical" if not plan.financial_plan.items else "warning"
-            missing_mandatory.append({
-                "section": "FinancialPlan",
-                "msg": "資金計画が登録されていません",
-                "severity": severity
-            })
-        if not mandatory_checks["PDCA"]:
-            severity = classify_severity(plan.pdca.training_education, "training_education")
-            missing_mandatory.append({
-                "section": "PDCA",
-                "msg": "PDCA（訓練計画）が未入力です",
-                "severity": severity
+        
+        # 1. Basic Info (Granular)
+        if not basic_ok:
+            for msg in basic_missing_list:
+                missing_mandatory.append({
+                    "section": "BasicInfo",
+                    "msg": msg,
+                    "severity": "critical"
+                })
+
+        # 2. Business Overview
+        # Check Overview specifically
+        ov_sev, ov_msg = analyze_field_quality(plan.goals.business_overview, "text_description")
+        if ov_sev != "complete":
+             missing_mandatory.append({
+                "section": "Goals", # Tab 2
+                "msg": f"事業活動の概要: {ov_msg}",
+                "severity": ov_sev
             })
         
-        # Sort by severity: critical first, then warning
+        # Check Purpose specifically
+        pur_sev, pur_msg = analyze_field_quality(plan.goals.business_purpose, "text_description")
+        if pur_sev != "complete":
+             missing_mandatory.append({
+                "section": "Goals", # Tab 2
+                "msg": f"取組目的: {pur_msg}",
+                "severity": pur_sev
+            })
+
+        # 3. Disaster Scenario
+        if not mandatory_checks["DisasterScenario"]:
+            ds_val = plan.goals.disaster_scenario.disaster_assumption
+            msg = "災害想定が選択されていません"
+            if ds_val == "未設定": msg = "災害想定が「未設定」のままです"
+            
+            missing_mandatory.append({
+                "section": "Disaster", # Tab 3
+                "msg": msg,
+                "severity": "critical"
+            })
+        
+        # 4. Response Procedures (Modified: Deep Content Check)
+        resp_sev, resp_msg = analyze_field_quality(plan.response_procedures, "list")
+        if resp_sev != "complete":
+            # Override for empty list vs short list
+            if len(plan.response_procedures) == 0:
+                 missing_mandatory.append({"section": "ResponseProcedures", "msg": "初動対応が登録されていません", "severity": "critical"})
+            elif len(plan.response_procedures) < 2:
+                 missing_mandatory.append({"section": "ResponseProcedures", "msg": "初動対応は複数（2つ以上）の登録が必要です", "severity": "warning"})
+        
+        # Check for missing `preparation_content` (User Request)
+        if len(plan.response_procedures) > 0:
+             missing_prep = False
+             for proc in plan.response_procedures:
+                 # Check if null, empty, or "not set"
+                 if not proc.preparation_content or str(proc.preparation_content).strip() == "" or "未設定" in str(proc.preparation_content):
+                     missing_prep = True
+                     break
+             
+             if missing_prep:
+                 missing_mandatory.append({
+                     "section": "ResponseProcedures", 
+                     "msg": "初動対応における「事前対策（preparation_content）」が未入力の項目があります。具体的な準備内容を追記してください。", 
+                     "severity": "critical"
+                 })
+
+        # 5. Measures & Finance (Existing logic kept but refined)
+        if not mandatory_checks["Measures"]:
+            msg = "事前対策が登録されていません" if measures_count == 0 else "事前対策の項目が不足しています（2カテゴリ以上推奨）"
+            sev = "critical" if measures_count == 0 else "warning"
+            missing_mandatory.append({"section": "Measures", "msg": msg, "severity": sev})
+
+        if not mandatory_checks["FinancialPlan"]:
+             missing_mandatory.append({"section": "FinancialPlan", "msg": "資金計画が登録されていません", "severity": "critical"})
+
+        if not mandatory_checks["PDCA"]:
+             pdca = plan.pdca
+             if not pdca.training_education or pdca.training_education == "未設定":
+                 missing_mandatory.append({"section": "PDCA", "msg": "訓練・教育の計画が未入力です", "severity": "critical"})
+             if not pdca.training_month:
+                 missing_mandatory.append({"section": "PDCA", "msg": "教育・訓練の「実施月」が未設定です（12/17改修必須項目）", "severity": "critical"})
+             if not pdca.review_month:
+                 missing_mandatory.append({"section": "PDCA", "msg": "計画見直しの「実施月」が未設定です（12/17改修必須項目）", "severity": "critical"})
+             if not pdca.internal_publicity or pdca.internal_publicity == "未設定":
+                 missing_mandatory.append({"section": "PDCA", "msg": "「取組の社内周知」が未入力です（12/17改修必須項目）", "severity": "critical"})
+        
+        # Sort by severity
         severity_order = {"critical": 0, "warning": 1, "complete": 2}
         missing_mandatory.sort(key=lambda x: severity_order.get(x.get("severity", "complete"), 2))
 
@@ -125,7 +202,8 @@ class CompletionChecker:
         # A. Foundation (Max 40 pts) - Directly linked to Mandatory Checks
         # Previous: ~8pts each. New: Basic/PDCA reduced, Measures/Finance increased.
         if mandatory_checks["BasicInfo"]: score += 5
-        if mandatory_checks["Goals"]: score += 5
+        if mandatory_checks["BusinessOverview"]: score += 3
+        if mandatory_checks["DisasterScenario"]: score += 2
         if mandatory_checks["ResponseProcedures"]: score += 5
         if mandatory_checks["Measures"]: score += 15  # Key Section
         if mandatory_checks["FinancialPlan"]: score += 15 # Key Section
@@ -138,7 +216,7 @@ class CompletionChecker:
         role_keywords = ["サプライチェーン", "シェア", "地域", "役割", "供給", "責任", "インフラ", "雇用"]
         if any(k in ov_text for k in role_keywords) and len(ov_text) >= 20:
             score += 5
-        elif mandatory_checks["Goals"]:
+        elif mandatory_checks["BusinessOverview"]:
             suggestions.append("「サプライチェーン上の役割（シェア率、供給責任）」や「地域経済における重要性」を具体的に記述してください。")
 
         # 2. Hazard Map Reference (NotebookLM: Critical)
@@ -153,16 +231,21 @@ class CompletionChecker:
         hazard_keywords = ["ハザードマップ", "J-SHIS", "浸水", "震度", "マグニチュード", "階級"]
         if any(k in all_risk_text for k in hazard_keywords):
             score += 5
-        elif mandatory_checks["Goals"]:
+        elif mandatory_checks["DisasterScenario"]:
             suggestions.append("被害想定の根拠として「ハザードマップ」や「J-SHIS」の名前を出し、具体的な数値（震度○、浸水○m）を記述してください。")
 
-        # 3. Management Commitment (NotebookLM: Critical)
-        pdca_text = str(plan.pdca.management_system) + str(plan.pdca.training_education)
+        # 3. Management Commitment & 12/17 Compliance (NotebookLM: Critical)
+        pdca_text = str(plan.pdca.management_system) + str(plan.pdca.training_education) + str(plan.pdca.plan_review)
         mgmt_keywords = ["代表", "経営", "社長", "役員", "トップ"]
-        if any(k in pdca_text for k in mgmt_keywords):
+        phrasing_ok = "教育及び訓練" in pdca_text or ("教育" in pdca_text and "訓練" in pdca_text)
+        
+        if any(k in pdca_text for k in mgmt_keywords) and phrasing_ok:
             score += 5
         elif mandatory_checks["PDCA"]:
-            suggestions.append("推進体制に「代表取締役」や「経営層」の関与を明記してください。（例：代表取締役の指揮の下で年1回見直す）")
+            if not phrasing_ok:
+                suggestions.append("訓練だけでなく「教育及び訓練」と記載し、座学と実技の両面をカバーするようにしてください。")
+            else:
+                suggestions.append("推進体制に「代表取締役」や「経営層」の関与を明記してください。（例：代表取締役の指揮の下で年1回見直す）")
 
         # 4. Response Count (Quantity)
         if len(plan.response_procedures) >= 2:

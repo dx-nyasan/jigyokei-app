@@ -60,15 +60,27 @@ class AIInterviewer:
 **重要**: ユーザーが既に長文や資料で詳細な情報を提供している場合は、機械的に質問を繰り返さず、「情報の確認（Verification）」モードに切り替えて進行してください。
 
 ## STEP 1: 基本情報の完全ヒアリング (Basic Info Complete Interview)
-1. **必須項目の網羅的確認**: 以下の項目は電子申請で**必須**です。未入力の項目がないよう、順次ヒアリングを行ってください。（一度に全て聞かず、2〜3個ずつ区切って聞いてください）
-   - 事業者名（正式名称）とフリガナ
-   - 法人番号（13桁）※分からなければ「後で確認」でも可
-   - 設立年月日（和暦・西暦どちらでも可）
-   - 住所詳細（郵便番号、都道府県、市区町村、番地、ビル名）
-   - 代表者情報（役職、氏名 ※姓と名の間にスペース）
-   - 業種（大分類・中分類）
-   - 資本金又は出資の額
-   - 常時使用する従業員の数
+1. **必須項目の網羅的確認**: 以下の項目は電子申請で**必須**です。未入力の項目がないよう、順次ヒアリングを行ってください。（一度に全て聞かず、一つずつ丁寧に聞いてください）
+   - **事業者名（正式名称）**: まずはこれだけを聞いてください。
+   - **フリガナ**: 事業者名の回答があった後に、「そのフリガナをカタカナで」と聞いてください。
+   - **法人番号（13桁）**: 分からなければ「後で確認」という選択肢を提示してください。
+   - **設立年月日**: 分からなければ「後で確認する」という選択肢を提示してください（optionsに含める）。
+   - **住所詳細**: 
+     - **郵便番号**: ハイフンあり（641-0054）でもなし（6410054）でも**そのまま受け入れてください**。ユーザーに再入力を求めてはいけません。
+     - **住所入力**: 郵便番号を聞いた直後、そこから推測される住所（県・市・町名）を提示し、「番地を入力してください」と促してください。
+     - **重要**: この時、JSONの `example` フィールドには「和歌山県和歌山市〇〇町1-1」のように、**推測された住所＋仮の番地** をセットしてください。これによりユーザーは「回答例の通り回答」ボタンを使って楽に入力できます。
+   - **代表者情報**: 役職、氏名（姓と名の間に全角スペース）。
+   - **業種（大分類・中分類）**: 
+     - ユーザーにいきなり「中分類」を聞いてはいけません。
+     - まず「どのようなお仕事をされていますか？（例：書道教室、ラーメン屋）」と**具体的な事業内容**を聞いてください。
+     - 事業内容を聞き取ったら、あなたが責任を持って日本標準産業分類を特定してください。
+       - **禁止**: ユーザーに「これで合っていますか？」と正誤判断を求めてはいけません（ユーザーは分類を知りません）。
+       - **指示**: 「それでは、申請書の業種区分は『〇〇業（中分類）』として登録させていただきます。」と**決定して伝えて**ください。
+     - 例外: どうしても一つに絞れない場合のみ、「AまたはBのどちらが近いですか？」と選択肢を提示してください。
+   - **資本金又は出資の額**:
+     - ユーザーが見やすいように、回答例にはカンマや単位を使ってください（例：「1,000万円」「300万円」など）。
+     - ユーザーが「1,000万円」や「5,000,000」と入力した場合でも、内部的には正しい数値として認識・抽出できるようにしてください。
+   - **常時使用する従業員の数**
 2. **確認**: 「入力された基本情報（上記）に間違いがないか確認してください。」
 
 ## STEP 2: 事業内容の深掘り (Deep Dive into Business)
@@ -430,15 +442,30 @@ class AIInterviewer:
 
         try:
             response = self.model.generate_content(prompt)
+            # Safety check: accessing .text might fail if blocked
+            if not response.parts:
+                print("Analysis blocked by safety filters.")
+                return {}
+                
             text = response.text
             import re
+            # 1. Try finding Markdown Code Block
             json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group(1))
-            else:
-                return json.loads(text)
+            
+            # 2. Try finding raw JSON structure (first { to last })
+            # This handles cases where LLM outputs "Here is the JSON: {...}" without backticks
+            raw_match = re.search(r'(\{.*\})', text, re.DOTALL)
+            if raw_match:
+                return json.loads(raw_match.group(1))
+                
+            # 3. Last resort: Try parsing the whole text
+            return json.loads(text)
+            
         except Exception as e:
             print(f"Analysis failed: {e}")
+            # If verification failed or blocked
             return {}
 
     def detect_conflicts(self) -> dict:
