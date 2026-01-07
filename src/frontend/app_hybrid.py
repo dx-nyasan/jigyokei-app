@@ -1229,6 +1229,19 @@ elif mode == "Dashboard Mode (Progress)":
                 st.subheader("想定する自然災害等")
                 if plan.goals.disaster_scenario.disaster_assumption and plan.goals.disaster_scenario.disaster_assumption != "未設定":
                     st.info(plan.goals.disaster_scenario.disaster_assumption)
+                    
+                    # J-SHIS validation check
+                    try:
+                        from src.core.jshis_helper import get_missing_requirements
+                        missing_reqs = get_missing_requirements(plan.goals.disaster_scenario.disaster_assumption)
+                        if missing_reqs:
+                            st.warning("⚠️ **認定要件の不足** - 以下の記載が不足しています：")
+                            for req in missing_reqs:
+                                st.caption(f"  • {req}")
+                        else:
+                            st.success("✅ J-SHIS認定レベルの記載要件を満たしています")
+                    except ImportError:
+                        pass  # Module not available
                 
                 # Specific errors
                 msgs = get_missing_msgs("Disaster")
@@ -1470,6 +1483,14 @@ elif mode == "Dashboard Mode (Progress)":
                 msgs = get_missing_msgs("PDCA")
                 for err in msgs:
                     st.error(f"🚨 {err}")
+                
+                # 12/17 新設必須項目チェック
+                if not plan.pdca.training_month:
+                    st.warning("⚠️ 訓練月が未設定です（年1回以上の実施月を指定してください）")
+                if not plan.pdca.review_month:
+                    st.warning("⚠️ 見直し月が未設定です（年1回以上の見直し月を指定してください）")
+                if not plan.pdca.internal_publicity or len(plan.pdca.internal_publicity) < 10:
+                    st.error("🚨 **社内周知方法（12/17新設必須）** が未入力です。認定に必須の項目です。")
                 
                 # Auto-refinement for PDCA
                 pdca_text = f"{plan.pdca.training_education or ''} {plan.pdca.internal_publicity or ''}"
