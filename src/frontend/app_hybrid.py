@@ -731,15 +731,41 @@ if mode == "Chat Mode (Interview)":
         st.session_state.auto_trigger_message = None
 
     if prompt:
-        # --- J-SHIS Auto-Open Feature ---
-        # Detect J-SHIS confirmation and auto-open site in new tab
-        # Use regex to handle AI suggestion variations
+        # --- J-SHIS Auto-Open Feature (Context-Aware) ---
+        # Check if user is responding affirmatively to J-SHIS confirmation question
         import re
-        jshis_pattern = re.compile(
-            r'(J-?SHIS|ハザードカルテ|地震ハザード|震度予測).*(確認|調べ|見|チェック|参照|開)',
-            re.IGNORECASE
-        )
-        if jshis_pattern.search(prompt):
+        
+        # Detect affirmative J-SHIS confirmation response
+        # Pattern 1: User clicks "はい、J-SHISを確認します" option
+        # Pattern 2: User types "はい" after AI asked about J-SHIS
+        jshis_affirmative_patterns = [
+            r'はい.*J-?SHIS.*確認',  # "はい、J-SHISを確認します"
+            r'J-?SHIS.*確認.*はい',  # "J-SHISを確認します、はい"
+            r'^はい$',               # Just "はい" (need context check)
+            r'^はい、',              # "はい、" at start
+        ]
+        
+        is_jshis_affirmative = False
+        
+        # Check direct patterns first
+        for pattern in jshis_affirmative_patterns[:2]:
+            if re.search(pattern, prompt, re.IGNORECASE):
+                is_jshis_affirmative = True
+                break
+        
+        # If user just said "はい", check if previous AI message was about J-SHIS
+        if not is_jshis_affirmative and re.match(r'^はい[、。！]?$', prompt.strip()):
+            history = st.session_state.ai_interviewer.history
+            if history:
+                last_ai_msg = None
+                for msg in reversed(history):
+                    if msg.get("role") == "model":
+                        last_ai_msg = msg.get("content", "")
+                        break
+                if last_ai_msg and re.search(r'J-?SHIS.*確認しますか', last_ai_msg):
+                    is_jshis_affirmative = True
+        
+        if is_jshis_affirmative:
             # Open J-SHIS in new tab via JavaScript
             jshis_url = "https://www.j-shis.bosai.go.jp/map/"
             js_open = f'''
@@ -751,7 +777,7 @@ if mode == "Chat Mode (Interview)":
             
             # Show search instructions
             with st.container(border=True):
-                st.info("**🌐 J-SHISサイトを別タブで開きました**")
+                st.success("**🌐 J-SHISサイトを別タブで開きました**")
                 st.markdown("""
 ### 📍 J-SHIS 地震ハザードカルテ 検索方法
 
@@ -760,15 +786,17 @@ if mode == "Chat Mode (Interview)":
 3. **カルテを表示**: 「地震ハザードカルテ」ボタンをクリック
 
 ### ✅ 確認する項目（必須）
-- **今後30年以内の発生確率** (例: 65.3%)
-- **想定される震度** (例: 震度6強)
-- **地形区分** (例: 三角州・海岸低地)
+| 項目 | 例 |
+|:---|:---|
+| 今後30年以内の発生確率 | 65.3% |
+| 想定される震度 | 震度6強 |
+| 地形区分 | 三角州・海岸低地 |
 
 > 💡 これらの情報が揃ったら、チャットで報告してください。
 """)
             
             # Modify prompt to indicate user is checking
-            final_prompt = "J-SHISを確認しています。情報が揃ったらお伝えします。"
+            final_prompt = "はい、J-SHISで確認します。"
         else:
             final_prompt = prompt
         
