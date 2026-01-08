@@ -417,16 +417,8 @@ with st.sidebar:
 
 
 if mode == "Chat Mode (Interview)":
-    # 1. Dashboard Navigation & Header
-    col_head1, col_head2 = st.columns([3, 1])
-    with col_head1:
-        st.title("🤖 AI Interviewer (Chat Mode)")
-    with col_head2:
-        st.button(
-            "📊 進捗度を確認する",
-            on_click=change_mode,
-            args=("Dashboard Mode (Progress)",)
-        )
+    # 1. Header (simplified - progress button moved to sidebar for easier access)
+    st.title("🤖 AI Interviewer (Chat Mode)")
 
     # User Metadata Inputs (Main Panel) - Always visible at top
     with st.container(border=True):
@@ -648,14 +640,22 @@ if mode == "Chat Mode (Interview)":
     # Prioritize dynamic options
     options = current_suggestions.get("options", [])
     
-    # Fallback if no dynamic options
+    # Fallback if no dynamic options - Plan A: Clear start options
     if not options:
-        fallback_map = {
-            "経営者": ["事業の強みについて", "自然災害への懸念", "重要な設備・資産"],
-            "従業員": ["緊急時の連絡体制", "避難経路の確認", "顧客対応マニュアル"],
-            "商工会職員": ["ハザードマップ確認", "損害保険の加入状況", "地域防災計画との連携"]
-        }
-        options = fallback_map.get(persona, [])
+        # Check if conversation has started
+        has_conversation = len(st.session_state.ai_interviewer.history) > 1
+        
+        if has_conversation:
+            # During conversation - show contextual fallback
+            fallback_map = {
+                "経営者": ["はい", "いいえ", "詳しく教えてください"],
+                "従業員": ["はい", "いいえ", "詳しく教えてください"],
+                "商工会職員": ["はい", "いいえ", "詳しく教えてください"]
+            }
+            options = fallback_map.get(persona, [])
+        else:
+            # Initial state - Plan A: Simple clear CTAs
+            options = ["📋 計画策定を始める", "📂 資料をアップロードして始める"]
 
     # --- Options Placeholder (UI Improvement from 12/14) ---
     options_placeholder = st.empty()
