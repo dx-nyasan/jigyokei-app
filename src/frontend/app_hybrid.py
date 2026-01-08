@@ -731,11 +731,51 @@ if mode == "Chat Mode (Interview)":
         st.session_state.auto_trigger_message = None
 
     if prompt:
+        # --- J-SHIS Auto-Open Feature ---
+        # Detect J-SHIS confirmation and auto-open site in new tab
+        # Use regex to handle AI suggestion variations
+        import re
+        jshis_pattern = re.compile(
+            r'(J-?SHIS|ハザードカルテ|地震ハザード|震度予測).*(確認|調べ|見|チェック|参照|開)',
+            re.IGNORECASE
+        )
+        if jshis_pattern.search(prompt):
+            # Open J-SHIS in new tab via JavaScript
+            jshis_url = "https://www.j-shis.bosai.go.jp/map/"
+            js_open = f'''
+            <script>
+                window.open("{jshis_url}", "_blank");
+            </script>
+            '''
+            components.html(js_open, height=0)
+            
+            # Show search instructions
+            with st.container(border=True):
+                st.info("**🌐 J-SHISサイトを別タブで開きました**")
+                st.markdown("""
+### 📍 J-SHIS 地震ハザードカルテ 検索方法
+
+1. **住所検索**: 左上の検索ボックスに御社の住所を入力
+2. **地点をクリック**: 地図上で事業所の位置をクリック
+3. **カルテを表示**: 「地震ハザードカルテ」ボタンをクリック
+
+### ✅ 確認する項目（必須）
+- **今後30年以内の発生確率** (例: 65.3%)
+- **想定される震度** (例: 震度6強)
+- **地形区分** (例: 三角州・海岸低地)
+
+> 💡 これらの情報が揃ったら、チャットで報告してください。
+""")
+            
+            # Modify prompt to indicate user is checking
+            final_prompt = "J-SHISを確認しています。情報が揃ったらお伝えします。"
+        else:
+            final_prompt = prompt
+        
         with main_chat_container:
             with st.chat_message("user", avatar="🧑‍🏫" if persona=="商工会職員" else "👤"):
                 st.markdown(prompt)
-        
-        final_prompt = prompt
+
         
         # Prepare metadata for context
         user_name = st.session_state.get("user_name_input", "")
