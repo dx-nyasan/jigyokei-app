@@ -190,28 +190,31 @@ with st.sidebar:
     st.caption("Cloud Edition ☁️")
     st.text(f"Ver: {APP_VERSION}") # バージョンを常に表示
 
-    # --- Live Progress Indicator ---
-    from src.core.completion_checker import CompletionChecker
+    # --- Live Progress Indicator (Always Visible) ---
+    st.divider()
     
     current_plan_obj = st.session_state.get("current_plan")
     if current_plan_obj:
         try:
-             checker = CompletionChecker(current_plan_obj)
-             # Basic Info is Step 1, Goals Step 2... Let's use overall completeness
-             missing_count = len(checker.check_missing_fields())
-             total_fields = 20 # Estimate
-             progress = max(0, min(100, int((20 - missing_count) / 20 * 100)))
-             
-             st.divider()
-             st.progress(progress / 100)
-             st.caption(f"現在の進捗: {progress}% (残り項目: {missing_count})")
-             
-             if st.button("📊 進捗詳細を確認 (Dashboard)", key="sidebar_progress_btn"):
-                 st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
-                 st.rerun()
-             st.divider()
+            from src.core.completion_checker import CompletionChecker
+            checker = CompletionChecker(current_plan_obj)
+            missing_count = len(checker.check_missing_fields())
+            total_fields = 20 # Estimate
+            progress = max(0, min(100, int((20 - missing_count) / 20 * 100)))
+            
+            st.progress(progress / 100)
+            st.caption(f"📊 入力進捗: **{progress}%** (残り{missing_count}項目)")
         except:
-             pass
+            st.caption("📊 入力進捗: データ準備中...")
+    else:
+        st.caption("📊 入力進捗: まだ入力がありません")
+    
+    # Always show the dashboard button
+    if st.button("📊 進捗詳細を確認 (Dashboard)", key="sidebar_progress_btn", use_container_width=True):
+        st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
+        st.rerun()
+    
+    st.divider()
     
     # Navigation Selection
     if "app_nav_selection" not in st.session_state:
