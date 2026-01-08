@@ -887,12 +887,13 @@ elif mode == "Dashboard Mode (Progress)":
         
         col_m1, col_m2 = st.columns([1, 4])
         with col_m1:
-            st.metric(label="認定可能性スコア (Score)", value=f"{result['total_score']} / 100", help="100点で電子申請の認定要件を満たします")
+            # Renamed: 認定可能性スコア → 入力進捗度 (to avoid confusion with audit score)
+            st.metric(label="📝 入力進捗度", value=f"{result['total_score']}%", help="必須項目の入力完了率")
             
         with col_m2:
-            st.caption("認定に向けた必須項目の入力状況 (Mandatory Requirements)")
+            st.caption("必須項目の入力状況 (Mandatory Requirements)")
             st.progress(result['mandatory_progress'])
-            st.caption(f"必須項目の達成率: {int(result['mandatory_progress']*100)}% 完了")
+            st.caption(f"入力完了率: {int(result['mandatory_progress']*100)}%")
             
         # --- 2. Actionable Alerts (Missing Mandatory) - SEVERITY-BASED ---
         if result['status'] != "success":
@@ -1009,15 +1010,26 @@ elif mode == "Dashboard Mode (Progress)":
                 score_color = "red" if audit_result.total_score < 50 else "orange" if audit_result.total_score < 70 else "green"
                 st.markdown(f"### 監査スコア: :{score_color}[**{audit_result.total_score}点 / 100点**]")
                 
-                # Section breakdown
+                # Section breakdown with max scores
                 if audit_result.sections:
+                    # Define max scores for each section
+                    max_scores = {
+                        "災害想定": 20, "事業影響": 20, "初動対応": 15,
+                        "事前対策": 15, "PDCA体制": 15, "事業概要": 10, "基本情報": 5
+                    }
+                    
                     with st.expander("📊 セクション別評価", expanded=True):
                         for sec in audit_result.sections:
+                            max_score = max_scores.get(sec.name, 10)
+                            is_full = sec.score >= max_score
+                            status_icon = "✅" if is_full else "⚠️" if sec.score >= max_score * 0.5 else "❌"
+                            
                             col_s1, col_s2 = st.columns([3, 1])
                             with col_s1:
                                 st.write(f"**{sec.name}**: {sec.reason}")
                             with col_s2:
-                                st.metric(label="スコア", value=f"{sec.score}点", label_visibility="collapsed")
+                                # Show X / Y format with status
+                                st.markdown(f"**{sec.score} / {max_score}点** {status_icon}")
                 
                 # Improvements
                 if audit_result.improvements:
