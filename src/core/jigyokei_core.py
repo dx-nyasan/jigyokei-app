@@ -309,7 +309,13 @@ class AIInterviewer:
         
         try:
             # Geminiへの送信
-            response = self.chat_session.send_message(actual_prompt)
+            # Include uploaded files if available for context
+            if self.uploaded_file_refs:
+                # Send message with file references for continuous access
+                message_content = [actual_prompt] + self.uploaded_file_refs
+                response = self.chat_session.send_message(message_content)
+            else:
+                response = self.chat_session.send_message(actual_prompt)
             text_response = response.text
             
             # Post-processing to remove leaked thought process
