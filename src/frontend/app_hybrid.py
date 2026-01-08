@@ -766,16 +766,10 @@ if mode == "Chat Mode (Interview)":
                     is_jshis_affirmative = True
         
         if is_jshis_affirmative:
-            # Open J-SHIS in new tab via JavaScript
+            # J-SHIS URL (no auto-open due to popup blockers)
             jshis_url = "https://www.j-shis.bosai.go.jp/map/"
-            js_open = f'''
-            <script>
-                window.open("{jshis_url}", "_blank");
-            </script>
-            '''
-            components.html(js_open, height=0)
             
-            # Get registered address from current plan if available
+            # Get registered address from current plan or chat history
             registered_address = ""
             if "current_plan" in st.session_state and st.session_state.current_plan:
                 plan = st.session_state.current_plan
@@ -788,40 +782,51 @@ if mode == "Chat Mode (Interview)":
                     ]
                     registered_address = "".join([p for p in addr_parts if p])
             
-            # Show search instructions with address copy feature
+            # If no address in plan, try to extract from chat history
+            if not registered_address:
+                history = st.session_state.ai_interviewer.history
+                for msg in reversed(history):
+                    content = msg.get("content", "")
+                    # Look for address patterns in AI messages
+                    import re
+                    addr_match = re.search(r'(和歌山県[^\n「」。、]+\d+-\d+(?:-\d+)?)', content)
+                    if addr_match:
+                        registered_address = addr_match.group(1)
+                        break
+            
+            # Show J-SHIS link and address info
             with st.container(border=True):
-                st.success("**🌐 J-SHISサイトを別タブで開きました**")
+                st.markdown("### 🌐 J-SHIS 地震ハザードカルテ")
                 
-                # Show registered address for easy copy-paste
+                # Clickable link button (not auto-open)
+                st.link_button("📍 J-SHISサイトを開く", jshis_url, use_container_width=True)
+                
+                st.divider()
+                
+                # Show registered address for copy-paste
+                st.markdown("**📋 検索用住所（コピーしてJ-SHISで検索）:**")
                 if registered_address:
-                    st.info(f"**📍 登録済み住所（コピーして検索に使用）:**")
                     st.code(registered_address, language=None)
+                else:
+                    st.warning("住所が見つかりませんでした。チャットで入力した住所をご確認ください。")
                 
                 st.markdown("""
-### 📍 J-SHIS 地震ハザードカルテ 検索方法
+### 📝 検索方法
 
-1. **住所検索**: 左上の検索ボックスに**上記の住所（番地まで）**を入力
-2. **地点をクリック**: 地図上で事業所の位置をクリック
-3. **カルテを表示**: 「地震ハザードカルテ」ボタンをクリック
-4. **PDFダウンロード**: カルテ画面で「PDF出力」をクリック
+1. 上のボタンでJ-SHISを開く
+2. 左上の検索ボックスに**上記の住所**を貼り付け
+3. 地図上で事業所をクリック
+4. 「地震ハザードカルテ」→「PDF出力」
 
-> ⚠️ **郵便番号ではなく、番地までの完全な住所で検索してください**
+> ⚠️ **郵便番号ではなく、番地までの住所で検索**
 """)
                 
                 st.divider()
                 
-                # Recommend upload as primary action
                 st.markdown("""
-### 📤 **推奨: ハザードカルテをアップロード**
+### 📤 推奨: PDFをアップロード
 
-J-SHISでダウンロードしたPDFを、上部の「📂 資料の追加アップロード」からアップロードしてください。
-AIが自動で内容を読み取り、必要な情報を抽出します。
-
-| 確認する項目 | 例 |
-|:---|:---|
-| 今後30年以内の発生確率 | 65.3% |
-| 想定される震度 | 震度6強 |
-| 地形区分 | 三角州・海岸低地 |
+ダウンロードしたPDFを「📂 資料の追加アップロード」からアップロードしてください。
 """)
             
             # Modify prompt to indicate user is checking
