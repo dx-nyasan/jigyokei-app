@@ -775,24 +775,53 @@ if mode == "Chat Mode (Interview)":
             '''
             components.html(js_open, height=0)
             
-            # Show search instructions
+            # Get registered address from current plan if available
+            registered_address = ""
+            if "current_plan" in st.session_state and st.session_state.current_plan:
+                plan = st.session_state.current_plan
+                if plan.basic_info:
+                    addr_parts = [
+                        plan.basic_info.address_pref or "",
+                        plan.basic_info.address_city or "",
+                        plan.basic_info.address_street or "",
+                        plan.basic_info.address_building or ""
+                    ]
+                    registered_address = "".join([p for p in addr_parts if p])
+            
+            # Show search instructions with address copy feature
             with st.container(border=True):
                 st.success("**🌐 J-SHISサイトを別タブで開きました**")
+                
+                # Show registered address for easy copy-paste
+                if registered_address:
+                    st.info(f"**📍 登録済み住所（コピーして検索に使用）:**")
+                    st.code(registered_address, language=None)
+                
                 st.markdown("""
 ### 📍 J-SHIS 地震ハザードカルテ 検索方法
 
-1. **住所検索**: 左上の検索ボックスに御社の住所を入力
+1. **住所検索**: 左上の検索ボックスに**上記の住所（番地まで）**を入力
 2. **地点をクリック**: 地図上で事業所の位置をクリック
 3. **カルテを表示**: 「地震ハザードカルテ」ボタンをクリック
+4. **PDFダウンロード**: カルテ画面で「PDF出力」をクリック
 
-### ✅ 確認する項目（必須）
-| 項目 | 例 |
+> ⚠️ **郵便番号ではなく、番地までの完全な住所で検索してください**
+""")
+                
+                st.divider()
+                
+                # Recommend upload as primary action
+                st.markdown("""
+### 📤 **推奨: ハザードカルテをアップロード**
+
+J-SHISでダウンロードしたPDFを、上部の「📂 資料の追加アップロード」からアップロードしてください。
+AIが自動で内容を読み取り、必要な情報を抽出します。
+
+| 確認する項目 | 例 |
 |:---|:---|
 | 今後30年以内の発生確率 | 65.3% |
 | 想定される震度 | 震度6強 |
 | 地形区分 | 三角州・海岸低地 |
-
-> 💡 これらの情報が揃ったら、チャットで報告してください。
 """)
             
             # Modify prompt to indicate user is checking
