@@ -189,10 +189,15 @@ class AIInterviewer:
         """
 
         # Streamlit Secrets または 環境変数からAPIキーを取得
+        # 優先順位: GEMINI_API_KEY > GOOGLE_API_KEY (後方互換性のため両方対応)
+        api_key = None
         try:
-            api_key = st.secrets["GOOGLE_API_KEY"]
+            api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
         except Exception:
-            api_key = os.getenv("GOOGLE_API_KEY")
+            pass
+        
+        if not api_key:
+            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
         if api_key:
             genai.configure(api_key=api_key)
