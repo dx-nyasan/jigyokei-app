@@ -953,21 +953,39 @@ elif mode == "Dashboard Mode (Progress)":
         st.divider()
         col_exp1, col_exp2 = st.columns([3, 1])
         with col_exp2:
-            # Excel Export
-            if st.button("📄 下書きシート出力 (Excel)", key="btn_export_draft", use_container_width=True):
+            # Excel Export - Draft Sheet
+            st.caption("📤 **エクスポート**")
+            if st.button("📄 下書きシート出力", key="btn_export_draft", use_container_width=True, help="進捗確認用の下書きシート"):
                 try:
                     from src.core.draft_exporter import DraftExporter
                     excel_data = DraftExporter.export_to_excel(plan, result)
                     st.download_button(
-                        label="⬇️ ダウンロード開始",
+                        label="⬇️ ダウンロード (下書き)",
                         data=excel_data,
                         file_name=f"jigyokei_draft_{plan.basic_info.corporate_name or 'plan'}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="btn_download_excel_real"
+                        key="btn_download_excel_draft"
                     )
-                    st.success("Excel生成完了！上のダウンロードボタンを押してください。")
                 except ImportError as ie:
-                     st.error(f"依存ライブラリ不足: {ie} (pip install openpyxl が必要です)")
+                     st.error(f"依存ライブラリ不足: {ie}")
+                except Exception as e:
+                    st.error(f"エクスポートエラー: {e}")
+            
+            # Excel Export - Application Input (NEW)
+            if st.button("📋 電子申請入力用 (Excel)", key="btn_export_app", use_container_width=True, type="primary", help="電子申請システムへのコピペ用"):
+                try:
+                    from src.core.draft_exporter import DraftExporter
+                    excel_data = DraftExporter.export_for_application(plan)
+                    st.download_button(
+                        label="⬇️ ダウンロード (入力用)",
+                        data=excel_data,
+                        file_name=f"jigyokei_application_{plan.basic_info.corporate_name or 'plan'}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="btn_download_excel_app"
+                    )
+                    st.success("✅ 黄色のセルをコピーして電子申請システムに貼り付けてください")
+                except ImportError as ie:
+                     st.error(f"依存ライブラリ不足: {ie}")
                 except Exception as e:
                     st.error(f"エクスポートエラー: {e}")
 
