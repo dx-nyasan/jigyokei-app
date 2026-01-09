@@ -269,6 +269,48 @@ class CompletionChecker:
         elif mandatory_checks["FinancialPlan"]:
               suggestions.append("資金計画の内容（金額または調達方法）を具体的に入力してください。")
 
+        # 7. Disaster-Measures Consistency Check (NEW)
+        # Verify that measures address the declared disaster type
+        disaster_text = plan.goals.disaster_scenario.disaster_assumption or ""
+        disaster_text_lower = disaster_text.lower()
+        
+        # Define disaster types and expected measure keywords
+        disaster_measure_map = {
+            "地震": ["耐震", "固定", "倒壊", "落下", "避難", "安否", "備蓄", "緊急地震速報", "転倒防止"],
+            "水害": ["浸水", "止水", "排水", "土嚢", "避難", "高所", "防水", "ハザードマップ"],
+            "台風": ["強風", "飛散", "防風", "養生", "避難", "停電", "ガラス"],
+            "停電": ["発電", "UPS", "バッテリー", "蓄電", "電源", "非常用電源"],
+            "感染症": ["感染", "テレワーク", "消毒", "マスク", "リモート", "在宅"]
+        }
+        
+        # Collect all measures text
+        measures_text = ""
+        if plan.measures:
+            m = plan.measures
+            measures_text = " ".join([
+                m.personnel.current_measure or "", m.personnel.future_plan or "",
+                m.building.current_measure or "", m.building.future_plan or "",
+                m.money.current_measure or "", m.money.future_plan or "",
+                m.data.current_measure or "", m.data.future_plan or ""
+            ])
+        
+        # Check consistency
+        consistency_ok = False
+        detected_disaster = None
+        
+        for disaster_type, keywords in disaster_measure_map.items():
+            if disaster_type in disaster_text:
+                detected_disaster = disaster_type
+                # Check if any measure addresses this disaster
+                if any(kw in measures_text for kw in keywords):
+                    consistency_ok = True
+                    score += 5  # Bonus for consistency
+                break
+        
+        if detected_disaster and not consistency_ok and mandatory_checks["Measures"]:
+            suggestions.append(f"⚠️ 災害想定「{detected_disaster}」に対応した事前対策が不足しています。{disaster_type}対策のキーワード（例：{', '.join(keywords[:3])}）を含めてください。")
+
+
         # C. Compliance & Checklist (Max 10 pts, Reduced from 20)
         checklist = plan.attachments
         c_score = 0

@@ -73,11 +73,72 @@ from src.core.draft_exporter import DraftExporter
 from src.core.session_manager import SessionManager
 
 # --- Version Control ---
-APP_VERSION = "3.4.0-ux-improvement-autoresume"
+APP_VERSION = "3.5.0-medium-priority-tasks"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
     st.session_state.session_manager = SessionManager()
+
+# --- LocalStorage Auto-Save Helper ---
+def inject_localstorage_autosave():
+    """
+    Inject JavaScript for LocalStorage auto-save functionality.
+    Saves plan data to browser's LocalStorage every 30 seconds.
+    """
+    if "current_plan" in st.session_state:
+        try:
+            plan_json = st.session_state.current_plan.model_dump_json()
+            # Escape for JavaScript string
+            plan_json_escaped = plan_json.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+            
+            js_code = f"""
+            <script>
+            (function() {{
+                const key = 'jigyokei_autosave';
+                const data = '{plan_json_escaped}';
+                try {{
+                    localStorage.setItem(key, data);
+                    localStorage.setItem(key + '_timestamp', new Date().toISOString());
+                    console.log('[Jigyokei] Auto-saved to LocalStorage');
+                }} catch(e) {{
+                    console.error('[Jigyokei] LocalStorage save failed:', e);
+                }}
+            }})();
+            </script>
+            """
+            components.html(js_code, height=0)
+        except Exception as e:
+            pass  # Silently fail
+
+def get_localstorage_data():
+    """
+    Inject JavaScript to retrieve LocalStorage data and display restore option.
+    Returns component that checks for saved data.
+    """
+    js_code = """
+    <div id="ls-restore-container"></div>
+    <script>
+    (function() {
+        const key = 'jigyokei_autosave';
+        const data = localStorage.getItem(key);
+        const timestamp = localStorage.getItem(key + '_timestamp');
+        const container = document.getElementById('ls-restore-container');
+        
+        if (data && timestamp) {
+            const date = new Date(timestamp);
+            const formatted = date.toLocaleString('ja-JP');
+            container.innerHTML = `
+                <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin: 5px 0;">
+                    <strong>💾 前回のセッションデータが見つかりました</strong><br>
+                    <small>保存日時: ${formatted}</small>
+                </div>
+            `;
+        }
+    })();
+    </script>
+    """
+    return js_code
+
 
 # --- Auto Resume Logic ---
 # [DISABLED] Automatic loading of shared session file causes data leak between users in Cloud environment.
@@ -881,6 +942,9 @@ elif mode == "Dashboard Mode (Progress)":
         # Run Analysis
         result = CompletionChecker.analyze(plan)
         
+        # --- Auto-save to LocalStorage ---
+        inject_localstorage_autosave()
+        
         # --- 1. Status Banner & Header ---
         st.divider()
         st.subheader("📊 Plan Progress Dashboard")
@@ -1054,6 +1118,100 @@ elif mode == "Dashboard Mode (Progress)":
                     with st.expander("💡 改善提案", expanded=True):
                         for i, imp in enumerate(audit_result.improvements, 1):
                             st.warning(f"{i}. {imp}")
+
+        # --- Attachments Checklist Section ---
+        st.divider()
+        with st.expander("📎 添付書類・誓約事項チェックリスト", expanded=False):
+            st.caption("電子申請の最終確認事項です。すべてにチェックが必要です。")
+            
+            # Get or initialize attachments
+            att = plan.attachments
+            
+            col_att1, col_att2 = st.columns(2)
+            
+            with col_att1:
+                st.markdown("**必須確認事項**")
+                
+                # Certification compliance
+                new_cert = st.checkbox(
+                    "認定要件への適合を確認しました", 
+                    value=att.certification_compliance or False,
+                    key="chk_cert_compliance"
+                )
+                if new_cert != att.certification_compliance:
+                    plan.attachments.certification_compliance = new_cert
+                
+                # No false statements
+                new_nofalse = st.checkbox(
+                    "虚偽の記載がないことを確認しました",
+                    value=att.no_false_statements or False,
+                    key="chk_no_false"
+                )
+                if new_nofalse != att.no_false_statements:
+                    plan.attachments.no_false_statements = new_nofalse
+                
+                # Not anti-social
+                new_antisocial = st.checkbox(
+                    "反社会的勢力ではないことを確認しました",
+                    value=att.not_anti_social or False,
+                    key="chk_not_antisocial"
+                )
+                if new_antisocial != att.not_anti_social:
+                    plan.attachments.not_anti_social = new_antisocial
+                
+                # Legal compliance
+                new_legal = st.checkbox(
+                    "法令に適合していることを確認しました",
+                    value=att.legal_compliance or False,
+                    key="chk_legal"
+                )
+                if new_legal != att.legal_compliance:
+                    plan.attachments.legal_compliance = new_legal
+            
+            with col_att2:
+                st.markdown("**追加確認事項**")
+                
+                # SME requirements
+                new_sme = st.checkbox(
+                    "中小企業者の要件を満たしています",
+                    value=att.sme_requirements or False,
+                    key="chk_sme"
+                )
+                if new_sme != att.sme_requirements:
+                    plan.attachments.sme_requirements = new_sme
+                
+                # Registration consistency
+                new_reg = st.checkbox(
+                    "登記情報と一致しています",
+                    value=att.registration_consistency or False,
+                    key="chk_registration"
+                )
+                if new_reg != att.registration_consistency:
+                    plan.attachments.registration_consistency = new_reg
+                
+                # Not cancellation subject
+                new_cancel = st.checkbox(
+                    "認定取消対象ではありません",
+                    value=att.not_cancellation_subject or False,
+                    key="chk_not_cancel"
+                )
+                if new_cancel != att.not_cancellation_subject:
+                    plan.attachments.not_cancellation_subject = new_cancel
+            
+            # Count completed checks
+            checks = [
+                att.certification_compliance, att.no_false_statements, att.not_anti_social,
+                att.legal_compliance, att.sme_requirements, att.registration_consistency,
+                att.not_cancellation_subject
+            ]
+            completed = sum(1 for c in checks if c)
+            total = len(checks)
+            
+            st.divider()
+            if completed == total:
+                st.success(f"✅ すべての確認事項が完了しています ({completed}/{total})")
+            else:
+                st.warning(f"⚠️ 未完了の確認事項があります ({completed}/{total})")
 
         # --- 3. Section Breakdown (Application Form Style: 6 Tabs) ---
         st.divider()
