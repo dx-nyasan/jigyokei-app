@@ -160,34 +160,100 @@ class SpecMonitor:
                 return True
         return False
     
-    def check_for_updates(self) -> Dict[str, Any]:
+    def check_for_updates(self, use_scraping: bool = True) -> Dict[str, Any]:
         """
-        Check for specification updates (placeholder for future web scraping).
+        Check for specification updates from government websites.
         
-        Currently returns manual check status. In future versions,
-        this could integrate with web scraping to auto-detect changes.
+        Task 4: Web Scraping Implementation (Phase 2)
         
+        Args:
+            use_scraping: Whether to attempt web scraping (default True)
+            
         Returns:
             {
                 "checked_at": str,
                 "updates_found": bool,
                 "message": str,
-                "sources_checked": List[dict]
+                "sources_checked": List[dict],
+                "detected_keywords": List[str]
             }
         """
         checked_at = datetime.now().isoformat()
         self.current_version["last_check"] = checked_at
-        self._save_version()
         
-        # Placeholder: In production, this would scrape the government websites
-        return {
-            "checked_at": checked_at,
-            "updates_found": False,
-            "message": "手動確認が必要です。中小企業庁のウェブサイトをご確認ください。",
-            "sources_checked": [
-                {"name": s["name"], "url": s["url"]} 
+        detected_keywords = []
+        updates_found = False
+        sources_checked = []
+        
+        if use_scraping:
+            try:
+                import urllib.request
+                import ssl
+                
+                # Create SSL context that ignores certificate errors (for development)
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                
+                for source in self.SPEC_SOURCES:
+                    try:
+                        req = urllib.request.Request(
+                            source["url"],
+                            headers={"User-Agent": "Jigyokei-SpecMonitor/1.0"}
+                        )
+                        with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
+                            content = response.read().decode("utf-8", errors="ignore")
+                            
+                            # Check for keywords
+                            found_keywords = []
+                            for keyword in source["check_keywords"]:
+                                if keyword in content:
+                                    found_keywords.append(keyword)
+                                    detected_keywords.append(f"{source['name']}: {keyword}")
+                            
+                            sources_checked.append({
+                                "name": source["name"],
+                                "url": source["url"],
+                                "status": "success",
+                                "keywords_found": found_keywords
+                            })
+                            
+                            if found_keywords:
+                                updates_found = True
+                                
+                    except Exception as e:
+                        sources_checked.append({
+                            "name": source["name"],
+                            "url": source["url"],
+                            "status": "error",
+                            "error": str(e)
+                        })
+                        
+            except ImportError:
+                # Fallback if urllib not available
+                sources_checked = [
+                    {"name": s["name"], "url": s["url"], "status": "skipped"} 
+                    for s in self.SPEC_SOURCES
+                ]
+        else:
+            sources_checked = [
+                {"name": s["name"], "url": s["url"], "status": "manual_check"} 
                 for s in self.SPEC_SOURCES
             ]
+        
+        self._save_version()
+        
+        if updates_found:
+            message = f"⚠️ 仕様変更の可能性があります。検出キーワード: {', '.join(set(k.split(': ')[1] for k in detected_keywords))}"
+        else:
+            message = "✅ 現時点で仕様変更は検出されませんでした。"
+        
+        return {
+            "checked_at": checked_at,
+            "updates_found": updates_found,
+            "message": message,
+            "sources_checked": sources_checked,
+            "detected_keywords": detected_keywords
         }
     
     def get_affected_schema_fields(self) -> List[str]:

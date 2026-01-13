@@ -346,10 +346,36 @@ with st.sidebar:
             
             st.progress(progress / 100)
             st.caption(f"📊 入力進捗: **{progress}%** (残り{missing_count}項目)")
+            
+            # --- Task 3: Step Wizard Indicator ---
+            current_step = 1  # Default
+            if progress >= 75:
+                current_step = 4  # 出力
+            elif progress >= 50:
+                current_step = 3  # 監査
+            elif progress >= 25:
+                current_step = 2  # インタビュー
+            
+            step_icons = ["📝", "💬", "🔍", "📤"]
+            step_labels = ["基本情報", "インタビュー", "監査", "出力"]
+            step_display = ""
+            for i in range(4):
+                if i + 1 < current_step:
+                    step_display += f"✅ "  # Completed
+                elif i + 1 == current_step:
+                    step_display += f"**{step_icons[i]} {step_labels[i]}** → "
+                else:
+                    step_display += f"⬜ "  # Future
+            
+            st.markdown(f"**現在のステップ:** Step {current_step}/4")
+            st.caption(step_display.rstrip(" → "))
+            
         except:
             st.caption("📊 入力進捗: データ準備中...")
     else:
         st.caption("📊 入力進捗: まだ入力がありません")
+        st.markdown("**現在のステップ:** Step 1/4")
+        st.caption("📝 **基本情報** → ⬜ ⬜ ⬜")
     
     # Always show the dashboard button
     if st.button("📊 進捗詳細を確認 (Dashboard)", key="sidebar_progress_btn", use_container_width=True):
