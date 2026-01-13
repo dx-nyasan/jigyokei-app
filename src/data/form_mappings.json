@@ -1,0 +1,302 @@
+{
+    "metadata": {
+        "version": "1.0",
+        "last_updated": "2026-01-13",
+        "description": "電子申請フィールドとスキーマのマッピング定義"
+    },
+    "forms": {
+        "様式第1": {
+            "name": "基本情報",
+            "fields": [
+                {
+                    "id": "company_name",
+                    "label": "事業者の氏名又は名称",
+                    "schema_path": "basic_info.corporate_name",
+                    "required": true
+                },
+                {
+                    "id": "company_name_kana",
+                    "label": "フリガナ",
+                    "schema_path": "basic_info.corporate_name_kana",
+                    "required": true
+                },
+                {
+                    "id": "corporate_number",
+                    "label": "法人番号",
+                    "schema_path": "basic_info.corporate_number",
+                    "required": false
+                },
+                {
+                    "id": "representative_title",
+                    "label": "代表者の役職",
+                    "schema_path": "basic_info.representative_title",
+                    "required": true
+                },
+                {
+                    "id": "representative_name",
+                    "label": "代表者の氏名",
+                    "schema_path": "basic_info.representative_name",
+                    "required": true
+                },
+                {
+                    "id": "zip_code",
+                    "label": "郵便番号",
+                    "schema_path": "basic_info.address_zip",
+                    "required": true
+                },
+                {
+                    "id": "address_pref",
+                    "label": "都道府県",
+                    "schema_path": "basic_info.address_pref",
+                    "required": true
+                },
+                {
+                    "id": "address_city",
+                    "label": "市区町村",
+                    "schema_path": "basic_info.address_city",
+                    "required": true
+                },
+                {
+                    "id": "address_street",
+                    "label": "字・番地等",
+                    "schema_path": "basic_info.address_street",
+                    "required": true
+                },
+                {
+                    "id": "address_building",
+                    "label": "マンション名等",
+                    "schema_path": "basic_info.address_building",
+                    "required": false
+                },
+                {
+                    "id": "establishment_date",
+                    "label": "設立年月日",
+                    "schema_path": "basic_info.establishment_date",
+                    "required": true
+                },
+                {
+                    "id": "capital",
+                    "label": "資本金又は出資の額",
+                    "schema_path": "basic_info.capital",
+                    "required": true
+                },
+                {
+                    "id": "employees",
+                    "label": "常時使用する従業員の数",
+                    "schema_path": "basic_info.employees",
+                    "required": true
+                },
+                {
+                    "id": "industry_major",
+                    "label": "業種（大分類）",
+                    "schema_path": "basic_info.industry_major",
+                    "required": true
+                },
+                {
+                    "id": "industry_middle",
+                    "label": "業種（中分類）",
+                    "schema_path": "basic_info.industry_middle",
+                    "required": true
+                },
+                {
+                    "id": "industry_minor",
+                    "label": "業種（小分類）",
+                    "schema_path": "basic_info.industry_minor",
+                    "required": false
+                }
+            ]
+        },
+        "様式第2": {
+            "name": "事業概要・目標",
+            "fields": [
+                {
+                    "id": "business_overview",
+                    "label": "自社の事業活動の概要",
+                    "schema_path": "goals.business_overview",
+                    "required": true,
+                    "min_length": 200
+                },
+                {
+                    "id": "business_purpose",
+                    "label": "取組目的",
+                    "schema_path": "goals.business_purpose",
+                    "required": true
+                }
+            ]
+        },
+        "様式第3": {
+            "name": "災害想定",
+            "fields": [
+                {
+                    "id": "disaster_assumption",
+                    "label": "自然災害等の想定",
+                    "schema_path": "goals.disaster_scenario.disaster_assumption",
+                    "required": true
+                },
+                {
+                    "id": "impact_personnel",
+                    "label": "影響（人員）",
+                    "schema_path": "goals.disaster_scenario.impacts.impact_personnel",
+                    "required": true
+                },
+                {
+                    "id": "impact_building",
+                    "label": "影響（建物・設備）",
+                    "schema_path": "goals.disaster_scenario.impacts.impact_building",
+                    "required": true
+                },
+                {
+                    "id": "impact_funds",
+                    "label": "影響（資金繰り）",
+                    "schema_path": "goals.disaster_scenario.impacts.impact_funds",
+                    "required": true
+                },
+                {
+                    "id": "impact_info",
+                    "label": "影響（情報）",
+                    "schema_path": "goals.disaster_scenario.impacts.impact_info",
+                    "required": true
+                }
+            ]
+        },
+        "様式第4": {
+            "name": "初動対応",
+            "fields": [
+                {
+                    "id": "response_procedures",
+                    "label": "初動対応（配列）",
+                    "schema_path": "response_procedures",
+                    "required": true,
+                    "type": "array"
+                }
+            ],
+            "array_item_fields": [
+                {
+                    "id": "category",
+                    "label": "対応カテゴリ",
+                    "schema_path": "category"
+                },
+                {
+                    "id": "action_content",
+                    "label": "初動対応の内容",
+                    "schema_path": "action_content"
+                },
+                {
+                    "id": "timing",
+                    "label": "対応時期",
+                    "schema_path": "timing"
+                },
+                {
+                    "id": "preparation_content",
+                    "label": "事前対策",
+                    "schema_path": "preparation_content"
+                }
+            ]
+        },
+        "様式第5": {
+            "name": "事前対策",
+            "fields": [
+                {
+                    "id": "personnel_current",
+                    "label": "人員体制（現在）",
+                    "schema_path": "measures.personnel.current_measure",
+                    "required": true
+                },
+                {
+                    "id": "personnel_future",
+                    "label": "人員体制（今後）",
+                    "schema_path": "measures.personnel.future_plan",
+                    "required": false
+                },
+                {
+                    "id": "building_current",
+                    "label": "設備導入（現在）",
+                    "schema_path": "measures.building.current_measure",
+                    "required": true
+                },
+                {
+                    "id": "building_future",
+                    "label": "設備導入（今後）",
+                    "schema_path": "measures.building.future_plan",
+                    "required": false
+                },
+                {
+                    "id": "money_current",
+                    "label": "資金確保（現在）",
+                    "schema_path": "measures.money.current_measure",
+                    "required": true
+                },
+                {
+                    "id": "money_future",
+                    "label": "資金確保（今後）",
+                    "schema_path": "measures.money.future_plan",
+                    "required": false
+                },
+                {
+                    "id": "data_current",
+                    "label": "情報保護（現在）",
+                    "schema_path": "measures.data.current_measure",
+                    "required": true
+                },
+                {
+                    "id": "data_future",
+                    "label": "情報保護（今後）",
+                    "schema_path": "measures.data.future_plan",
+                    "required": false
+                }
+            ]
+        },
+        "様式第6": {
+            "name": "推進体制（PDCA）",
+            "fields": [
+                {
+                    "id": "management_involvement",
+                    "label": "平時の推進体制",
+                    "schema_path": "pdca.management_involvement",
+                    "required": true
+                },
+                {
+                    "id": "training_education",
+                    "label": "教育及び訓練",
+                    "schema_path": "pdca.training_education",
+                    "required": true
+                },
+                {
+                    "id": "training_month",
+                    "label": "訓練実施月",
+                    "schema_path": "pdca.training_month",
+                    "required": true,
+                    "note": "12/17改修必須項目"
+                },
+                {
+                    "id": "review_plan",
+                    "label": "計画見直し",
+                    "schema_path": "pdca.review_plan",
+                    "required": true
+                },
+                {
+                    "id": "review_month",
+                    "label": "見直し実施月",
+                    "schema_path": "pdca.review_month",
+                    "required": true,
+                    "note": "12/17改修必須項目"
+                },
+                {
+                    "id": "internal_publicity",
+                    "label": "取組の社内周知",
+                    "schema_path": "pdca.internal_publicity",
+                    "required": true,
+                    "note": "12/17改修必須項目"
+                }
+            ]
+        }
+    },
+    "validation_rules": {
+        "business_overview_min_length": 200,
+        "required_disaster_types": [
+            "地震"
+        ],
+        "min_response_procedures": 2,
+        "min_measure_categories": 2
+    }
+}

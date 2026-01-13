@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 from src.api.schemas import ApplicationRoot
+from src.core.logic_validator import check_logic_consistency
 
 class CompletionChecker:
     """
@@ -342,6 +343,17 @@ class CompletionChecker:
         if len(missing_mandatory) == 0:
             status = "success"
 
+        # --- Logic Consistency Check (WS-1 Integration) ---
+        logic_result = check_logic_consistency(plan)
+        
+        # Add logic warnings to missing_mandatory with "info" severity
+        for warning in logic_result.get("warnings", []):
+            if warning["severity"] in ["warning", "critical"]:
+                missing_mandatory.append(warning)
+        
+        # Add logic suggestions
+        suggestions.extend(logic_result.get("suggestions", []))
+
         return {
             "total_score": total_score,
             "status": status,
@@ -349,6 +361,7 @@ class CompletionChecker:
             "recommended_progress": 0.0, # Deprecated/Unused for calculation now
             "missing_mandatory": missing_mandatory,
             "suggestions": suggestions,
+            "logic_consistency": logic_result,
             "counts": {
                 "measures": measures_count,
                 "procedures": len(plan.response_procedures),
