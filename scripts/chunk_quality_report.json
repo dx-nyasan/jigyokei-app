@@ -1,0 +1,763 @@
+{
+  "summary": {
+    "total_chunks": 26,
+    "total_issues": 48,
+    "average_quality": 63.1,
+    "rag_keyword_coverage": 68.8,
+    "overall_grade": "C"
+  },
+  "chunk_analyses": [
+    {
+      "file": "tebiki_tandoku_ch001.md",
+      "size": 328,
+      "lines": 28,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "11/28 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "4 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "finance"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch002.md",
+      "size": 1462,
+      "lines": 72,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "32/72 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "25 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "response",
+        "personnel",
+        "disaster",
+        "training",
+        "equipment",
+        "review"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch003.md",
+      "size": 827,
+      "lines": 47,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "26/47 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "14 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "finance",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch004.md",
+      "size": 1084,
+      "lines": 90,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "60/90 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "13 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "response",
+        "disaster",
+        "training",
+        "equipment",
+        "review"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch005.md",
+      "size": 508,
+      "lines": 42,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "16/42 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "5 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch006.md",
+      "size": 1643,
+      "lines": 62,
+      "issues": [
+        {
+          "type": "incomplete_sentences",
+          "detail": "32 incomplete sentences"
+        }
+      ],
+      "issue_count": 1,
+      "detected_sections": [
+        "data",
+        "measures",
+        "disaster"
+      ],
+      "quality_score": 80
+    },
+    {
+      "file": "tebiki_tandoku_ch007.md",
+      "size": 1436,
+      "lines": 57,
+      "issues": [
+        {
+          "type": "incomplete_sentences",
+          "detail": "27 incomplete sentences"
+        }
+      ],
+      "issue_count": 1,
+      "detected_sections": [
+        "data",
+        "measures",
+        "disaster"
+      ],
+      "quality_score": 80
+    },
+    {
+      "file": "tebiki_tandoku_ch008.md",
+      "size": 1564,
+      "lines": 56,
+      "issues": [
+        {
+          "type": "incomplete_sentences",
+          "detail": "28 incomplete sentences"
+        }
+      ],
+      "issue_count": 1,
+      "detected_sections": [
+        "data",
+        "personnel",
+        "finance",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 80
+    },
+    {
+      "file": "tebiki_tandoku_ch009.md",
+      "size": 1557,
+      "lines": 64,
+      "issues": [
+        {
+          "type": "incomplete_sentences",
+          "detail": "28 incomplete sentences"
+        }
+      ],
+      "issue_count": 1,
+      "detected_sections": [
+        "data",
+        "personnel",
+        "finance",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 80
+    },
+    {
+      "file": "tebiki_tandoku_ch010.md",
+      "size": 901,
+      "lines": 65,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "29/65 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "13 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "finance"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch011.md",
+      "size": 1483,
+      "lines": 113,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "61/113 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "34 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "response",
+        "personnel",
+        "finance",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch012.md",
+      "size": 1146,
+      "lines": 82,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "43/82 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "16 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "response",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch013.md",
+      "size": 1450,
+      "lines": 140,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "89/140 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "23 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "equipment",
+        "response"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch014.md",
+      "size": 1355,
+      "lines": 159,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "115/159 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "23 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "response",
+        "disaster",
+        "training",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch015.md",
+      "size": 1460,
+      "lines": 135,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "85/135 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "28 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "disaster"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch016.md",
+      "size": 1704,
+      "lines": 116,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "68/116 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "28 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "disaster",
+        "personnel"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch017.md",
+      "size": 1636,
+      "lines": 79,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "33/79 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "26 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "finance",
+        "disaster",
+        "equipment",
+        "review"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch018.md",
+      "size": 1804,
+      "lines": 171,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "107/171 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "28 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "measures",
+        "disaster",
+        "training",
+        "equipment",
+        "review"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch019.md",
+      "size": 1613,
+      "lines": 78,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "35/78 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "29 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "finance",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch020.md",
+      "size": 1343,
+      "lines": 121,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "84/121 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "20 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "measures",
+        "disaster",
+        "finance",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch021.md",
+      "size": 1643,
+      "lines": 113,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "60/113 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "26 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch022.md",
+      "size": 1663,
+      "lines": 96,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "49/96 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "27 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "measures",
+        "disaster",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch023.md",
+      "size": 1159,
+      "lines": 73,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "42/73 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "22 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "data",
+        "measures",
+        "finance",
+        "disaster",
+        "training",
+        "equipment"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch024.md",
+      "size": 1262,
+      "lines": 76,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "28/76 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "19 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "measures",
+        "review",
+        "training"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch025.md",
+      "size": 1402,
+      "lines": 75,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "33/75 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "24 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "measures",
+        "equipment",
+        "review",
+        "finance"
+      ],
+      "quality_score": 60
+    },
+    {
+      "file": "tebiki_tandoku_ch026.md",
+      "size": 1556,
+      "lines": 78,
+      "issues": [
+        {
+          "type": "fragmented",
+          "detail": "24/78 short lines"
+        },
+        {
+          "type": "incomplete_sentences",
+          "detail": "29 incomplete sentences"
+        }
+      ],
+      "issue_count": 2,
+      "detected_sections": [
+        "measures",
+        "finance",
+        "disaster",
+        "training",
+        "equipment",
+        "review"
+      ],
+      "quality_score": 60
+    }
+  ],
+  "rag_search_results": {
+    "total_keywords": 16,
+    "found_keywords": 11,
+    "coverage": 0.6875,
+    "details": {
+      "災害想定": {
+        "found": false,
+        "match_count": 0,
+        "files": []
+      },
+      "事業概要": {
+        "found": false,
+        "match_count": 0,
+        "files": []
+      },
+      "初動対応": {
+        "found": true,
+        "match_count": 6,
+        "files": [
+          "tebiki_tandoku_ch002.md",
+          "tebiki_tandoku_ch004.md",
+          "tebiki_tandoku_ch011.md"
+        ]
+      },
+      "事前対策": {
+        "found": true,
+        "match_count": 9,
+        "files": [
+          "tebiki_tandoku_ch002.md",
+          "tebiki_tandoku_ch003.md",
+          "tebiki_tandoku_ch004.md"
+        ]
+      },
+      "教育及び訓練": {
+        "found": false,
+        "match_count": 0,
+        "files": []
+      },
+      "計画の見直し": {
+        "found": true,
+        "match_count": 3,
+        "files": [
+          "tebiki_tandoku_ch002.md",
+          "tebiki_tandoku_ch004.md",
+          "tebiki_tandoku_ch024.md"
+        ]
+      },
+      "J-SHIS": {
+        "found": true,
+        "match_count": 1,
+        "files": [
+          "tebiki_tandoku_ch007.md"
+        ]
+      },
+      "ハザードマップ": {
+        "found": true,
+        "match_count": 5,
+        "files": [
+          "tebiki_tandoku_ch002.md",
+          "tebiki_tandoku_ch007.md",
+          "tebiki_tandoku_ch015.md"
+        ]
+      },
+      "PDCA": {
+        "found": false,
+        "match_count": 0,
+        "files": []
+      },
+      "人員体制": {
+        "found": true,
+        "match_count": 1,
+        "files": [
+          "tebiki_tandoku_ch016.md"
+        ]
+      },
+      "設備導入": {
+        "found": true,
+        "match_count": 3,
+        "files": [
+          "tebiki_tandoku_ch011.md",
+          "tebiki_tandoku_ch017.md",
+          "tebiki_tandoku_ch025.md"
+        ]
+      },
+      "資金確保": {
+        "found": false,
+        "match_count": 0,
+        "files": []
+      },
+      "情報保護": {
+        "found": true,
+        "match_count": 1,
+        "files": [
+          "tebiki_tandoku_ch004.md"
+        ]
+      },
+      "震度": {
+        "found": true,
+        "match_count": 5,
+        "files": [
+          "tebiki_tandoku_ch007.md",
+          "tebiki_tandoku_ch008.md",
+          "tebiki_tandoku_ch010.md"
+        ]
+      },
+      "浸水": {
+        "found": true,
+        "match_count": 7,
+        "files": [
+          "tebiki_tandoku_ch004.md",
+          "tebiki_tandoku_ch007.md",
+          "tebiki_tandoku_ch010.md"
+        ]
+      },
+      "避難": {
+        "found": true,
+        "match_count": 8,
+        "files": [
+          "tebiki_tandoku_ch004.md",
+          "tebiki_tandoku_ch008.md",
+          "tebiki_tandoku_ch012.md"
+        ]
+      }
+    }
+  },
+  "missing_keywords": [
+    "災害想定",
+    "事業概要",
+    "教育及び訓練",
+    "PDCA",
+    "資金確保"
+  ],
+  "problematic_chunks": [
+    "tebiki_tandoku_ch001.md",
+    "tebiki_tandoku_ch002.md",
+    "tebiki_tandoku_ch003.md",
+    "tebiki_tandoku_ch004.md",
+    "tebiki_tandoku_ch005.md",
+    "tebiki_tandoku_ch006.md",
+    "tebiki_tandoku_ch007.md",
+    "tebiki_tandoku_ch008.md",
+    "tebiki_tandoku_ch009.md",
+    "tebiki_tandoku_ch010.md",
+    "tebiki_tandoku_ch011.md",
+    "tebiki_tandoku_ch012.md",
+    "tebiki_tandoku_ch013.md",
+    "tebiki_tandoku_ch014.md",
+    "tebiki_tandoku_ch015.md",
+    "tebiki_tandoku_ch016.md",
+    "tebiki_tandoku_ch017.md",
+    "tebiki_tandoku_ch018.md",
+    "tebiki_tandoku_ch019.md",
+    "tebiki_tandoku_ch020.md",
+    "tebiki_tandoku_ch021.md",
+    "tebiki_tandoku_ch022.md",
+    "tebiki_tandoku_ch023.md",
+    "tebiki_tandoku_ch024.md",
+    "tebiki_tandoku_ch025.md",
+    "tebiki_tandoku_ch026.md"
+  ]
+}

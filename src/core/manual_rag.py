@@ -29,6 +29,40 @@ class ManualRAG:
         self.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
         self._embeddings_cache: Dict[str, List[float]] = {}
+        self._synonyms: Dict[str, Dict] = self._load_synonyms()
+    
+    def _load_synonyms(self) -> Dict[str, Dict]:
+        """Load keyword synonyms for query expansion."""
+        synonyms_path = os.path.join(
+            os.path.dirname(__file__),
+            "..", "data", "keyword_synonyms.json"
+        )
+        if os.path.exists(synonyms_path):
+            try:
+                with open(synonyms_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get("keyword_synonyms", {})
+            except (json.JSONDecodeError, IOError):
+                pass
+        return {}
+    
+    def _expand_query(self, query: str) -> List[str]:
+        """Expand query with synonyms for better matching."""
+        keywords = [query]
+        
+        # Check if query matches any synonym group
+        for main_keyword, synonym_data in self._synonyms.items():
+            if main_keyword in query or query in main_keyword:
+                keywords.extend(synonym_data.get("synonyms", []))
+            else:
+                # Check synonyms
+                for syn in synonym_data.get("synonyms", []):
+                    if syn in query or query in syn:
+                        keywords.append(main_keyword)
+                        keywords.extend(synonym_data.get("synonyms", []))
+                        break
+        
+        return list(set(keywords))
     
     @classmethod
     def load(cls, db_path: Optional[str] = None) -> "ManualRAG":
