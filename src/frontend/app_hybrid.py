@@ -958,6 +958,25 @@ elif mode == "Dashboard Mode (Progress)":
             st.caption("必須項目の入力状況 (Mandatory Requirements)")
             st.progress(result['mandatory_progress'])
             st.caption(f"入力完了率: {int(result['mandatory_progress']*100)}%")
+        
+        # --- History Comparison (WS-4 UI Integration) ---
+        try:
+            from src.core.history_tracker import HistoryTracker
+            history_tracker = HistoryTracker()
+            comparison = history_tracker.compare_with_previous(plan, result)
+            
+            if comparison:
+                delta = comparison['change']
+                delta_str = f"+{delta}" if delta > 0 else str(delta)
+                if delta > 0:
+                    st.success(f"📈 前回から **{delta_str}%** 改善しました！")
+                elif delta < 0:
+                    st.warning(f"📉 前回から **{delta_str}%** 低下しています")
+            
+            # Save current snapshot for next comparison
+            history_tracker.save_snapshot(plan, result)
+        except Exception as e:
+            pass  # Silent fail if history not available
             
         # --- 2. Actionable Alerts (Missing Mandatory) - SEVERITY-BASED ---
         if result['status'] != "success":
