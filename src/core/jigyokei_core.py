@@ -297,7 +297,7 @@ class AIInterviewer:
 
     def send_message(self, user_input: str, persona: str = "経営者", user_data: dict = None) -> str:
         if not self.model:
-            return "Error: API Key is missing or model initialization failed."
+            return "エラー: APIキーが設定されていないか、モデルの初期化に失敗しました。secrets.tomlを確認してください。"
 
         # 履歴への追加（アプリ表示用）
         self.history.append({
@@ -660,5 +660,5 @@ class AIInterviewer:
                  return json.loads(clean_text)
                  
         except Exception as e:
-            print(f"Extraction Error: {e}")
+            print(f"データ抽出エラー: {e}")
             return {}

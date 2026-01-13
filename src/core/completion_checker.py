@@ -2,6 +2,40 @@ from typing import List, Dict, Any
 from src.api.schemas import ApplicationRoot
 from src.core.logic_validator import check_logic_consistency
 
+# Concrete improvement examples for Task 4 (Expert Audit Implementation)
+CONCRETE_EXAMPLES = {
+    "PDCA_training_month": {
+        "msg": "訓練月が未設定",
+        "suggestion": "→ 毎年○月に訓練を実施（例：5月、10月）と記載してください",
+        "example": "【他社事例】防災の日(9/1)に合わせて毎年9月に訓練を実施"
+    },
+    "PDCA_review_month": {
+        "msg": "計画見直し月が未設定",
+        "suggestion": "→ 年1回の見直し月を設定してください（例：3月、9月）",
+        "example": "【他社事例】年度末の3月に前年度の振り返りと改訂を実施"
+    },
+    "disaster_assumption": {
+        "msg": "災害想定が不十分",
+        "suggestion": "→ J-SHISやハザードマップを参照し、具体的な数値を記載",
+        "example": "【記載例】今後30年以内に震度6弱以上の確率65.3%（J-SHIS参照）"
+    },
+    "business_overview_short": {
+        "msg": "事業概要が短い",
+        "suggestion": "→ 200文字以上で、サプライチェーン上の役割を含めて記載",
+        "example": "【記載例】当社は○○県で○○を製造し、主要取引先△△社への供給を担う"
+    },
+    "measures_personnel": {
+        "msg": "人員体制の対策が未設定",
+        "suggestion": "→ 災害時の連絡体制、代替要員の確保方法を記載",
+        "example": "【他社事例】緊急連絡網の整備、従業員の多能工化を推進"
+    },
+    "measures_money": {
+        "msg": "資金確保の対策が未設定",
+        "suggestion": "→ 運転資金確保、保険加入状況を記載",
+        "example": "【他社事例】災害対応融資枠を確保、火災・地震保険に加入済"
+    }
+}
+
 class CompletionChecker:
     """
     Analyzes the Jigyokei Plan (ApplicationRoot) and returns completion status,

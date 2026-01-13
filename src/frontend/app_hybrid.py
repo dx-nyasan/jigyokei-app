@@ -227,6 +227,87 @@ if not check_password():
     st.stop()
 
 # ==========================================
+# Onboarding Wizard (First-time user guidance)
+# ==========================================
+def show_onboarding_wizard():
+    """初回利用者向けオンボーディングウィザード"""
+    if st.session_state.get("onboarding_complete", False):
+        return True
+    
+    st.markdown("## 🎉 事業継続力強化計画 策定支援システムへようこそ！")
+    st.markdown("---")
+    
+    st.info("""
+    **本システムでは、AIと対話しながら事業継続力強化計画を作成できます。**
+    
+    3つのステップで進めましょう：
+    """)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 📝 Step 1")
+        st.markdown("**基本情報入力**")
+        st.caption("会社名、住所、業種など")
+    
+    with col2:
+        st.markdown("### 💬 Step 2")
+        st.markdown("**AIインタビュー**")
+        st.caption("災害想定、対策などをヒアリング")
+    
+    with col3:
+        st.markdown("### 📊 Step 3")
+        st.markdown("**確認・出力**")
+        st.caption("監査→修正→Excel出力")
+    
+    st.markdown("---")
+    
+    # Role selection
+    st.markdown("### あなたの立場を教えてください")
+    role = st.radio(
+        "役割を選択",
+        ["経営者（事業主）", "従業員", "商工会職員"],
+        horizontal=True,
+        key="onboarding_role"
+    )
+    
+    st.markdown("---")
+    
+    col_start, col_manual = st.columns(2)
+    
+    with col_start:
+        if st.button("🚀 はじめる", type="primary", use_container_width=True):
+            st.session_state["onboarding_complete"] = True
+            # Set appropriate interview mode based on role
+            if role == "経営者（事業主）":
+                st.session_state.app_nav_selection = "経営者インタビュー"
+            elif role == "従業員":
+                st.session_state.app_nav_selection = "従業員インタビュー"
+            else:
+                st.session_state.app_nav_selection = "商工会職員インタビュー"
+            st.rerun()
+    
+    with col_manual:
+        if st.button("📖 マニュアルを読む", use_container_width=True):
+            st.session_state["show_manual_link"] = True
+    
+    if st.session_state.get("show_manual_link", False):
+        st.markdown("""
+        **ユーザーマニュアル**
+        - [経営者向けマニュアル](docs/USER_MANUAL_MANAGER.md)
+        - [従業員向けマニュアル](docs/USER_MANUAL_EMPLOYEE.md)
+        - [商工会職員向けマニュアル](docs/USER_MANUAL_OFFICIAL.md)
+        """)
+    
+    st.caption("💡 ヒント: いつでもサイドバーからDashboardで進捗を確認できます")
+    
+    return False
+
+# Show onboarding for first-time users
+if not show_onboarding_wizard():
+    st.stop()
+
+# ==========================================
 # Main App Logic
 # ==========================================
 
@@ -274,6 +355,17 @@ with st.sidebar:
     if st.button("📊 進捗詳細を確認 (Dashboard)", key="sidebar_progress_btn", use_container_width=True):
         st.session_state.app_nav_selection = "Dashboard Mode (Progress)"
         st.rerun()
+    
+    # --- Save Confirmation (Task 3: Explicit Save) ---
+    if st.button("💾 データを保存", key="sidebar_save_btn", use_container_width=True):
+        if current_plan_obj:
+            st.session_state["_last_saved_at"] = __import__("datetime").datetime.now().strftime("%H:%M:%S")
+            st.success(f"✅ 保存しました ({st.session_state['_last_saved_at']})")
+        else:
+            st.warning("⚠️ 保存するデータがありません")
+    
+    if "_last_saved_at" in st.session_state:
+        st.caption(f"最終保存: {st.session_state['_last_saved_at']}")
     
     st.divider()
     
@@ -550,7 +642,7 @@ if mode == "Chat Mode (Interview)":
                                     else:
                                         status.write("ℹ️ 新規の構造化データは見つかりませんでした。")
                                 except Exception as ex_e:
-                                    status.error(f"Extraction Error: {ex_e}")
+                                    status.error(f"データ抽出エラー: {ex_e}")
                         
                         time.sleep(1)
                         st.rerun()
