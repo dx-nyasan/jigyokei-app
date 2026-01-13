@@ -367,6 +367,28 @@ with st.sidebar:
     if "_last_saved_at" in st.session_state:
         st.caption(f"最終保存: {st.session_state['_last_saved_at']}")
     
+    # --- Task 2: Session Sharing Button ---
+    if st.button("🔗 セッションを共有", key="sidebar_share_btn", use_container_width=True):
+        if current_plan_obj:
+            try:
+                from src.core.session_manager import SessionManager
+                sm = SessionManager()
+                history = st.session_state.get("ai_interviewer", {})
+                history_data = history.history if hasattr(history, "history") else []
+                plan_dict = current_plan_obj.model_dump() if hasattr(current_plan_obj, "model_dump") else {}
+                share_id = sm.create_shareable_session(history_data, plan_dict)
+                share_url = sm.get_share_url(share_id)
+                st.session_state["_share_url"] = share_url
+                st.success("✅ 共有リンクを生成しました")
+            except Exception as e:
+                st.error(f"共有エラー: {e}")
+        else:
+            st.warning("⚠️ 共有するデータがありません")
+    
+    if "_share_url" in st.session_state:
+        st.code(st.session_state["_share_url"], language=None)
+        st.caption("👆 このURLをコピーして共有してください")
+    
     st.divider()
     
     # Navigation Selection
@@ -1069,6 +1091,37 @@ elif mode == "Dashboard Mode (Progress)":
             history_tracker.save_snapshot(plan, result)
         except Exception as e:
             pass  # Silent fail if history not available
+        
+        # --- Task 1: Logic Consistency Warnings (Phase 1 Implementation) ---
+        if 'logic_consistency' in result:
+            logic_result = result['logic_consistency']
+            logic_warnings = logic_result.get('warnings', [])
+            logic_suggestions = logic_result.get('suggestions', [])
+            consistency_score = logic_result.get('consistency_score', 100)
+            
+            if logic_warnings or consistency_score < 80:
+                with st.expander(f"🔗 セクション間整合性チェック（スコア: {consistency_score}%）", expanded=consistency_score < 70):
+                    if consistency_score >= 80:
+                        st.success("✅ 整合性は概ね良好です")
+                    elif consistency_score >= 50:
+                        st.warning("⚠️ 一部の整合性に問題があります")
+                    else:
+                        st.error("❌ 重要な整合性の問題があります")
+                    
+                    for warning in logic_warnings:
+                        severity = warning.get('severity', 'info')
+                        msg = warning.get('message', str(warning))
+                        if severity == 'critical':
+                            st.error(f"🔴 {msg}")
+                        elif severity == 'warning':
+                            st.warning(f"🟡 {msg}")
+                        else:
+                            st.info(f"ℹ️ {msg}")
+                    
+                    if logic_suggestions:
+                        st.markdown("**💡 改善提案:**")
+                        for suggestion in logic_suggestions:
+                            st.caption(f"・{suggestion}")
             
         # --- 2. Actionable Alerts (Missing Mandatory) - SEVERITY-BASED ---
         if result['status'] != "success":
