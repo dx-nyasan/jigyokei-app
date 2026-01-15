@@ -98,19 +98,21 @@ from src.core.completion_checker import CompletionChecker
 from src.core.draft_exporter import DraftExporter
 from src.core.session_manager import SessionManager
 
-# --- Critical Fix: Import Mobile CSS and Components ---
-from src.frontend.components.mobile import inject_mobile_responsive_css
+# --- Components Import (Consolidated) ---
 from src.frontend.components.sidebar import render_step_wizard
+from src.frontend.components.loading import loading_spinner, ProgressTracker
 
 # --- Task 13: Dialogue AI Adapter Integration ---
 from src.core.dialogue_ai_adapter import DialogueAIAdapter, enhance_ai_response
 
-# --- Configuration Constants (High Priority Fix: Magic Numbers) ---
-TOTAL_ESTIMATED_FIELDS = 20  # Total form fields for progress calculation
-STEP_THRESHOLDS = {"output": 75, "audit": 50, "interview": 25}  # Progress thresholds
+# --- Configuration (Using config_loader) ---
+from src.data.config_loader import get_config, get_total_fields, get_step_thresholds
+_config = get_config()
+TOTAL_ESTIMATED_FIELDS = get_total_fields()
+STEP_THRESHOLDS = get_step_thresholds()
 
-# --- Version Control (All Tasks Complete) ---
-APP_VERSION = "3.8.0-all-tasks-complete"
+# --- Version Control ---
+APP_VERSION = "3.9.0-final-audit-fixes"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
