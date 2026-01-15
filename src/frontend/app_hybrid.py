@@ -51,6 +51,13 @@ if "reset_msg" in st.query_params and "reset_toast_shown" not in st.session_stat
     st.session_state["reset_toast_shown"] = True
     # Do not clear param to avoid rerun, use session flag to prevent duplicates
 
+# --- Critical Fix 2: Inject Mobile Responsive CSS ---
+try:
+    from src.frontend.components.mobile import inject_mobile_responsive_css
+    inject_mobile_responsive_css()
+except ImportError:
+    pass  # Graceful fallback if module not loaded yet
+
 # --- Path Setup ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
@@ -64,16 +71,17 @@ importlib.reload(src.api.schemas)
 importlib.reload(src.core.completion_checker)
 importlib.reload(src.core.draft_exporter)
 
-importlib.reload(src.core.draft_exporter)
-
 from src.core.jigyokei_core import AIInterviewer
 from src.data.context_loader import ContextLoader
 from src.core.completion_checker import CompletionChecker
 from src.core.draft_exporter import DraftExporter
 from src.core.session_manager import SessionManager
 
+# --- Critical Fix: Import Mobile CSS and Components ---
+from src.frontend.components.mobile import inject_mobile_responsive_css
+
 # --- Version Control ---
-APP_VERSION = "3.5.0-medium-priority-tasks"
+APP_VERSION = "3.6.0-critical-fixes"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
