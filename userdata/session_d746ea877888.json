@@ -1,0 +1,14 @@
+{
+  "timestamp": 1768446778.1908576,
+  "history": [
+    {
+      "role": "user",
+      "content": "テスト"
+    }
+  ],
+  "current_plan": {
+    "basic_info": {
+      "corporate_name": "テスト会社"
+    }
+  }
+}

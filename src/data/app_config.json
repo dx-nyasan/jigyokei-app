@@ -1,0 +1,90 @@
+{
+    "app": {
+        "name": "Jigyokei Hybrid System",
+        "version": "3.8.0-all-tasks-complete",
+        "icon": "👑",
+        "layout": "wide",
+        "initial_sidebar_state": "expanded"
+    },
+    "fields": {
+        "total_estimated_fields": 20,
+        "step_thresholds": {
+            "output": 75,
+            "audit": 50,
+            "interview": 25
+        }
+    },
+    "api": {
+        "zipcloud": {
+            "url": "https://zipcloud.ibsnet.co.jp/api/search",
+            "timeout_seconds": 3,
+            "fallback_enabled": true
+        }
+    },
+    "session": {
+        "autosave_interval_seconds": 30,
+        "share_url_base": "https://jigyokei.example.com/share/"
+    },
+    "localization": {
+        "default_language": "ja",
+        "date_format": "%Y年%m月%d日",
+        "datetime_format": "%Y/%m/%d %H:%M"
+    },
+    "roles": {
+        "available": [
+            "経営者（事業主）",
+            "従業員",
+            "商工会職員"
+        ],
+        "default": "経営者（事業主）"
+    },
+    "industries": {
+        "available": [
+            "manufacturing",
+            "retail",
+            "service",
+            "construction",
+            "restaurant"
+        ],
+        "labels": {
+            "manufacturing": "🏭 製造業",
+            "retail": "🏪 小売業",
+            "service": "💼 サービス業",
+            "construction": "🏗️ 建設業",
+            "restaurant": "🍽️ 飲食業"
+        }
+    },
+    "completion": {
+        "score_weights": {
+            "basic_info": 1.0,
+            "goals": 1.5,
+            "measures": 1.5,
+            "response_procedures": 1.0
+        },
+        "severity_levels": [
+            "critical",
+            "warning",
+            "info"
+        ]
+    },
+    "spec_monitor": {
+        "check_interval_days": 7,
+        "target_urls": [
+            "https://www.chusho.meti.go.jp/keiei/antei/bousai/keizokuryoku.htm"
+        ],
+        "keywords": [
+            "事業継続力",
+            "強化計画",
+            "認定",
+            "申請"
+        ]
+    },
+    "export": {
+        "draft_filename_prefix": "事業継続力強化計画_下書き",
+        "supported_formats": [
+            "xlsx",
+            "json",
+            "pdf"
+        ]
+    }
+}

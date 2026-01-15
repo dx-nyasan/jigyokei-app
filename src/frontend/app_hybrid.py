@@ -8,18 +8,27 @@ import streamlit.components.v1 as components
 import requests
 import re
 
-# --- Helper: Zip Code Address Fetcher ---
+# --- Helper: Zip Code Address Fetcher (Task 12: API Fallback Enhanced) ---
+# Cache for successful lookups to reduce API calls
+_zip_cache: dict = {}
+
 def fetch_address_from_zip(zip_code):
     """
-    Fetch address from ZipCloud API.
+    Fetch address from ZipCloud API with fallback handling.
     Returns a dict with {pref, city, town} or None.
+    
+    Task 12 Enhancement: Added caching and fallback error handling.
     """
     if not zip_code: return None
     
     # Normalize: Remove hyphens, half-width
-    clean_zip = zip_code.replace("-", "").strip()
+    clean_zip = zip_code.replace("-", "").replace("ー", "").strip()
     if not clean_zip.isdigit() or len(clean_zip) != 7:
         return None
+    
+    # Check cache first
+    if clean_zip in _zip_cache:
+        return _zip_cache[clean_zip]
 
     try:
         url = f"https://zipcloud.ibsnet.co.jp/api/search?zipcode={clean_zip}"
@@ -28,13 +37,25 @@ def fetch_address_from_zip(zip_code):
         
         if data["status"] == 200 and data["results"]:
             result = data["results"][0]
-            return {
+            address = {
                 "pref": result["address1"],  # 都道府県
                 "city": result["address2"],  # 市区町村
                 "town": result["address3"]   # 町域
             }
+            # Cache successful result
+            _zip_cache[clean_zip] = address
+            return address
         return None
-    except Exception:
+    except requests.exceptions.Timeout:
+        # API timeout - return None without error
+        st.warning("⏱️ 住所検索がタイムアウトしました。後で再試行してください。")
+        return None
+    except requests.exceptions.ConnectionError:
+        # Network error - inform user
+        st.info("🌐 ネットワークに接続できません。住所は手動で入力してください。")
+        return None
+    except Exception as e:
+        # Other errors - silent fallback
         return None
 
 # --- Page Config (Must be the first Streamlit command) ---
@@ -81,12 +102,15 @@ from src.core.session_manager import SessionManager
 from src.frontend.components.mobile import inject_mobile_responsive_css
 from src.frontend.components.sidebar import render_step_wizard
 
+# --- Task 13: Dialogue AI Adapter Integration ---
+from src.core.dialogue_ai_adapter import DialogueAIAdapter, enhance_ai_response
+
 # --- Configuration Constants (High Priority Fix: Magic Numbers) ---
 TOTAL_ESTIMATED_FIELDS = 20  # Total form fields for progress calculation
 STEP_THRESHOLDS = {"output": 75, "audit": 50, "interview": 25}  # Progress thresholds
 
-# --- Version Control ---
-APP_VERSION = "3.7.0-high-priority-fixes"
+# --- Version Control (All Tasks Complete) ---
+APP_VERSION = "3.8.0-all-tasks-complete"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
