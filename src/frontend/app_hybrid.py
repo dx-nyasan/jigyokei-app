@@ -79,9 +79,14 @@ from src.core.session_manager import SessionManager
 
 # --- Critical Fix: Import Mobile CSS and Components ---
 from src.frontend.components.mobile import inject_mobile_responsive_css
+from src.frontend.components.sidebar import render_step_wizard
+
+# --- Configuration Constants (High Priority Fix: Magic Numbers) ---
+TOTAL_ESTIMATED_FIELDS = 20  # Total form fields for progress calculation
+STEP_THRESHOLDS = {"output": 75, "audit": 50, "interview": 25}  # Progress thresholds
 
 # --- Version Control ---
-APP_VERSION = "3.6.0-critical-fixes"
+APP_VERSION = "3.7.0-high-priority-fixes"
 
 # Initialize Session Manager
 if "session_manager" not in st.session_state:
@@ -391,36 +396,16 @@ with st.sidebar:
             from src.core.completion_checker import CompletionChecker
             checker = CompletionChecker(current_plan_obj)
             missing_count = len(checker.check_missing_fields())
-            total_fields = 20 # Estimate
-            progress = max(0, min(100, int((20 - missing_count) / 20 * 100)))
+            # High Priority Fix: Use constant instead of magic number
+            progress = max(0, min(100, int((TOTAL_ESTIMATED_FIELDS - missing_count) / TOTAL_ESTIMATED_FIELDS * 100)))
             
             st.progress(progress / 100)
             st.caption(f"📊 入力進捗: **{progress}%** (残り{missing_count}項目)")
             
-            # --- Task 3: Step Wizard Indicator ---
-            current_step = 1  # Default
-            if progress >= 75:
-                current_step = 4  # 出力
-            elif progress >= 50:
-                current_step = 3  # 監査
-            elif progress >= 25:
-                current_step = 2  # インタビュー
+            # High Priority Fix: Use component instead of duplicate code
+            render_step_wizard(progress)
             
-            step_icons = ["📝", "💬", "🔍", "📤"]
-            step_labels = ["基本情報", "インタビュー", "監査", "出力"]
-            step_display = ""
-            for i in range(4):
-                if i + 1 < current_step:
-                    step_display += f"✅ "  # Completed
-                elif i + 1 == current_step:
-                    step_display += f"**{step_icons[i]} {step_labels[i]}** → "
-                else:
-                    step_display += f"⬜ "  # Future
-            
-            st.markdown(f"**現在のステップ:** Step {current_step}/4")
-            st.caption(step_display.rstrip(" → "))
-            
-        except:
+        except Exception as e:  # High Priority Fix: Explicit exception type
             st.caption("📊 入力進捗: データ準備中...")
     else:
         st.caption("📊 入力進捗: まだ入力がありません")
