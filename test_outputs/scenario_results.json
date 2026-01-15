@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "name": "白浜観光",
+    "industry": "観光業",
+    "employees": 15,
+    "score": 32,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "白浜温泉周辺の旅館運営、観光ガイドサービス...",
+      "disaster": "南海トラフ地震により震度6弱以上想定。津波到達約15分。..."
+    }
+  },
+  {
+    "id": 2,
+    "name": "紀州精密工業",
+    "industry": "製造業",
+    "employees": 45,
+    "score": 32,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "精密機械部品製造、CNC旋盤20台保有...",
+      "disaster": "中央構造線断層帯直下型地震、震度6強想定..."
+    }
+  },
+  {
+    "id": 3,
+    "name": "田辺商店",
+    "industry": "小売業",
+    "employees": 8,
+    "score": 32,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "地域密着型スーパー、生鮮食品・日用品販売...",
+      "disaster": "大雨による河川氾濫、最大2m浸水リスク..."
+    }
+  },
+  {
+    "id": 4,
+    "name": "串本建設",
+    "industry": "建設業",
+    "employees": 25,
+    "score": 27,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "土木・建築工事請負、公共工事60%...",
+      "disaster": "南海トラフ津波、資材置場浸水区域内..."
+    }
+  },
+  {
+    "id": 5,
+    "name": "新宮運送",
+    "industry": "運送業",
+    "employees": 35,
+    "score": 27,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "一般貨物運送、大型トラック15台保有...",
+      "disaster": "地震による国道42号寸断リスク..."
+    }
+  },
+  {
+    "id": 6,
+    "name": "紀の川クリニック",
+    "industry": "医療業",
+    "employees": 12,
+    "score": 22,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "内科・小児科クリニック、在宅医療実施...",
+      "disaster": "地震停電・断水、人工呼吸器患者3名対応..."
+    }
+  },
+  {
+    "id": 7,
+    "name": "和歌山ITソリューションズ",
+    "industry": "IT業",
+    "employees": 18,
+    "score": 27,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "中小企業向けシステム開発、リモートワーク率80%...",
+      "disaster": "地震によるオフィス使用不能想定..."
+    }
+  },
+  {
+    "id": 8,
+    "name": "磯野水産",
+    "industry": "水産業",
+    "employees": 20,
+    "score": 27,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "鮮魚仲買・加工・販売、干物製造...",
+      "disaster": "津波警報時漁港緊急避難、冷蔵設備停電影響..."
+    }
+  },
+  {
+    "id": 9,
+    "name": "高野山宿坊恵光院",
+    "industry": "宿泊業",
+    "employees": 10,
+    "score": 22,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "高野山宿坊、外国人観光客中心、精進料理提供...",
+      "disaster": "山間部土砂災害、孤立時宿泊客対応..."
+    }
+  },
+  {
+    "id": 10,
+    "name": "みなべ梅園",
+    "industry": "農業",
+    "employees": 6,
+    "score": 22,
+    "severity_counts": {
+      "critical": 0,
+      "warning": 0
+    },
+    "grade": "D",
+    "status": "大幅修正要",
+    "comment": "計画の見直しが必要",
+    "plan_summary": {
+      "business": "南高梅生産・加工・販売、自社農園10ha...",
+      "disaster": "台風・大雨農園被害、6月収穫期被災リスク..."
+    }
+  }
+]
