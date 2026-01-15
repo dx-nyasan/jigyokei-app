@@ -271,6 +271,48 @@ def show_onboarding_wizard():
         key="onboarding_role"
     )
     
+    # --- Task 1: Industry Template Selector ---
+    st.markdown("### 業種を選択してください（テンプレート適用）")
+    
+    # Load industry templates
+    try:
+        import json
+        template_path = Path(__file__).parent.parent / "data" / "industry_templates.json"
+        if template_path.exists():
+            with open(template_path, 'r', encoding='utf-8') as f:
+                templates_data = json.load(f)
+            
+            template_options = {
+                "テンプレートなし（空白から開始）": None,
+                "🏭 製造業": "manufacturing",
+                "🏪 小売業": "retail",
+                "💼 サービス業": "service",
+                "🏗️ 建設業": "construction",
+                "🍽️ 飲食業": "restaurant"
+            }
+            
+            selected_template = st.selectbox(
+                "業種テンプレート",
+                list(template_options.keys()),
+                key="onboarding_template",
+                help="業種を選択すると、災害想定や事前対策の雛形が自動入力されます"
+            )
+            
+            st.session_state["selected_industry_template"] = template_options.get(selected_template)
+            
+            # Show preview if template selected
+            if template_options.get(selected_template):
+                template_key = template_options[selected_template]
+                template_info = templates_data.get("templates", {}).get(template_key, {})
+                if template_info:
+                    with st.expander("📋 テンプレート内容プレビュー", expanded=False):
+                        st.caption(f"**災害想定**: {template_info.get('disaster_assumption', '')[:100]}...")
+                        st.caption(f"**事業概要**: {template_info.get('business_overview', '')[:100]}...")
+        else:
+            st.session_state["selected_industry_template"] = None
+    except Exception as e:
+        st.session_state["selected_industry_template"] = None
+    
     st.markdown("---")
     
     col_start, col_manual = st.columns(2)
@@ -414,6 +456,55 @@ with st.sidebar:
     if "_share_url" in st.session_state:
         st.code(st.session_state["_share_url"], language=None)
         st.caption("👆 このURLをコピーして共有してください")
+    
+    # --- Task 2: CSV Batch Import UI ---
+    with st.expander("📁 CSVバッチインポート（複数企業）", expanded=False):
+        st.caption("CSVファイルから複数企業のデータを一括読込できます")
+        
+        uploaded_csv = st.file_uploader(
+            "CSVファイルを選択",
+            type=["csv"],
+            key="batch_csv_uploader"
+        )
+        
+        if uploaded_csv is not None:
+            try:
+                from src.core.batch_processor import BatchProcessor, get_sample_template
+                
+                csv_content = uploaded_csv.read().decode("utf-8")
+                processor = BatchProcessor()
+                
+                # Validate columns first
+                import csv
+                import io
+                reader = csv.reader(io.StringIO(csv_content))
+                headers = next(reader, [])
+                validation = processor.validate_csv_columns(headers)
+                
+                if not validation["valid"]:
+                    st.error(f"❌ 必須列が不足: {', '.join(validation['missing'])}")
+                else:
+                    if st.button("🚀 インポート実行", key="batch_import_btn"):
+                        result = processor.process_batch(csv_content)
+                        st.session_state["_batch_result"] = result
+                        st.success(result["summary"])
+            except Exception as e:
+                st.error(f"インポートエラー: {e}")
+        
+        # Show sample template
+        if st.button("📋 サンプルCSVをダウンロード", key="batch_sample_btn"):
+            from src.core.batch_processor import get_sample_template
+            st.download_button(
+                label="sample_template.csv",
+                data=get_sample_template(),
+                file_name="sample_template.csv",
+                mime="text/csv"
+            )
+        
+        # Display batch results if available
+        if "_batch_result" in st.session_state:
+            result = st.session_state["_batch_result"]
+            st.markdown(f"**処理結果**: ✅{result['success']} ⚠️{result['partial']} ❌{result['error']}")
     
     st.divider()
     

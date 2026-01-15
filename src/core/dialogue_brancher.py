@@ -116,7 +116,8 @@ class DialogueBrancher:
         
         for intent, patterns in self.INTENT_PATTERNS.items():
             for pattern in patterns:
-                if pattern in response_lower:
+                # Check both original response (for Japanese) and lowercase (for English)
+                if pattern in response or pattern.lower() in response_lower:
                     return intent
         
         return ResponseIntent.UNKNOWN
