@@ -1,0 +1,155 @@
+[
+  {
+    "timestamp": "2026-01-15T12:55:44.618582",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T14:34:18.510883",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T16:35:01.391638",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T16:35:37.984280",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T16:45:56.789724",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T16:47:31.282841",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T16:48:30.852024",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T18:36:32.948218",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T18:37:17.008260",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  }
+]

@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-01-15T13:52:21.635352",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 11,
+    "section_scores": {
+      "BasicInfo": 40,
+      "Goals": 70,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-01-15T14:09:54.381812",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 9,
+    "section_scores": {
+      "BasicInfo": 40,
+      "Goals": 70,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  }
+]

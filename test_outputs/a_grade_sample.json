@@ -1,0 +1,86 @@
+{
+    "basic_info": {
+        "applicant_type": "中小企業者",
+        "corporate_name": "株式会社白浜観光",
+        "corporate_name_kana": "カブシキガイシャシラハマカンコウ",
+        "representative_title": "代表取締役",
+        "representative_name": "山田太郎",
+        "address_zip": "649-2211",
+        "address_pref": "和歌山県",
+        "address_city": "西牟婁郡白浜町",
+        "address_street": "1234-5",
+        "address_building": "観光ビル1階",
+        "capital": 30000000,
+        "employees": 15,
+        "established_date": "1995-04-01",
+        "industry_major": "宿泊業，飲食サービス業",
+        "industry_minor": "旅館，ホテル",
+        "business_content": "白浜温泉エリアでの旅館運営、観光ガイドサービス、地域特産品の販売"
+    },
+    "goals": {
+        "target_disaster": "南海トラフ地震（震度6強）",
+        "primary_goal": "従業員と宿泊客の安全確保、事業の早期復旧",
+        "recovery_time_objective": "3日以内に基幹業務を再開",
+        "minimum_business_level": "宿泊予約管理、顧客対応の継続"
+    },
+    "risk_assessment": {
+        "hazard_confirmation": true,
+        "hazard_source": "白浜町ハザードマップ（令和5年版）",
+        "assumed_disasters": [
+            {
+                "disaster_type": "地震",
+                "intensity": "震度6強",
+                "occurrence_probability": "30年以内に70-80%"
+            },
+            {
+                "disaster_type": "津波",
+                "arrival_time": "約15分",
+                "max_height": "約10m"
+            }
+        ],
+        "building_damage_assessment": "一部損壊（Is値0.7で耐震性確保済み）",
+        "lifeline_impact": "電気・水道・ガス停止を想定（最大7日間）"
+    },
+    "countermeasures": {
+        "personnel": {
+            "emergency_contact_network": true,
+            "contact_update_frequency": "年2回（4月・10月）",
+            "safety_confirmation_method": "災害用伝言ダイヤル171、LINE安否確認グループ",
+            "evacuation_drill_frequency": "年1回（9月）",
+            "first_aid_trained_staff": 3
+        },
+        "facilities": {
+            "seismic_diagnosis_completed": true,
+            "is_value": 0.7,
+            "furniture_secured": true,
+            "emergency_supplies_stored": true,
+            "supplies_list": "飲料水（3日分）、非常食、懐中電灯、救急箱、毛布",
+            "backup_power": "ポータブル発電機1台（ガソリン10L備蓄）"
+        },
+        "finance": {
+            "earthquake_insurance": true,
+            "insurance_coverage": "建物・設備の再調達価額の80%",
+            "operating_fund_reserve": "1ヶ月分の運転資金を確保",
+            "emergency_fund_amount": 5000000
+        },
+        "data": {
+            "backup_frequency": "毎日",
+            "backup_method": "クラウドバックアップ（AWS S3）",
+            "backup_target": "予約システム、顧客データベース、会計データ",
+            "recovery_procedure_documented": true
+        }
+    },
+    "implementation": {
+        "training_month": 9,
+        "review_month": 3,
+        "responsible_person": "山田太郎（代表取締役）",
+        "deputy_responsible_person": "鈴木花子（総務部長）",
+        "plan_distribution": "全従業員に配布、休憩室に掲示"
+    },
+    "metadata": {
+        "version": "1.0",
+        "created_at": "2026-01-15",
+        "last_updated": "2026-01-15",
+        "status": "draft"
+    }
+}

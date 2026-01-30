@@ -205,7 +205,7 @@ class AIInterviewer:
                 # model_name を gemini-3-flash にアップグレード (2026-01-09)
                 # Rollback: git checkout rollback-before-gemini3
                 self.model = genai.GenerativeModel(
-                    model_name='gemini-3-flash',
+                    model_name='gemini-2.5-flash',
                     system_instruction=self.base_system_prompt
                 )
                 self.chat_session = self.model.start_chat(history=[])
