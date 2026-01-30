@@ -105,6 +105,206 @@ class ManualRAG:
         
         return dot_product / (norm1 * norm2)
     
+    # =========================================================================
+    # Phase 2: Vector Search Methods
+    # =========================================================================
+    
+    def _get_api_key(self) -> Optional[str]:
+        """Load API key from secrets or environment."""
+        try:
+            import tomllib
+            secrets_path = os.path.join(
+                os.path.dirname(__file__), 
+                "..", "..", ".streamlit", "secrets.toml"
+            )
+            if os.path.exists(secrets_path):
+                with open(secrets_path, "rb") as f:
+                    secrets = tomllib.load(f)
+                return secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
+        except:
+            pass
+        return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    
+    def generate_embedding(self, text: str) -> List[float]:
+        """
+        Generate embedding vector for text using Gemini API.
+        
+        Args:
+            text: Text to embed
+            
+        Returns:
+            List of floats representing the embedding vector
+        """
+        import google.generativeai as genai
+        
+        api_key = self._get_api_key()
+        if api_key:
+            genai.configure(api_key=api_key)
+        
+        try:
+            result = genai.embed_content(
+                model="models/text-embedding-004",
+                content=text,
+                task_type="retrieval_document"
+            )
+            return result['embedding']
+        except Exception as e:
+            # Fallback: return empty vector (will be caught in tests)
+            raise RuntimeError(f"Embedding generation failed: {e}")
+    
+    def has_embeddings(self) -> bool:
+        """Check if embeddings exist in the database."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL")
+            count = cursor.fetchone()[0]
+            return count > 0
+        except (sqlite3.OperationalError, FileNotFoundError):
+            return False
+    
+    def get_embedding(self, chunk_id: str) -> Optional[List[float]]:
+        """Get embedding for a specific chunk from database."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT embedding FROM chunks WHERE chunk_id = ?", (chunk_id,))
+            row = cursor.fetchone()
+            if row and row[0]:
+                import struct
+                # Embeddings are stored as BLOB, decode as float array
+                blob = row[0]
+                num_floats = len(blob) // 4
+                return list(struct.unpack(f'{num_floats}f', blob))
+            return None
+        except (sqlite3.OperationalError, FileNotFoundError):
+            return None
+    
+    def vector_search(self, query: str, top_k: int = 3) -> List[SearchResult]:
+        """
+        Search using vector similarity (cosine similarity).
+        
+        Args:
+            query: Search query
+            top_k: Number of results to return
+            
+        Returns:
+            List of SearchResult sorted by similarity score
+        """
+        # Generate query embedding
+        try:
+            query_embedding = self.generate_embedding(query)
+        except RuntimeError:
+            # Fallback to keyword search if embedding fails
+            return self.search(query, top_k)
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        results = []
+        
+        try:
+            cursor.execute("SELECT chunk_id, text, metadata, embedding FROM chunks")
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                chunk_id = row["chunk_id"]
+                text = row["text"]
+                metadata = json.loads(row["metadata"]) if row["metadata"] else {}
+                embedding_blob = row["embedding"]
+                
+                if embedding_blob:
+                    import struct
+                    num_floats = len(embedding_blob) // 4
+                    chunk_embedding = list(struct.unpack(f'{num_floats}f', embedding_blob))
+                    
+                    # Calculate cosine similarity
+                    score = self._cosine_similarity(query_embedding, chunk_embedding)
+                    
+                    # Normalize to 0-1 range (cosine similarity is -1 to 1)
+                    normalized_score = (score + 1) / 2
+                    
+                    results.append(SearchResult(
+                        chunk_id=chunk_id,
+                        text=text,
+                        score=normalized_score,
+                        metadata=metadata
+                    ))
+            
+            # Sort by score and return top_k
+            results.sort(key=lambda x: x.score, reverse=True)
+            return results[:top_k]
+            
+        except sqlite3.OperationalError:
+            return []
+    
+    def hybrid_search(
+        self, 
+        query: str, 
+        top_k: int = 3, 
+        alpha: float = 0.5
+    ) -> List[SearchResult]:
+        """
+        Hybrid search combining keyword (BM25-like) and vector similarity.
+        
+        Args:
+            query: Search query
+            top_k: Number of results to return
+            alpha: Weight for vector search (0=pure keyword, 1=pure vector)
+            
+        Returns:
+            List of SearchResult with combined scores
+        """
+        # Get keyword results
+        keyword_results = self.search(query, top_k=top_k * 2)
+        
+        # Get vector results
+        vector_results = self.vector_search(query, top_k=top_k * 2)
+        
+        # Combine scores
+        combined_scores: Dict[str, Dict] = {}
+        
+        # Add keyword scores
+        max_keyword = max((r.score for r in keyword_results), default=1.0) or 1.0
+        for r in keyword_results:
+            normalized = r.score / max_keyword
+            combined_scores[r.chunk_id] = {
+                "text": r.text,
+                "metadata": r.metadata,
+                "keyword_score": normalized,
+                "vector_score": 0.0
+            }
+        
+        # Add vector scores
+        for r in vector_results:
+            if r.chunk_id in combined_scores:
+                combined_scores[r.chunk_id]["vector_score"] = r.score
+            else:
+                combined_scores[r.chunk_id] = {
+                    "text": r.text,
+                    "metadata": r.metadata,
+                    "keyword_score": 0.0,
+                    "vector_score": r.score
+                }
+        
+        # Calculate final combined score
+        results = []
+        for chunk_id, data in combined_scores.items():
+            final_score = (
+                (1 - alpha) * data["keyword_score"] + 
+                alpha * data["vector_score"]
+            )
+            results.append(SearchResult(
+                chunk_id=chunk_id,
+                text=data["text"],
+                score=final_score,
+                metadata=data["metadata"]
+            ))
+        
+        results.sort(key=lambda x: x.score, reverse=True)
+        return results[:top_k]
+
+    
     def search(self, query: str, top_k: int = 3) -> List[SearchResult]:
         """
         Search for relevant chunks using keyword matching.
