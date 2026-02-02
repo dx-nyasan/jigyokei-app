@@ -6,7 +6,7 @@ import os
 import time
 import logging
 from typing import List, Dict, Any, Optional
-from google import gennai
+from google import genai
 from google.genai import types
 
 # Configure logging
@@ -32,7 +32,7 @@ class ModelCommander:
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         if not self.api_key:
             raise ValueError("GOOGLE_API_KEY is not set.")
-        self.client = gennai.Client(api_key=self.api_key)
+        self.client = genai.Client(api_key=self.api_key)
 
     def generate_content(self, task_type: str, contents: Any, config: Optional[Dict] = None) -> Any:
         """
@@ -69,6 +69,30 @@ class ModelCommander:
         
         # If all tiers failed
         self._log_flight(task_type, "ALL_TIERS_FAILED", 3, str(last_exception))
+        raise last_exception
+
+    def embed_content(self, text: str, task_type: str = "retrieval_document") -> List[float]:
+        """
+        Generates embedding with fallback.
+        """
+        models = MODEL_TIERS.get("embedding", ["gemini-embedding-001"])
+        
+        last_exception = None
+        for i, model_name in enumerate(models):
+            try:
+                response = self.client.models.embed_content(
+                    model=model_name,
+                    contents=text,
+                    config=types.EmbedContentConfig(task_type=task_type)
+                )
+                self._log_flight("embedding", model_name, i + 1, "SUCCESS")
+                # Handle both single and batch results if necessary, but manual_rag uses single
+                return response.embeddings[0].values if hasattr(response, "embeddings") else response.embedding.values
+            except Exception as e:
+                if "429" in str(e) or "ResourceExhausted" in str(e):
+                    last_exception = e
+                    continue
+                raise e
         raise last_exception
 
     def _log_flight(self, task_type: str, model: str, tier: int, status: str):

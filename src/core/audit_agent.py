@@ -7,27 +7,9 @@ import json
 import os
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
-import google.generativeai as genai
+from src.core.model_commander import get_commander
 
-# Configure Gemini API key from secrets.toml
-def _load_api_key():
-    try:
-        import tomllib
-        secrets_path = os.path.join(
-            os.path.dirname(__file__), 
-            "..", "..", ".streamlit", "secrets.toml"
-        )
-        if os.path.exists(secrets_path):
-            with open(secrets_path, "rb") as f:
-                secrets = tomllib.load(f)
-            return secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
-    except:
-        pass
-    return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-
-_api_key = _load_api_key()
-if _api_key:
-    genai.configure(api_key=_api_key)
+# LEGACY: genai.configure moved to ModelCommander
 
 
 
@@ -103,50 +85,30 @@ class AuditAgent:
     Designed to be triggered explicitly (button) to minimize API calls.
     """
     
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
-        self.model_name = model_name
+    def __init__(self):
+        self.commander = get_commander()
         self._model = None
     
-    def _get_model(self):
-        """Lazy initialization of Gemini model."""
-        if self._model is None:
-            self._model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1  # Low temperature for consistent evaluation
-                )
-            )
-        return self._model
-    
-    def audit(self, application_text: str) -> AuditResult:
+    def audit(self, plan_json: str) -> AuditResult:
         """
         Perform audit on application text.
         
         Args:
-            application_text: Full text representation of the application
+            plan_json: Full JSON string representation of the application
             
         Returns:
             AuditResult with scores, reasons, and improvement suggestions
         """
-        model = self._get_model()
-        
-        prompt = f"""以下の事業継続力強化計画申請書を評価してください。
-
-【申請書内容】
-{application_text}
-
-【評価を開始してください】"""
         
         try:
-            response = model.generate_content(
-                [{"role": "user", "parts": [{"text": AUDIT_SYSTEM_PROMPT + "\n\n" + prompt}]}]
-            )
+            prompt = AUDIT_SYSTEM_PROMPT + f"\n\n【計画データ】\n{plan_json}"
+            response = self.commander.generate_content("reasoning", prompt)
             
-            raw_text = response.text
+            # Extract JSON from response
+            text = response.text
             
             # Parse JSON response
-            result_data = json.loads(raw_text)
+            result_data = json.loads(text)
             
             return AuditResult(
                 total_score=result_data.get("total_score", 0),

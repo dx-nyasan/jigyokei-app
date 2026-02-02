@@ -127,29 +127,14 @@ class ManualRAG:
     
     def generate_embedding(self, text: str) -> List[float]:
         """
-        Generate embedding vector for text using Gemini API.
-        
-        Args:
-            text: Text to embed
-            
-        Returns:
-            List of floats representing the embedding vector
+        Generate embedding vector for text using ModelCommander.
         """
-        import google.generativeai as genai
-        
-        api_key = self._get_api_key()
-        if api_key:
-            genai.configure(api_key=api_key)
+        from src.core.model_commander import get_commander
+        commander = get_commander()
         
         try:
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
-                task_type="retrieval_document"
-            )
-            return result['embedding']
+            return commander.embed_content(text)
         except Exception as e:
-            # Fallback: return empty vector (will be caught in tests)
             raise RuntimeError(f"Embedding generation failed: {e}")
     
     def has_embeddings(self) -> bool:

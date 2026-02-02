@@ -7,28 +7,10 @@ import os
 import json
 from typing import Optional
 from pydantic import BaseModel
-import google.generativeai as genai
+from src.core.model_commander import get_commander
 
 
-# Configure Gemini API key from secrets.toml
-def _load_api_key():
-    try:
-        import tomllib
-        secrets_path = os.path.join(
-            os.path.dirname(__file__), 
-            "..", "..", ".streamlit", "secrets.toml"
-        )
-        if os.path.exists(secrets_path):
-            with open(secrets_path, "rb") as f:
-                secrets = tomllib.load(f)
-            return secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
-    except:
-        pass
-    return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-
-_api_key = _load_api_key()
-if _api_key:
-    genai.configure(api_key=_api_key)
+# LEGACY: genai.configure moved to ModelCommander
 
 
 class RefinementResult(BaseModel):
@@ -153,21 +135,12 @@ class AutoRefinementAgent:
     Agent for automatically refining application text to certification level.
     """
     
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
-        self.model_name = model_name
-        self._model = None
+    def __init__(self, model_name: str = None):
+        self.commander = get_commander()
     
     def _get_model(self):
-        """Lazy initialization of Gemini model."""
-        if self._model is None:
-            self._model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json",
-                    temperature=0.3  # Moderate creativity for refinement
-                )
-            )
-        return self._model
+        """(Deprecated in favor of ModelCommander)"""
+        return self.commander
     
     def refine(self, section_type: str, input_text: str) -> RefinementResult:
         """
@@ -237,7 +210,7 @@ class AutoRefinementAgent:
             prompt = base_prompt + rag_examples
         
         try:
-            response = model.generate_content(prompt)
+            response = self.commander.generate_content("draft", prompt)
             result_data = json.loads(response.text)
             
             return RefinementResult(

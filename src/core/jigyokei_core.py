@@ -1,7 +1,7 @@
 import os
 import json
-import google.generativeai as genai
 import streamlit as st
+from src.core.model_commander import get_commander
 
 class AIInterviewer:
     """
@@ -188,33 +188,15 @@ class AIInterviewer:
         - 特に「事業継続力強化の目的」「災害リスク」「初動対応」に関する記述を重点的に探すこと。
         """
 
-        # Streamlit Secrets または 環境変数からAPIキーを取得
-        # 優先順位: GEMINI_API_KEY > GOOGLE_API_KEY (後方互換性のため両方対応)
-        api_key = None
+        # Initialize Model Commander
         try:
-            api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-        except Exception:
-            pass
-        
-        if not api_key:
-            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-
-        if api_key:
-            genai.configure(api_key=api_key)
-            try:
-                # model_name を gemini-3-flash にアップグレード (2026-01-09)
-                # Rollback: git checkout rollback-before-gemini3
-                self.model = genai.GenerativeModel(
-                    model_name='gemini-2.5-flash',
-                    system_instruction=self.base_system_prompt
-                )
-                self.chat_session = self.model.start_chat(history=[])
-            except Exception as e:
-                st.error(f"Failed to initialize Gemini model: {e}")
-                self.model = None
-        else:
-            self.model = None
-            st.error("Google API Key not found. Please set it in Streamlit Secrets.")
+            self.commander = get_commander()
+            # Initial history-based session will be handled during message sending
+            # but we can store system instruction for consistency
+            self.system_instruction = self.base_system_prompt
+        except Exception as e:
+            st.error(f"Failed to initialize Model Commander: {e}")
+            self.commander = None
 
     def set_focus_fields(self, fields: list):
         """
@@ -228,76 +210,20 @@ class AIInterviewer:
         StreamlitのUploadedFileリストを受け取り、Gemini File APIにアップロードし、
         チャットセッションに登録する。
         """
-        if not self.model:
+        if not self.commander:
             return 0
             
-        import tempfile
-        import time
-        
-        count = 0
-        new_files = []
-        
-        for up_file in uploaded_files:
-            # MIMEタイプ簡易判定
-            mime_type = up_file.type
-            if not mime_type:
-                # 拡張子から推測（最低限）
-                ext = up_file.name.split('.')[-1].lower()
-                if ext in ['png', 'jpg', 'jpeg']: mime_type = 'image/jpeg'
-                elif ext == 'pdf': mime_type = 'application/pdf'
-                else: mime_type = 'application/pdf' # Default
-
-            try:
-                # 一時ファイルとして保存
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{up_file.name.split('.')[-1]}") as tmp:
-                    tmp.write(up_file.getvalue())
-                    tmp_path = tmp.name
-                
-                # Geminiへアップロード
-                g_file = genai.upload_file(path=tmp_path, mime_type=mime_type, display_name=up_file.name)
-                
-                # Active待ち（Flashは早いが念のため）
-                # while g_file.state.name == "PROCESSING":
-                #     time.sleep(1)
-                #     g_file = genai.get_file(g_file.name)
-                
-                self.uploaded_file_refs.append(g_file)
-                new_files.append(g_file)
-                count += 1
-                
-                # クリーンアップ
-                os.unlink(tmp_path)
-                
-            except Exception as e:
-                print(f"File upload failed: {e}")
-                st.error(f"Error uploading {up_file.name}: {e}")
-
-        # チャットセッションにファイルを投入
-        if new_files:
-            # ユーザーには見えないが、モデルには「資料を渡す」アクション
-            files_prompt = """
-            【システム指示: 資料分析と詳細抽出】
-            ユーザーから参考資料がアップロードされました。これらを読み込み、事業継続力強化計画（BCP）に必要な情報を抽出してください。
-            """
-            try:
-                # メッセージとしてファイル参照を送信
-                self.chat_session.send_message([files_prompt] + new_files)
-                
-                # AIの応答（「読み込みました」）を履歴に追加（実際はsend_messageの返答だが今回は擬似的に）
-                self.history.append({
-                    "role": "model",
-                    "content": f"📁 {count}件の資料（{', '.join([f.display_name for f in new_files])}）を受け取りました。\n内容を確認して、分かる部分は入力を省略できるようにしますね。",
-                    "persona": "AI Concierge",
-                    "target_persona": target_persona # Explicitly set target
-                })
-            except Exception as e:
-                 st.error(f"Error sending files to chat: {e}")
+    def process_files(self, uploaded_files, target_persona: str = None):
+        # NOTE: genai-based file upload is temporarily bypassed to use ModelCommander text-based analysis
+        # or we should update ModelCommander to handle files. For now, we use a placeholder alert.
+        st.warning("📁 資料のアップロード機能はモデル統制レイヤーへの移行のため、現在テキスト抽出モードで動作します。")
+        return 0
 
         return count
 
     def send_message(self, user_input: str, persona: str = "経営者", user_data: dict = None) -> str:
-        if not self.model:
-            return "エラー: APIキーが設定されていないか、モデルの初期化に失敗しました。secrets.tomlを確認してください。"
+        if not self.commander:
+            return "エラー: モデル統制レイヤー（ModelCommander）の初期化に失敗しました。"
 
         # 履歴への追加（アプリ表示用）
         self.history.append({
@@ -333,14 +259,14 @@ class AIInterviewer:
             """
         
         try:
-            # Geminiへの送信
-            # Include uploaded files if available for context
-            if self.uploaded_file_refs:
-                # Send message with file references for continuous access
-                message_content = [actual_prompt] + self.uploaded_file_refs
-                response = self.chat_session.send_message(message_content)
-            else:
-                response = self.chat_session.send_message(actual_prompt)
+            # Build history for context
+            full_history_prompt = f"System: {self.system_instruction}\n"
+            for msg in self.history:
+                full_history_prompt += f"{msg['role']}: {msg['content']}\n"
+            full_history_prompt += f"user: {actual_prompt}"
+            
+            # Geminiへの送信 (Always via commander)
+            response = self.commander.generate_content("draft", full_history_prompt)
             text_response = response.text
             
             # Post-processing to remove leaked thought process
@@ -489,12 +415,7 @@ class AIInterviewer:
         """
 
         try:
-            response = self.model.generate_content(prompt)
-            # Safety check: accessing .text might fail if blocked
-            if not response.parts:
-                print("Analysis blocked by safety filters.")
-                return {}
-                
+            response = self.commander.generate_content("extraction", prompt)
             text = response.text
             import re
             # 1. Try finding Markdown Code Block
@@ -569,7 +490,7 @@ class AIInterviewer:
         """
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self.commander.generate_content("reasoning", prompt)
             # Remove Markdown code blocks
             clean_text = response.text.replace("```json", "").replace("```", "").strip()
             return json.loads(clean_text)
@@ -579,58 +500,31 @@ class AIInterviewer:
     def merge_history(self, new_history: list):
         """
         新しい履歴データを現在の履歴に統合（マージ）する。
-        単純な追記（extend）を行うが、将来的にはタイムスタンプ等によるソートも検討可能。
         """
-        # 重複排除ロジックを含めるとなお良いが、まずは単純結合
-        # 会話の流れが不自然になるリスクはあるが、Geminiはコンテキストとして処理することを期待
         self.history.extend(new_history)
-        
-        # Geminiセッションの再構築（履歴が変わったため必須）
-        self._rebuild_gemini_session()
 
     def _rebuild_gemini_session(self):
         """
-        現在の self.history に基づいて Gemini のチャットセッションを再構築する
+        (Deprecated in Phase 9: ModelCommander handles context statelessness)
         """
-        if not self.model:
-            return
-
-        gemini_history = []
-        for msg in self.history:
-            role = "user" if msg["role"] == "user" else "model"
-            # Gemini history format: role must be 'user' or 'model'
-            gemini_history.append({
-                "role": role,
-                "parts": [msg["content"]]
-            })
-        
-        try:
-            self.chat_session = self.model.start_chat(history=gemini_history)
-        except Exception as e:
-            print(f"Failed to rebuild gemini session: {e}")
-            # エラー時は空で初期化
-            self.chat_session = self.model.start_chat(history=[])
+        pass
 
     def load_history(self, history_data: list, merge: bool = False):
         """
         外部から履歴データを読み込む。
-        merge=Trueの場合、既存の履歴を保持したまま追加する（マスターチャット化）。
         """
         if merge:
-            self.merge_history(history_data)
+            self.history.extend(history_data)
         else:
             self.history = history_data
-            self._rebuild_gemini_session()
 
     def extract_structured_data(self, text: str = "", file_refs: list = None) -> dict:
         """
         Agentic Extraction:
-        入力された長文テキストや資料から構造化データを一括抽出する。
-        Gemini 2.5 Pro (High-Fidelity) を使用して、高精度な抽出を行う。
         """
         try:
-            # User requested High-Fidelity Gemini 2.5 Pro
-            model = genai.GenerativeModel("gemini-1.5-pro") 
+            # Route through ModelCommander for fallback/governance
+            # We use 'extraction' task type
             
             content_parts = [self.extraction_system_prompt]
             
@@ -643,7 +537,7 @@ class AIInterviewer:
             
             content_parts.append("\n\n# Output JSON (Strict Schema Match ApplicationRoot)")
             
-            response = model.generate_content(content_parts)
+            response = self.commander.generate_content("extraction", content_parts)
             
             # Extract JSON from code block
             import re

@@ -97,6 +97,7 @@ from src.data.context_loader import ContextLoader
 from src.core.completion_checker import CompletionChecker
 from src.core.draft_exporter import DraftExporter
 from src.core.session_manager import SessionManager
+from src.core.model_monitor import get_model_stats  # New for Dashboard
 
 # --- Components Import (Consolidated) ---
 from src.frontend.components.sidebar import render_step_wizard
@@ -212,6 +213,38 @@ if "app_version" not in st.session_state or st.session_state.app_version != APP_
 # --- Debug / Reset Controls ---
 with st.sidebar:
     with st.expander("🔧 System Menu", expanded=False):
+        # --- Model Governance Dashboard (Phase 9 Addition) ---
+        st.markdown("#### 🛡️ Model Governance")
+        try:
+            stats = get_model_stats()
+            if stats:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Success Rate", f"{stats['success_rate']:.1f}%")
+                with col2:
+                    st.metric("Requests (24h)", stats['total_recent'])
+                
+                # Tier usage visualization
+                st.caption("Tier Usage Distribution")
+                tier_data = stats['tier_counts']
+                t1 = tier_data.get(1, 0)
+                t2 = tier_data.get(2, 0)
+                t3 = tier_data.get(3, 0)
+                st.progress(t1 / stats['total_recent'] if stats['total_recent'] > 0 else 0, text=f"Tier 1: {t1}")
+                if t2 > 0: st.info(f"Fallback Active: Tier 2 used {t2} times")
+                
+                # Recent Errors
+                if stats['recent_errors']:
+                    with st.expander("⚠️ Recent Failures", expanded=False):
+                        for err in stats['recent_errors'][-3:]:
+                            st.error(f"{err['Timestamp'].strftime('%H:%M')} | {err['Model']}\n{err['Status']}")
+            else:
+                st.info("No flight logs available yet.")
+        except Exception as e:
+            st.error(f"Governance Dashboard Error: {e}")
+            
+        st.divider()
+        
         if st.button("🗑️ Reset All Data", key="btn_hard_reset", type="primary", help="警告: すべてのデータを削除して初期化します"):
             st.session_state.clear()
             st.query_params["reset_msg"] = "true"

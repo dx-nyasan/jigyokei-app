@@ -1,6 +1,6 @@
 import os
 import json
-import google.generativeai as genai
+from src.core.model_commander import get_commander
 import streamlit as st
 from typing import List, Dict, Any, Optional
 from src.api.schemas import ApplicationRoot
@@ -11,31 +11,13 @@ class DataConverter:
     Gemini 1.5 Flash を使用する。
     """
     def __init__(self):
-        # Streamlit Secrets または 環境変数からAPIキーを取得
-        api_key = None
-        try:
-            api_key = st.secrets["GOOGLE_API_KEY"]
-        except Exception:
-            api_key = os.getenv("GOOGLE_API_KEY")
-
-        if api_key:
-            genai.configure(api_key=api_key)
-            # JSONモードを強制するために model_config を設定
-            self.model = genai.GenerativeModel(
-                'gemini-1.5-flash',
-                generation_config={"response_mime_type": "application/json"}
-            )
-            # アドバイス用（テキストモード）のモデル
-            self.text_model = genai.GenerativeModel('gemini-1.5-flash')
-        else:
-            self.model = None
-            st.error("Google API Key not found. Please set it in Streamlit Secrets.")
+        self.commander = get_commander()
 
     def convert_chat_to_structured_data(self, chat_history_path: str = None, chat_history_data: List[Dict] = None) -> Dict[str, Any]:
         """
         チャット履歴（リストまたはファイル）を受け取り、ApplicationRootスキーマに合わせたJSONを返す。
         """
-        if not self.model:
+        if not self.commander:
             return {}
 
         # 履歴データの準備
@@ -73,7 +55,7 @@ class DataConverter:
         """
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self.commander.generate_content("extraction", prompt)
             return json.loads(response.text)
         except Exception as e:
             st.error(f"Data Conversion Failed: {e}")
@@ -83,7 +65,7 @@ class DataConverter:
         """
         現在の入力内容と専門資料（Context）に基づき、アドバイスを生成する。
         """
-        if not self.text_model:
+        if not self.commander:
             return "API Key missing."
 
         data_str = json.dumps(current_data, ensure_ascii=False)
@@ -107,7 +89,7 @@ class DataConverter:
         """
         
         try:
-            response = self.text_model.generate_content(prompt)
+            response = self.commander.generate_content("reasoning", prompt)
             return response.text
         except Exception as e:
             return f"Error generating advice: {e}"
