@@ -9,7 +9,7 @@ def test_schema_instantiation():
             corporate_name="Test Corp",
             corporate_name_kana="テストコープ",
             industry_major="Manu",
-            representative_name="田中 太郎" # Should enforce space?
+            representative_name="佐藤 太郎" # Should enforce space?
         ),
         measures=PreDisasterMeasures(
             personnel=MeasureDetail(current_measure="Training"),
