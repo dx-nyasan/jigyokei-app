@@ -12,7 +12,8 @@ description: 実装内容からuser_manual.mdとwalkthrough.mdを自動同期す
 - 出力: 更新された `user_manual.md`, `walkthrough.md`
 
 ## 手順
-1. **変更の差分分析**: `git diff` や直近の `replace_file_content` 履歴から、どの機能が追加・変更されたかを把握する。
+1. **プロトコル遵守の確認**: まず `core-protocol` Skill を参照し、ドキュメントの同期が全フェーズで完了しているかを確認する。
+2. **変更の差分分析**: `git diff` や直近の `replace_file_content` 履歴から、どの機能が追加・変更されたかを把握する。
 2. **walkthrough.md の更新**:
     - 実装したファイル、関数のリストを更新する。
     - 実行されたテストの結果を記載する。
