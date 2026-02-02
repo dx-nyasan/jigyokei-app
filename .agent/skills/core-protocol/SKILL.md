@@ -30,3 +30,8 @@ description: すべてのSkillsの基盤となる最上位の開発憲法。TDD�
 ### 3. Consistency & Regression Check
 - 新機能が既存の理念や過去のユーザージャーニーと矛盾する場合、またはUX品質を低下させる（退行）場合は、実装を差し戻して再設計する。
 - `code-reviewer` および `ux-storyteller` はこの退行チェックを厳格に行う。
+
+### 4. Model Sovereignty (モデル統治)
+- **無料枠の絶対優先**: プロジェクト継続性のため、無料枠内での運用を絶対正義とする。
+- **3段階フォールバック**: `model-commander` を通じ、最新モデルから順に3世代を使い分けることで安定性を確保する。
+- **gennai SDK基準**: 常に `google-genai` SDKを使用し、最新の機能（2.5系など）を活用する。

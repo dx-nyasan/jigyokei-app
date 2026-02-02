@@ -16,8 +16,8 @@ from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
-# Gemini imports (using existing SDK)
-import google.generativeai as genai
+# Gemini imports (using new gennai SDK via ModelCommander)
+from src.core.model_commander import get_commander
 
 # Local imports for RAG integration
 from src.core.manual_rag import get_rag
@@ -66,32 +66,13 @@ class JigyokeiGraphState(TypedDict):
 
 
 # =============================================================================
-# Helper: Gemini Model Wrapper (reusing existing API key loading)
+# Helper: Gemini Model Wrapper (Integrated with ModelCommander)
 # =============================================================================
 
-def _get_api_key():
-    """Load API key from secrets or environment."""
-    try:
-        import tomllib
-        secrets_path = os.path.join(
-            os.path.dirname(__file__), 
-            "..", "..", ".streamlit", "secrets.toml"
-        )
-        if os.path.exists(secrets_path):
-            with open(secrets_path, "rb") as f:
-                secrets = tomllib.load(f)
-            return secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
-    except:
-        pass
-    return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-
-
-def get_gemini_model(model_name: str = "gemini-2.5-flash"):
-    """Get configured Gemini model."""
-    api_key = _get_api_key()
-    if api_key:
-        genai.configure(api_key=api_key)
-    return genai.GenerativeModel(model_name)
+def get_gemini_response(task_type: str, prompt: str):
+    """Get response via ModelCommander with fallback."""
+    commander = get_commander()
+    return commander.generate_content(task_type, prompt)
 
 
 # =============================================================================
@@ -228,7 +209,6 @@ def writer_node(state: JigyokeiGraphState) -> dict:
     Writes or revises draft content for the current section.
     If there are critiques, incorporate feedback into revision.
     """
-    model = get_gemini_model()
     
     # Get section requirements
     section_id = state["current_section"]
@@ -267,16 +247,11 @@ def writer_node(state: JigyokeiGraphState) -> dict:
         location=state["location"],
         interview_text=state["raw_interview_text"],
         revision_instruction=revision_instruction,
-        requirements=requirements_text
+        requirements=section_req.text if section_req else "特に指定なし"
     )
     
-    response = model.generate_content(prompt)
-    
-    return {
-        "draft_content": response.text,
-        "status": "reviewing",
-        "revision_count": state["revision_count"] + 1
-    }
+    response = get_gemini_response("draft", prompt)
+    return {"draft_content": response.text, "revision_count": state["revision_count"] + 1, "status": "reviewing"}
 
 
 # =============================================================================
@@ -311,10 +286,8 @@ PASS または FAIL
 
 def reviewer_node(state: JigyokeiGraphState) -> dict:
     """
-    Reviews the draft against certification requirements using RAG.
-    Returns PASS or FAIL with critique items.
+    Reviews the generated draft content against requirements and manual examples.
     """
-    model = get_gemini_model()
     rag = get_rag()
     
     section_id = state["current_section"]
@@ -357,7 +330,7 @@ def reviewer_node(state: JigyokeiGraphState) -> dict:
         manual_examples=manual_examples or "(なし)"
     )
     
-    response = model.generate_content(prompt)
+    response = get_gemini_response("reasoning", prompt)
     review_text = response.text
     
     # Parse response
