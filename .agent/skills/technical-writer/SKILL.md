@@ -18,6 +18,7 @@ description: 実装内容からuser_manual.mdとwalkthrough.mdを自動同期す
     - **walkthrough.md**: 実装内容、変更ファイル、およびテスト結果を詳細に記載する。
     - **user_manual.md**: 新機能の使い方やAPIの変更点をエンドユーザー向けに追記する。
     - **docs/DEVELOPMENT_HISTORY.md**: 各フェーズの完了時、その背後にある「開発哲学の進化」やマイルストーンを記録し、理念の推移を損なわないようにする。
+    - **docs/USER_JOURNEY.md**: 機能変更がユーザー体験に大きく影響する場合、`ux-storyteller` Skillを呼び出してストーリーを更新する。
     - **task.md**: 完了した項目にチェックを入れ、プロジェクトの進捗を同期する。
 4. **品質チェック**: 各ファイルに適切なdocstringやコメントが付与されているか、`core-protocol` の基準に照らして最終確認する。
 
