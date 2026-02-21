@@ -1,12 +1,50 @@
+"""
+Model Monitor: Flight log analysis utility for Model Governance Dashboard.
 
+This module parses the MODEL_FLIGHT_LOG.md and provides statistics for
+administrators to monitor model health, success rates, and tier usage.
+
+Dependencies:
+    - pandas: For data analysis
+    - datetime: For time-based filtering
+
+Usage Example:
+    >>> from src.core.model_monitor import get_model_stats
+    >>> stats = get_model_stats()
+    >>> print(f"Success Rate: {stats['success_rate']:.1f}%")
+
+See Also:
+    - src/core/model_commander.py for the logging source
+    - src/frontend/app_hybrid.py for dashboard integration
+"""
 import os
 import pandas as pd
 import re
 from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
 
-def get_model_stats(log_path: str = "docs/MODEL_FLIGHT_LOG.md"):
-    """
-    Parses the flight log and returns statistics.
+
+def get_model_stats(log_path: str = "docs/MODEL_FLIGHT_LOG.md") -> Optional[Dict[str, Any]]:
+    """Parse flight log and calculate model usage statistics.
+    
+    Analyzes the last 24 hours of model operations to provide
+    success rates, tier distribution, and error tracking.
+    
+    Args:
+        log_path: Path to the MODEL_FLIGHT_LOG.md file.
+            Defaults to 'docs/MODEL_FLIGHT_LOG.md'.
+    
+    Returns:
+        Dictionary containing:
+            - total_recent (int): Total requests in last 24h
+            - success_rate (float): Percentage of successful requests
+            - tier_counts (dict): Count of requests per tier
+            - recent_errors (list): List of recent error records
+            - latest_model (str): Most recently used model name
+        Returns None if log file doesn't exist or has no data.
+    
+    Raises:
+        No exceptions raised; errors return None with console warning.
     """
     if not os.path.exists(log_path):
         return None

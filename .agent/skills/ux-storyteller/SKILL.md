@@ -1,6 +1,7 @@
 ---
 name: ux-storyteller
 description: 実装された機能に基づき、ユーザーの成功ストーリー（ジャーニー）を生成・ストックする責任者AI
+version: 1.0.0
 ---
 
 # ux-storyteller Skill

@@ -1,6 +1,23 @@
 """
 Model Commander: Self-healing model fallback utility using google-genai SDK.
-Handles 3-tier fallback for Gemini models under free tier limits.
+
+This module provides centralized governance for all Gemini API interactions,
+implementing a 3-tier fallback mechanism to maximize free tier usage and
+ensure system stability under quota constraints.
+
+Dependencies:
+    - google-genai: Google's Generative AI SDK
+    - Environment variable: GOOGLE_API_KEY
+
+Usage Example:
+    >>> from src.core.model_commander import get_commander
+    >>> commander = get_commander()
+    >>> response = commander.generate_content("reasoning", "Analyze this plan...")
+    >>> embedding = commander.embed_content("Search query text")
+
+See Also:
+    - .agent/skills/model-commander/SKILL.md for governance protocol
+    - docs/MODEL_FLIGHT_LOG.md for operation history
 """
 import os
 import time
@@ -28,15 +45,48 @@ MODEL_EOL = {
 }
 
 class ModelCommander:
+    """Central governance layer for Gemini API interactions.
+    
+    Implements 3-tier fallback mechanism to maximize free tier usage
+    and ensure system stability under quota constraints.
+    
+    Attributes:
+        api_key: Google API key for authentication.
+        client: Initialized genai.Client instance.
+    """
+    
     def __init__(self, api_key: Optional[str] = None):
+        """Initialize ModelCommander with API credentials.
+        
+        Args:
+            api_key: Optional API key. If not provided, reads from
+                GOOGLE_API_KEY environment variable.
+        
+        Raises:
+            ValueError: If no API key is available.
+        """
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         if not self.api_key:
             raise ValueError("GOOGLE_API_KEY is not set.")
         self.client = genai.Client(api_key=self.api_key)
 
     def generate_content(self, task_type: str, contents: Any, config: Optional[Dict] = None) -> Any:
-        """
-        Generates content with 3-tier fallback.
+        """Generate content with automatic 3-tier fallback.
+        
+        Attempts generation starting from Tier 1 (latest model) and
+        falls back to lower tiers on quota exhaustion (429 errors).
+        
+        Args:
+            task_type: Task category ('reasoning', 'draft', 'extraction').
+                Determines which model tier list to use.
+            contents: Prompt or content to generate from.
+            config: Optional generation configuration dictionary.
+        
+        Returns:
+            GenerateContentResponse from the successful model.
+        
+        Raises:
+            Exception: If all tiers fail or a non-quota error occurs.
         """
         models = MODEL_TIERS.get(task_type, ["gemini-1.5-flash"])
         
@@ -72,8 +122,23 @@ class ModelCommander:
         raise last_exception
 
     def embed_content(self, text: str, task_type: str = "retrieval_document") -> List[float]:
-        """
-        Generates embedding with fallback.
+        """Generate text embedding with automatic fallback.
+        
+        Creates vector embeddings for semantic search and similarity tasks.
+        Falls back to alternative embedding models on quota exhaustion.
+        
+        Args:
+            text: Text content to embed.
+            task_type: Embedding task type. Options include:
+                - 'retrieval_document': For indexing documents
+                - 'retrieval_query': For search queries
+                - 'semantic_similarity': For similarity comparison
+        
+        Returns:
+            List of float values representing the embedding vector.
+        
+        Raises:
+            Exception: If all embedding models fail.
         """
         models = MODEL_TIERS.get("embedding", ["gemini-embedding-001"])
         
@@ -96,7 +161,17 @@ class ModelCommander:
         raise last_exception
 
     def _log_flight(self, task_type: str, model: str, tier: int, status: str):
-        """Log the attempt to a flight log file."""
+        """Record model usage to the flight log for monitoring.
+        
+        Appends a timestamped entry to docs/MODEL_FLIGHT_LOG.md for
+        operational visibility and debugging.
+        
+        Args:
+            task_type: The task category executed.
+            model: Model name that was used.
+            tier: Tier number (1=primary, 2=fallback1, 3=fallback2).
+            status: Result status ('SUCCESS' or 'ERROR: <message>').
+        """
         log_path = os.path.join(os.getcwd(), "docs", "MODEL_FLIGHT_LOG.md")
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         
@@ -110,7 +185,16 @@ class ModelCommander:
 # Singleton instance
 _commander = None
 
-def get_commander():
+
+def get_commander() -> ModelCommander:
+    """Get or create the singleton ModelCommander instance.
+    
+    Returns:
+        ModelCommander: The shared commander instance.
+    
+    Raises:
+        ValueError: If GOOGLE_API_KEY is not configured.
+    """
     global _commander
     if _commander is None:
         _commander = ModelCommander()

@@ -1,6 +1,7 @@
 ---
 name: jigyokei-domain-expert
 description: 事業継続力強化計画（ジギョケイ）の認定基準と実務知識を集約したドメイン専門スキル
+version: 1.0.0
 ---
 
 # jigyokei-domain-expert Skill

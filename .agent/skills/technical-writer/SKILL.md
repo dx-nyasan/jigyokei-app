@@ -1,6 +1,7 @@
 ---
 name: technical-writer
 description: 実装内容からuser_manual.mdとwalkthrough.mdを自動同期するスキル
+version: 1.0.0
 ---
 
 # technical-writer Skill

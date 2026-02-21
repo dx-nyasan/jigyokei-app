@@ -1,6 +1,7 @@
 ---
 name: model-commander
 description: Google gennai SDKを活用し、無料枠（Free Tier）を最大限に活用するための3段階フォールバック制御を行うスキル。
+version: 1.0.0
 ---
 
 # model-commander Skill

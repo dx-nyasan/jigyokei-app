@@ -1,6 +1,7 @@
 ---
 name: task-planner
 description: 事業継続力強化計画（ジギョケイ）の認定基準からTDDテストケースを自動生成するスキル
+version: 1.0.0
 ---
 
 # task-planner Skill

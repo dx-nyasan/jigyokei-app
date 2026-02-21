@@ -1,0 +1,128 @@
+# Skill Registry - Auto-Dispatch Configuration
+# このファイルはAIがユーザーの依頼に応じて適切なSkillを自動選択するためのルールを定義します。
+# version: 1.0.0
+
+# ============================================================
+# 自動選択ルール
+# ============================================================
+# 1. ユーザーの依頼文を解析し、triggersキーワードとマッチング
+# 2. マッチしたSkillのauto_chainに定義されたSkillを順次実行
+# 3. always_consult: true のSkillは常に参照
+# 4. always_active: true のSkillは全アクションに適用
+# ============================================================
+
+skills:
+  # 最上位憲法 - 全アクションに適用
+  - name: core-protocol
+    description: プロジェクト理念とTDDプロトコルの守護
+    triggers: []
+    always_active: true
+    priority: 0  # 最優先
+
+  # ドメイン知識 - 常に参照
+  - name: jigyokei-domain-expert
+    description: 認定基準・審査要件の専門知識
+    triggers:
+      - 認定基準
+      - 審査
+      - 要件
+      - J-SHIS
+      - ハザードマップ
+      - 災害
+      - 事業継続
+    always_consult: true
+    priority: 1
+
+  # コード変更系
+  - name: task-planner
+    description: TDDテストケース自動生成
+    triggers:
+      - 新機能
+      - 実装したい
+      - テストを作成
+      - 機能追加
+    auto_chain: [code-reviewer]
+    priority: 2
+
+  - name: code-reviewer
+    description: TDD・命名・docstringチェック
+    triggers:
+      - コードを追加
+      - 関数を作成
+      - 修正
+      - リファクタリング
+      - バグ修正
+      - 実装
+    auto_chain: [ux-storyteller, technical-writer]
+    priority: 3
+
+  # UX・ドキュメント系
+  - name: ux-storyteller
+    description: ユーザー体験の守護とストーリー生成
+    triggers:
+      - ユーザー体験
+      - UX
+      - 佐藤さん
+      - 体験
+      - ジャーニー
+    auto_chain: [technical-writer]
+    priority: 4
+
+  - name: technical-writer
+    description: マニュアル・ウォークスルー同期
+    triggers:
+      - ドキュメント
+      - マニュアル
+      - 説明
+      - 使い方
+    priority: 5
+
+  # データベース系
+  - name: db-architect
+    description: スキーマ・ER図管理
+    triggers:
+      - スキーマ
+      - テーブル
+      - データベース
+      - マイグレーション
+      - DB
+      - SQLite
+    auto_chain: [code-reviewer]
+    priority: 3
+
+  # デプロイ系
+  - name: deploy-commander
+    description: テスト駆動デプロイフロー
+    triggers:
+      - デプロイ
+      - 本番
+      - リリース
+      - 公開
+      - Streamlit Cloud
+    prerequisite: all_tests_pass
+    priority: 6
+
+  # 内部API - 明示的呼び出し不要
+  - name: model-commander
+    description: Gemini API 3段階フォールバック
+    triggers: []
+    internal: true
+    auto_invoke: true  # コード内で自動使用
+
+# ============================================================
+# 連鎖実行パターン
+# ============================================================
+chains:
+  code_change:
+    description: コード変更時の標準フロー
+    sequence: [task-planner, code-reviewer, ux-storyteller, technical-writer]
+    
+  deploy:
+    description: デプロイ時のフロー
+    sequence: [deploy-commander]
+    prerequisite: all_tests_pass
+    on_failure: code-reviewer
+
+  database_change:
+    description: データベース変更時のフロー
+    sequence: [db-architect, code-reviewer, technical-writer]

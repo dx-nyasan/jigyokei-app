@@ -1,6 +1,7 @@
 ---
 name: deploy-commander
 description: テスト全通過を条件としたデプロイフローの自律制御を行うスキル
+version: 1.0.0
 ---
 
 # deploy-commander Skill

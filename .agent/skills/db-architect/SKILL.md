@@ -1,6 +1,7 @@
 ---
 name: db-architect
 description: ベクトルDB(SQLite)およびセッションDBのスキーマとER図の整合性管理を行うスキル
+version: 1.0.0
 ---
 
 # db-architect Skill

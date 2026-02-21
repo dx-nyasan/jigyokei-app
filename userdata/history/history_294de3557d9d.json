@@ -151,5 +151,260 @@
       "PDCA": 40
     },
     "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T12:35:34.801694",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T12:43:48.418929",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T12:59:08.757604",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T12:59:19.884517",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T13:20:09.652507",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T13:20:19.638020",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T14:33:23.470935",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T14:35:07.564249",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T14:35:12.649799",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T14:45:34.955707",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T14:47:37.042661",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T14:47:42.130767",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T15:37:49.759112",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 18,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 0
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T15:38:51.784863",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
+  },
+  {
+    "timestamp": "2026-02-05T15:38:56.833109",
+    "total_score": 0,
+    "status": "critical",
+    "mandatory_progress": 0.0,
+    "missing_count": 16,
+    "section_scores": {
+      "BasicInfo": 0,
+      "Goals": 40,
+      "Disaster": 70,
+      "ResponseProcedures": 70,
+      "Measures": 70,
+      "FinancialPlan": 70,
+      "PDCA": 40
+    },
+    "logic_consistency_score": 100
   }
 ]
